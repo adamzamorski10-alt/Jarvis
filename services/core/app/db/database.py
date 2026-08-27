@@ -54,13 +54,23 @@ def AsyncSessionLocal() -> AsyncSession:
 
 
 async def init_db() -> None:
-    """Create all tables if they don't exist."""
+    """Create all tables if they don't exist and run lightweight migrations."""
     # Import models so SQLAlchemy knows about them
     from app.db.models import settings, activity, conversation  # noqa: F401
 
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        def migrate_sqlite(connection):
+            from sqlalchemy import inspect, text
+            inspector = inspect(connection)
+            if "messages" in inspector.get_table_names():
+                columns = {col["name"] for col in inspector.get_columns("messages")}
+                if "client_message_id" not in columns:
+                    connection.execute(text("ALTER TABLE messages ADD COLUMN client_message_id VARCHAR(64)"))
+
+        await conn.run_sync(migrate_sqlite)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

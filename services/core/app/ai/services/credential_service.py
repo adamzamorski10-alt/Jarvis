@@ -40,7 +40,7 @@ class CredentialService:
         output_blob = DATA_BLOB()
         ok = crypt32.CryptProtectData(
             ctypes.byref(input_blob),
-            "AI Operator Kimi API Key",
+            "AI Operator Credential",
             None,
             None,
             None,

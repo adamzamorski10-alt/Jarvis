@@ -65,6 +65,8 @@ async def update_config(
             request.selected_model,
             request.kimi_base_url,
             request.kimi_api_key,
+            request.openrouter_base_url,
+            request.openrouter_api_key,
         )
     except AIConfigError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -91,13 +93,13 @@ async def test_connection(
     activity: ActivityService = Depends(get_activity_service),
 ):
     result = await ai.get_status()
-    if result["provider"] == "kimi":
-        await activity.create_event(
-            "Kimi connection successful" if result["ai_ready"] else "Kimi connection failed",
-            category="ai",
-            level="INFO" if result["ai_ready"] else "WARNING",
-            details={"status": result["provider_status"], "model_status": result["model_status"]},
-        )
+    provider_name = str(result["provider"]).title()
+    await activity.create_event(
+        f"{provider_name} connection successful" if result["ai_ready"] else f"{provider_name} connection failed",
+        category="ai",
+        level="INFO" if result["ai_ready"] else "WARNING",
+        details={"provider": result["provider"], "status": result["provider_status"], "model_status": result["model_status"]},
+    )
     return result
 
 
@@ -144,7 +146,7 @@ async def get_conversation(conversation_id: str, conversations: ConversationServ
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
     try:
-        result = await ai.chat(request.conversation_id, request.message)
+        result = await ai.chat(request.conversation_id, request.message, request.client_message_id)
         result["conversation"] = await ai._conversations.get(result["conversation"].id)
         return {
             "conversation": conversation_to_response(result["conversation"]),
@@ -157,6 +159,21 @@ async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
             },
         }
     except ConversationNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404,
+            detail={"message": str(exc), "status": "not_found", "error": {"code": "conversation_not_found", "message": str(exc), "retryable": False}},
+        ) from exc
     except AIUnavailable as exc:
-        raise HTTPException(status_code=409, detail={"message": str(exc), "status": exc.status}) from exc
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": str(exc),
+                "status": exc.code,
+                "error": {
+                    "code": exc.code,
+                    "message": str(exc),
+                    "provider": exc.provider,
+                    "retryable": exc.retryable,
+                },
+            },
+        ) from exc

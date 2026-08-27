@@ -1,7 +1,10 @@
 /**
  * Typed API functions for all Core service endpoints.
  */
-import { apiClient } from './apiClient';
+import { apiClient, CHAT_TIMEOUT_MS, StructuredErrorPayload, ApiError, ApiTimeoutError, CoreOfflineError } from './apiClient';
+
+export type { StructuredErrorPayload };
+export { ApiError, ApiTimeoutError, CoreOfflineError };
 
 /* ---- Types ---- */
 export interface HealthResponse {
@@ -64,6 +67,9 @@ export interface AIProviderItem {
 export interface AIConfigResponse {
   provider: string;
   ollama_url: string;
+  openrouter_base_url: string;
+  openrouter_api_key_configured: boolean;
+  openrouter_api_key_hint?: string | null;
   kimi_base_url: string;
   kimi_api_key_configured: boolean;
   kimi_api_key_hint?: string | null;
@@ -73,6 +79,8 @@ export interface AIConfigResponse {
 export interface UpdateAIConfigRequest {
   provider: string;
   ollama_url?: string | null;
+  openrouter_base_url?: string | null;
+  openrouter_api_key?: string | null;
   kimi_base_url?: string | null;
   kimi_api_key?: string | null;
   selected_model?: string | null;
@@ -130,12 +138,12 @@ export const coreApi = {
   getAIProviders: () => apiClient.get<AIProviderItem[]>('/api/ai/providers'),
   getAIConfig: () => apiClient.get<AIConfigResponse>('/api/ai/config'),
   updateAIConfig: (config: UpdateAIConfigRequest) => apiClient.put<AIConfigResponse>('/api/ai/config', config),
-  testAIConnection: () => apiClient.post<AIStatusResponse>('/api/ai/test-connection', {}),
+  testAIConnection: () => apiClient.post<AIStatusResponse>('/api/ai/test-connection', {}, CHAT_TIMEOUT_MS),
   getAIModels: () => apiClient.get<AIModelResponse[]>('/api/ai/models'),
-  refreshAIModels: () => apiClient.post<AIModelResponse[]>('/api/ai/models/refresh', {}),
+  refreshAIModels: () => apiClient.post<AIModelResponse[]>('/api/ai/models/refresh', {}, CHAT_TIMEOUT_MS),
   getConversations: () => apiClient.get<AIConversation[]>('/api/ai/conversations'),
   createConversation: () => apiClient.post<AIConversation>('/api/ai/conversations', {}),
   getConversation: (id: string) => apiClient.get<AIConversation>(`/api/ai/conversations/${id}`),
-  sendChat: (payload: { conversation_id?: string | null; message: string }) =>
-    apiClient.post<{ conversation: AIConversation; message: AIMessage }>('/api/ai/chat', payload),
+  sendChat: (payload: { conversation_id?: string | null; message: string; client_message_id?: string }) =>
+    apiClient.post<{ conversation: AIConversation; message: AIMessage }>('/api/ai/chat', payload, CHAT_TIMEOUT_MS),
 };

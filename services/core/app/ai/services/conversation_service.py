@@ -25,12 +25,14 @@ class ConversationService:
             model=model,
         )
         self._session.add(conversation)
-        await self._session.flush()
+        await self._session.commit()
         return conversation
 
     async def list(self) -> list[Conversation]:
         result = await self._session.execute(
-            select(Conversation).order_by(Conversation.updated_at.desc())
+            select(Conversation)
+            .options(selectinload(Conversation.messages))
+            .order_by(Conversation.updated_at.desc())
         )
         return list(result.scalars().all())
 
@@ -39,21 +41,47 @@ class ConversationService:
             select(Conversation)
             .where(Conversation.id == conversation_id)
             .options(selectinload(Conversation.messages))
+            .execution_options(populate_existing=True)
         )
         conversation = result.scalar_one_or_none()
         if not conversation:
             raise ConversationNotFound("Conversation not found")
         return conversation
 
-    async def add_message(self, conversation: Conversation, role: str, content: str) -> Message:
+    async def add_message(
+        self,
+        conversation: Conversation,
+        role: str,
+        content: str,
+        client_message_id: str | None = None,
+    ) -> Message:
         if role not in {"user", "assistant", "system"}:
             raise ValueError("Invalid message role")
-        message = Message(conversation_id=conversation.id, role=role, content=content)
+
+        # Deduplicate user messages based on unique client_message_id
+        if role == "user" and client_message_id:
+            result = await self._session.execute(
+                select(Message).where(
+                    Message.conversation_id == conversation.id,
+                    Message.role == "user",
+                    Message.client_message_id == client_message_id,
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                return existing
+
+        message = Message(
+            conversation_id=conversation.id,
+            role=role,
+            content=content,
+            client_message_id=client_message_id,
+        )
         conversation.updated_at = datetime.now(timezone.utc)
         if role == "user" and conversation.title == "New conversation":
             conversation.title = content.strip().replace("\n", " ")[:80] or "New conversation"
         self._session.add(message)
-        await self._session.flush()
+        await self._session.commit()
         return message
 
     def build_context_messages(

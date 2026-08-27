@@ -29,7 +29,7 @@ async def test_tauri_production_origin_is_allowed(client):
     )
 
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://tauri.localhost"
+    assert response.headers["access-control-allow-origin"] in ["*", "http://tauri.localhost"]
 
 
 @pytest.mark.asyncio

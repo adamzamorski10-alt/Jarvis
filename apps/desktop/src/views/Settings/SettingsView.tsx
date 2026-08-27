@@ -46,6 +46,8 @@ function AISettingsSection() {
   const ai = useAISettings();
   const [provider, setProvider] = useState('ollama');
   const [ollamaUrl, setOllamaUrl] = useState('');
+  const [openrouterBaseUrl, setOpenrouterBaseUrl] = useState('');
+  const [openrouterApiKey, setOpenrouterApiKey] = useState('');
   const [kimiBaseUrl, setKimiBaseUrl] = useState('');
   const [kimiApiKey, setKimiApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
@@ -55,9 +57,11 @@ function AISettingsSection() {
     if (ai.config) {
       setProvider(ai.config.provider);
       setOllamaUrl(ai.config.ollama_url);
+      setOpenrouterBaseUrl(ai.config.openrouter_base_url ?? 'https://openrouter.ai/api/v1');
       setKimiBaseUrl(ai.config.kimi_base_url);
       setSelectedModel(ai.config.selected_model ?? '');
       setKimiApiKey('');
+      setOpenrouterApiKey('');
     }
   }, [ai.config]);
 
@@ -65,12 +69,41 @@ function AISettingsSection() {
     await ai.save({
       provider,
       ollama_url: ollamaUrl,
+      openrouter_base_url: openrouterBaseUrl,
+      openrouter_api_key: openrouterApiKey !== '' ? openrouterApiKey : undefined,
       kimi_base_url: kimiBaseUrl,
-      kimi_api_key: kimiApiKey || undefined,
+      kimi_api_key: kimiApiKey !== '' ? kimiApiKey : undefined,
       selected_model: selectedModel || null,
     });
     setKimiApiKey('');
+    setOpenrouterApiKey('');
     setResult('Configuration saved');
+  };
+
+  const handleClearKey = async (targetProvider: 'openrouter' | 'kimi') => {
+    if (targetProvider === 'openrouter') {
+      await ai.save({
+        provider,
+        ollama_url: ollamaUrl,
+        openrouter_base_url: openrouterBaseUrl,
+        openrouter_api_key: '',
+        kimi_base_url: kimiBaseUrl,
+        selected_model: selectedModel || null,
+      });
+      setOpenrouterApiKey('');
+      setResult('OpenRouter API key cleared');
+    } else {
+      await ai.save({
+        provider,
+        ollama_url: ollamaUrl,
+        kimi_base_url: kimiBaseUrl,
+        kimi_api_key: '',
+        openrouter_base_url: openrouterBaseUrl,
+        selected_model: selectedModel || null,
+      });
+      setKimiApiKey('');
+      setResult('Kimi API key cleared');
+    }
   };
 
   const testConnection = async () => {
@@ -79,8 +112,14 @@ function AISettingsSection() {
     setResult(null);
   };
 
-  const providerName = provider === 'kimi' ? 'Kimi' : 'Ollama';
+  const providerNames: Record<string, string> = {
+    ollama: 'Ollama',
+    openrouter: 'OpenRouter',
+    kimi: 'Kimi',
+  };
+  const providerName = providerNames[provider] ?? provider;
   const connected = ai.status?.ai_ready;
+  const isFreeRouter = provider === 'openrouter' && (selectedModel === 'openrouter/free' || ai.status?.model === 'openrouter/free');
 
   if (ai.isLoading && !ai.config) {
     return <div className="spinner" />;
@@ -107,9 +146,55 @@ function AISettingsSection() {
         </div>
       </div>
 
-      {provider === 'kimi' ? (
+      {provider === 'openrouter' ? (
         <div className="card">
-          <div className="card-header"><span className="card-title">Kimi Cloud</span></div>
+          <div className="card-header">
+            <span className="card-title">OpenRouter Cloud</span>
+            {ai.config?.openrouter_api_key_configured && (
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-error)' }} onClick={() => handleClearKey('openrouter')}>
+                Clear API Key
+              </button>
+            )}
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-title">API Key</div>
+              <div className="settings-row-desc">
+                {ai.config?.openrouter_api_key_configured
+                  ? `Stored securely (${ai.config.openrouter_api_key_hint ?? '****'})`
+                  : 'No API key stored.'}
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <input
+                className="form-input"
+                type="password"
+                value={openrouterApiKey}
+                placeholder={ai.config?.openrouter_api_key_configured ? 'Leave blank to keep existing key' : 'Paste OpenRouter API key'}
+                onChange={event => setOpenrouterApiKey(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <div className="settings-row-title">Base URL</div>
+              <div className="settings-row-desc">OpenRouter OpenAI-compatible endpoint.</div>
+            </div>
+            <div className="settings-row-control">
+              <input className="form-input" value={openrouterBaseUrl} onChange={event => setOpenrouterBaseUrl(event.target.value)} />
+            </div>
+          </div>
+        </div>
+      ) : provider === 'kimi' ? (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Kimi Cloud</span>
+            {ai.config?.kimi_api_key_configured && (
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-error)' }} onClick={() => handleClearKey('kimi')}>
+                Clear API Key
+              </button>
+            )}
+          </div>
           <div className="settings-row">
             <div className="settings-row-info">
               <div className="settings-row-title">API Key</div>
@@ -155,17 +240,40 @@ function AISettingsSection() {
       <div className="card">
         <div className="card-header">
           <span className="card-title">Model</span>
-          <button className="btn btn-secondary btn-sm" onClick={ai.refreshModels}>Refresh Models</button>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            {provider === 'openrouter' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedModel('openrouter/free')}
+                title="Select OpenRouter Free Router"
+              >
+                Use Free Router (openrouter/free)
+              </button>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={ai.refreshModels}>Refresh Models</button>
+          </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-info">
             <div className="settings-row-title">Selected Model</div>
-            <div className="settings-row-desc">{ai.models.length ? `${ai.models.length} models available for ${providerName}.` : 'No models detected yet.'}</div>
+            <div className="settings-row-desc">
+              {ai.models.length
+                ? `${ai.models.length} models available for ${providerName}.`
+                : 'No models detected yet.'}
+              {isFreeRouter ? ' (Using OpenRouter Free Router — rate limits & provider availability apply)' : ''}
+            </div>
           </div>
           <div className="settings-row-control">
             <select className="form-select" value={selectedModel} onChange={event => setSelectedModel(event.target.value)}>
               <option value="">No model selected</option>
-              {ai.models.map(model => <option key={model.name} value={model.name}>{model.name}</option>)}
+              {provider === 'openrouter' && !ai.models.some(m => m.name === 'openrouter/free') && (
+                <option value="openrouter/free">openrouter/free (Free Router)</option>
+              )}
+              {ai.models.map(model => (
+                <option key={model.name} value={model.name}>
+                  {model.name === 'openrouter/free' ? 'openrouter/free (Free Router)' : model.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -181,10 +289,20 @@ function AISettingsSection() {
         </div>
         <SystemInfoRow label="Provider" value={providerName} />
         <SystemInfoRow label="Connection" value={ai.status?.provider_status ?? 'unknown'} highlight={!!connected} />
-        <SystemInfoRow label="Selected Model" value={ai.status?.model ?? 'None'} />
+        <SystemInfoRow
+          label="Selected Model"
+          value={ai.status?.model ? (ai.status.model === 'openrouter/free' ? 'openrouter/free (Free Router)' : ai.status.model) : 'None'}
+        />
+        {provider === 'openrouter' && (
+          <SystemInfoRow
+            label="Router Mode"
+            value={isFreeRouter ? 'Free Router Active (openrouter/free)' : 'Specific Model Mode'}
+            highlight={isFreeRouter}
+          />
+        )}
         <SystemInfoRow label="Ready Status" value={formatAIStatus(ai.status)} highlight={!!connected} />
-        {result && <div style={{ color: 'var(--color-success)' }}>{result}</div>}
-        {ai.error && <div style={{ color: 'var(--color-error)' }}>{ai.error}</div>}
+        {result && <div style={{ color: 'var(--color-success)', marginTop: 'var(--space-2)' }}>{result}</div>}
+        {ai.error && <div style={{ color: 'var(--color-error)', marginTop: 'var(--space-2)' }}>{ai.error}</div>}
       </div>
     </div>
   );

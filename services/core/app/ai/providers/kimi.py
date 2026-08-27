@@ -5,22 +5,23 @@ from app.ai.providers.base import AIModel, AIProvider, ProviderHealth
 
 
 class KimiProviderError(RuntimeError):
-    def __init__(self, status: str, message: str) -> None:
+    def __init__(self, status: str, message: str, retryable: bool = False) -> None:
         super().__init__(message)
         self.status = status
+        self.retryable = retryable
 
 
 class KimiProvider(AIProvider):
     name = "kimi"
 
-    def __init__(self, base_url: str, api_key: str | None, timeout: float = 45.0) -> None:
+    def __init__(self, base_url: str, api_key: str | None, timeout: float = 60.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
 
     def _headers(self) -> dict[str, str]:
         if not self.api_key:
-            raise KimiProviderError("not_configured", "Kimi API key is not configured")
+            raise KimiProviderError("provider_not_configured", "Kimi API key is not configured", retryable=False)
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -35,16 +36,20 @@ class KimiProvider(AIProvider):
         except Exception:
             pass
         if response.status_code == 401:
-            return KimiProviderError("invalid_api_key", "Kimi authentication failed")
+            return KimiProviderError("invalid_api_key", "Kimi authentication failed (invalid API key)", retryable=False)
+        if response.status_code == 402:
+            return KimiProviderError("provider_quota_exceeded", "Kimi credits or quota limit reached", retryable=False)
         if response.status_code == 403:
-            return KimiProviderError("unauthorized", "Kimi request is not authorized")
+            return KimiProviderError("unauthorized", "Kimi request is not authorized", retryable=False)
         if response.status_code == 404:
-            return KimiProviderError("model_not_found", "Kimi model was not found")
+            return KimiProviderError("model_not_found", "Kimi model was not found", retryable=False)
         if response.status_code == 429:
-            return KimiProviderError("rate_limited", "Kimi rate limit reached")
-        if response.status_code >= 500:
-            return KimiProviderError("server_error", "Kimi server error")
-        return KimiProviderError("unknown_error", message)
+            return KimiProviderError("rate_limited", "Kimi rate limit reached", retryable=True)
+        if response.status_code == 503:
+            return KimiProviderError("model_unavailable", "Kimi model is temporarily unavailable", retryable=True)
+        if response.status_code in {500, 502, 504}:
+            return KimiProviderError("server_error", "Kimi server error", retryable=True)
+        return KimiProviderError("unknown_error", message, retryable=False)
 
     async def health_check(self) -> ProviderHealth:
         if not self.api_key:

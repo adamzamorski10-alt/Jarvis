@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAssistant } from '../../hooks/useAI';
 
 export function AssistantView() {
-  const { status, label, conversations, active, isLoading, isSending, error, newConversation, selectConversation, send } = useAssistant();
+  const { status, label, conversations, active, isLoading, isSending, error, errorInfo, lastFailedPrompt, newConversation, selectConversation, send, retry } = useAssistant();
   const [draft, setDraft] = useState('');
 
   const submit = async () => {
@@ -15,10 +15,10 @@ export function AssistantView() {
   return (
     <div className="assistant-view fade-in">
       <aside className="assistant-sidebar">
-        <button className="btn btn-primary" onClick={newConversation}>New Conversation</button>
+        <button className="btn btn-primary" onClick={newConversation} disabled={isSending}>New Conversation</button>
         <div className="assistant-conversation-list">
           {conversations.map(item => (
-            <button key={item.id} className={`assistant-conversation${active?.id === item.id ? ' active' : ''}`} onClick={() => selectConversation(item.id)}>
+            <button key={item.id} className={`assistant-conversation${active?.id === item.id ? ' active' : ''}`} onClick={() => selectConversation(item.id)} disabled={isSending}>
               <span>{item.title}</span>
               <small>{item.model ?? 'No model'}</small>
             </button>
@@ -32,7 +32,10 @@ export function AssistantView() {
             <p className="view-subtitle">Text-only AI chat</p>
           </div>
           <div className={`badge ${status?.ai_ready ? 'badge-success' : ['online', 'ready'].includes(status?.provider_status ?? '') ? 'badge-warning' : 'badge-error'}`}>{label}</div>
-          <div className="assistant-meta"><span>{status?.provider ?? 'ollama'}</span><span>{status?.model ?? 'No model selected'}</span></div>
+          <div className="assistant-meta">
+            <span>Provider: {status?.provider === 'openrouter' ? 'OpenRouter' : status?.provider === 'kimi' ? 'Kimi' : 'Ollama'}</span>
+            <span>Model: {status?.model ? (status.model === 'openrouter/free' ? 'openrouter/free (Free Router)' : status.model) : 'No model selected'}</span>
+          </div>
         </header>
         <div className="assistant-messages">
           {isLoading ? <div className="spinner" /> : active?.messages.length ? active.messages.map(message => (
@@ -41,8 +44,27 @@ export function AssistantView() {
               <div className="assistant-message-content selectable">{message.content}</div>
             </div>
           )) : <div className="assistant-empty">Start a new text-only conversation.</div>}
-          {isSending && <div className="assistant-empty">Waiting for model response...</div>}
-          {error && <div className="assistant-error">{error}</div>}
+          {isSending && (
+            <div className="assistant-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
+              <div className="spinner" style={{ width: '16px', height: '16px', margin: 0 }} />
+              <span>AI is thinking...</span>
+            </div>
+          )}
+          {error && (
+            <div className="assistant-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+              <span>{error}</span>
+              {errorInfo?.retryable && lastFailedPrompt && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ flexShrink: 0 }}
+                  onClick={retry}
+                  disabled={isSending}
+                >
+                  ↻ Retry
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <footer className="assistant-inputbar">
           <textarea

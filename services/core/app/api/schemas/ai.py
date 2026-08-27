@@ -12,6 +12,9 @@ class AIProviderItem(BaseModel):
 class AIConfigResponse(BaseModel):
     provider: str
     ollama_url: str
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_api_key_configured: bool = False
+    openrouter_api_key_hint: str | None = None
     kimi_base_url: str
     kimi_api_key_configured: bool = False
     kimi_api_key_hint: str | None = None
@@ -21,6 +24,8 @@ class AIConfigResponse(BaseModel):
 class UpdateAIConfigRequest(BaseModel):
     provider: str = "ollama"
     ollama_url: str | None = None
+    openrouter_base_url: str | None = None
+    openrouter_api_key: str | None = None
     kimi_base_url: str | None = None
     kimi_api_key: str | None = None
     selected_model: str | None = None
@@ -66,6 +71,7 @@ class ConversationResponse(BaseModel):
 class ChatRequest(BaseModel):
     conversation_id: str | None = None
     message: str = Field(min_length=1, max_length=12000)
+    client_message_id: str | None = None
 
 
 class ChatResponse(BaseModel):
