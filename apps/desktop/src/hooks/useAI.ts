@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AIConfigResponse, AIConversation, AIModelResponse, AIProviderItem, AIStatusResponse, UpdateAIConfigRequest, coreApi } from '../services/coreApi';
+import {
+  AIConfigResponse,
+  AIConversation,
+  AIModelResponse,
+  AIProviderItem,
+  AIStatusResponse,
+  OllamaStorageResponse,
+  PullStatusResponse,
+  UpdateAIConfigRequest,
+  coreApi,
+} from '../services/coreApi';
 
 export function formatAIStatus(status: AIStatusResponse | null) {
   if (!status) return 'AI Not Configured';
@@ -11,6 +21,9 @@ export function formatAIStatus(status: AIStatusResponse | null) {
   };
   const provider = providerNames[status.provider] ?? (status.provider ? status.provider.charAt(0).toUpperCase() + status.provider.slice(1) : 'AI');
   const online = status.provider_status === 'online' || status.provider_status === 'ready';
+  if (status.provider_status === 'not_installed') return `${provider} Not Installed`;
+  if (status.provider_status === 'stopped') return `${provider} Service Stopped`;
+  if (status.provider_status === 'no_models') return `${provider} Connected - No Models Installed`;
   if (online && status.model_status === 'not_selected') return `${provider} Connected - No Model Selected`;
   if (online && status.model_status === 'no_models') return `${provider} Connected - No Models`;
   if (status.provider_status === 'online' && status.model_status === 'missing') return 'Selected Model Missing';
@@ -44,33 +57,126 @@ export function useAIStatus() {
   return { status, isLoading, error, refresh, label: formatAIStatus(status) };
 }
 
+export interface PullErrorDetails {
+  message: string;
+  required_bytes?: number;
+  available_bytes?: number;
+  drive?: string;
+}
+
 export function useAISettings() {
   const [providers, setProviders] = useState<AIProviderItem[]>([]);
   const [config, setConfig] = useState<AIConfigResponse | null>(null);
   const [models, setModels] = useState<AIModelResponse[]>([]);
   const [status, setStatus] = useState<AIStatusResponse | null>(null);
+  const [pullStatus, setPullStatus] = useState<PullStatusResponse | null>(null);
+  const [storageInfo, setStorageInfo] = useState<OllamaStorageResponse | null>(null);
+  const [pullError, setPullError] = useState<PullErrorDetails | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshStorage = useCallback(async () => {
+    try {
+      setStorageInfo(await coreApi.getOllamaStorage());
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const refreshModels = useCallback(async () => {
+    setModels(await coreApi.refreshAIModels());
+    setStatus(await coreApi.getAIStatus());
+    await refreshStorage();
+  }, [refreshStorage]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [providerList, cfg, aiStatus] = await Promise.all([
+      const [providerList, cfg, aiStatus, pStatus, stInfo] = await Promise.all([
         coreApi.getAIProviders(),
         coreApi.getAIConfig(),
         coreApi.getAIStatus(),
+        coreApi.getPullStatus().catch(() => ({ active: false })),
+        coreApi.getOllamaStorage().catch(() => ({})),
       ]);
       setProviders(providerList);
       setConfig(cfg);
       setStatus(aiStatus);
-      if (aiStatus.provider_status === 'online' || aiStatus.provider_status === 'ready') setModels(await coreApi.getAIModels());
+      setPullStatus(pStatus);
+      setStorageInfo(stInfo);
+      if (aiStatus.provider_status === 'online' || aiStatus.provider_status === 'ready') {
+        setModels(await coreApi.getAIModels());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load AI settings');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Poll pull status if active
+  useEffect(() => {
+    if (!pullStatus?.active) return;
+    const interval = setInterval(async () => {
+      try {
+        const nextStatus = await coreApi.getPullStatus();
+        setPullStatus(nextStatus);
+        if (!nextStatus.active && nextStatus.status === 'success') {
+          await refreshModels();
+        }
+      } catch {
+        // ignore
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pullStatus?.active, refreshModels]);
+
+  const startPull = useCallback(async (modelName: string) => {
+    setPullError(null);
+    try {
+      const initial = await coreApi.pullAIModel(modelName);
+      setPullStatus(initial);
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err) {
+        const apiErr = err as { code?: string; message?: string; required_bytes?: number; available_bytes?: number; drive?: string };
+        if (apiErr.code === 'insufficient_disk_space') {
+          setPullError({
+            message: apiErr.message || `Not enough free disk space to download ${modelName}.`,
+            required_bytes: apiErr.required_bytes,
+            available_bytes: apiErr.available_bytes,
+            drive: apiErr.drive || 'F:',
+          });
+          return;
+        }
+        if (apiErr.code === 'model_download_in_progress') {
+          setPullError({ message: 'Another model is currently downloading.' });
+          return;
+        }
+      }
+      setPullError({ message: err instanceof Error ? err.message : 'Failed to start download' });
+    }
+  }, []);
+
+  const cancelPull = useCallback(async () => {
+    try {
+      const res = await coreApi.cancelPull();
+      setPullStatus(res);
+      setPullError(null);
+    } catch (err) {
+      setPullError({ message: err instanceof Error ? err.message : 'Failed to cancel download' });
+    }
+  }, []);
+
+  const deleteModel = useCallback(async (modelName: string) => {
+    try {
+      await coreApi.deleteAIModel(modelName);
+      await load();
+      await refreshModels();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to delete model ${modelName}`);
+    }
+  }, [load, refreshModels]);
 
   const save = useCallback(async (next: UpdateAIConfigRequest) => {
     setConfig(await coreApi.updateAIConfig(next));
@@ -81,13 +187,27 @@ export function useAISettings() {
     setStatus(await coreApi.testAIConnection());
   }, []);
 
-  const refreshModels = useCallback(async () => {
-    setModels(await coreApi.refreshAIModels());
-    setStatus(await coreApi.getAIStatus());
-  }, []);
-
   useEffect(() => { load(); }, [load]);
-  return { providers, config, models, status, isLoading, error, load, save, testConnection, refreshModels };
+  return {
+    providers,
+    config,
+    models,
+    status,
+    pullStatus,
+    storageInfo,
+    pullError,
+    isLoading,
+    error,
+    load,
+    save,
+    testConnection,
+    refreshModels,
+    startPull,
+    cancelPull,
+    deleteModel,
+    refreshStorage,
+    clearPullError: () => setPullError(null),
+  };
 }
 
 export interface AssistantErrorInfo {
@@ -142,6 +262,38 @@ export function formatAssistantError(err: unknown, currentProvider = 'AI'): Assi
           ? 'Ollama'
           : rawProv ? rawProv.charAt(0).toUpperCase() + rawProv.slice(1) : 'AI';
 
+      if (code === 'ollama_not_installed') {
+        return {
+          message: 'Ollama is not installed on this computer. Please install Ollama or switch to OpenRouter Cloud in Settings.',
+          code,
+          provider: 'Ollama',
+          retryable: false,
+        };
+      }
+      if (code === 'ollama_service_stopped') {
+        return {
+          message: 'Ollama service is stopped on 127.0.0.1:11434. Please start Ollama.',
+          code,
+          provider: 'Ollama',
+          retryable: true,
+        };
+      }
+      if (code === 'ollama_no_models') {
+        return {
+          message: 'No AI models are installed in Ollama. Run "ollama pull <model>" in terminal to download one.',
+          code,
+          provider: 'Ollama',
+          retryable: false,
+        };
+      }
+      if (code === 'ollama_model_missing') {
+        return {
+          message: errorObj.message || 'Selected model is not installed in Ollama.',
+          code,
+          provider: 'Ollama',
+          retryable: false,
+        };
+      }
       if (code === 'invalid_api_key' || code === 'unauthorized' || code === 'authentication_failed') {
         return {
           message: `Your ${targetProvider} API key is invalid. Please check Settings → AI.`,

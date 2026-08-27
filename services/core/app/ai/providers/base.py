@@ -16,6 +16,11 @@ class ProviderHealth:
     configured: bool
     message: str | None = None
     version: str | None = None
+    installed: bool | None = None
+    service_running: bool | None = None
+    api_responding: bool | None = None
+    models_available: bool | None = None
+    executable_path: str | None = None
 
 
 class AIProvider(ABC):

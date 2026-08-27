@@ -12,6 +12,9 @@ from app.api.schemas.ai import (
     ChatRequest,
     ChatResponse,
     ConversationResponse,
+    OllamaStorageResponse,
+    PullModelRequest,
+    PullStatusResponse,
     UpdateAIConfigRequest,
 )
 from app.dependencies import get_ai_service, get_conversation_service, get_provider_manager, get_activity_service
@@ -177,3 +180,58 @@ async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
                 },
             },
         ) from exc
+
+
+@router.post("/models/pull", response_model=PullStatusResponse)
+async def pull_model(request: PullModelRequest, ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.pull_model(request.model)
+    except AIUnavailable as exc:
+        status_code = 409 if exc.code in ("model_download_in_progress", "insufficient_disk_space") else 400
+        detail = {
+            "message": str(exc),
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": str(exc),
+                "provider": exc.provider or "ollama",
+                "retryable": exc.retryable,
+                **exc.details,
+            },
+        }
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get("/models/pull/status", response_model=PullStatusResponse)
+async def get_pull_status(ai: AIService = Depends(get_ai_service)):
+    return await ai.get_pull_status()
+
+
+@router.post("/models/pull/cancel", response_model=PullStatusResponse)
+async def cancel_pull(ai: AIService = Depends(get_ai_service)):
+    return await ai.cancel_pull()
+
+
+@router.get("/models/storage", response_model=OllamaStorageResponse)
+async def get_storage_info(ai: AIService = Depends(get_ai_service)):
+    return await ai.get_storage_info()
+
+
+@router.delete("/models/{model_name:path}")
+async def delete_model(model_name: str, ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.delete_model(model_name)
+    except AIUnavailable as exc:
+        detail = {
+            "message": str(exc),
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": str(exc),
+                "provider": exc.provider or "ollama",
+                "retryable": exc.retryable,
+            },
+        }
+        raise HTTPException(status_code=400, detail=detail) from exc
+
+

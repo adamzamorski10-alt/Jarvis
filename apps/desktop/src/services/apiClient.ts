@@ -190,16 +190,67 @@ function parseStructuredError(body: unknown, status: number): StructuredErrorPay
   };
 }
 
+export interface DiagnosticLogEvent {
+  id: string;
+  timestamp: string;
+  source: 'api-client' | 'status-bar' | 'system';
+  component: 'core' | 'database' | 'ai' | 'network';
+  level: 'info' | 'warn' | 'error';
+  endpoint?: string;
+  method?: string;
+  httpStatus?: number | string;
+  errorCode?: string;
+  message: string;
+  retryable?: boolean;
+}
+
+export interface DiagnosticSnapshot {
+  lastSuccessfulHealthCheck: Date | null;
+  lastNetworkError: { timestamp: Date; message: string } | null;
+  lastRequest: { endpoint: string; method: string; status: number; timestamp: Date } | null;
+  lastProviderError: { code: string; provider?: string; retryable: boolean; timestamp: Date } | null;
+  recentLogs: DiagnosticLogEvent[];
+}
+
 export type CoreStatusEvent = {
   isOnline: boolean;
   coreUrl: string | null;
   error: string | null;
   lastChecked: Date;
+  snapshot?: DiagnosticSnapshot;
 };
 
 export type CoreStatusListener = (event: CoreStatusEvent) => void;
 
 const statusListeners = new Set<CoreStatusListener>();
+const recentLogs: DiagnosticLogEvent[] = [];
+let lastSuccessfulHealthCheck: Date | null = null;
+let lastNetworkError: { timestamp: Date; message: string } | null = null;
+let lastRequest: { endpoint: string; method: string; status: number; timestamp: Date } | null = null;
+let lastProviderError: { code: string; provider?: string; retryable: boolean; timestamp: Date } | null = null;
+
+export function addDiagnosticLog(log: Omit<DiagnosticLogEvent, 'id' | 'timestamp'>) {
+  const event: DiagnosticLogEvent = {
+    ...log,
+    id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: new Date().toISOString(),
+    message: sanitizeForLog(log.message),
+  };
+  recentLogs.unshift(event);
+  if (recentLogs.length > 50) {
+    recentLogs.pop();
+  }
+}
+
+export function getDiagnosticSnapshot(): DiagnosticSnapshot {
+  return {
+    lastSuccessfulHealthCheck,
+    lastNetworkError,
+    lastRequest,
+    lastProviderError,
+    recentLogs: [...recentLogs],
+  };
+}
 
 export function subscribeCoreStatus(listener: CoreStatusListener) {
   statusListeners.add(listener);
@@ -209,14 +260,35 @@ export function subscribeCoreStatus(listener: CoreStatusListener) {
 }
 
 export function notifyCoreOnline(url: string) {
-  const event: CoreStatusEvent = { isOnline: true, coreUrl: url, error: null, lastChecked: new Date() };
+  const event: CoreStatusEvent = {
+    isOnline: true,
+    coreUrl: url,
+    error: null,
+    lastChecked: new Date(),
+    snapshot: getDiagnosticSnapshot(),
+  };
   for (const listener of statusListeners) {
     listener(event);
   }
 }
 
 export function notifyCoreOffline(url: string | null, errorMsg: string) {
-  const event: CoreStatusEvent = { isOnline: false, coreUrl: url, error: errorMsg, lastChecked: new Date() };
+  lastNetworkError = { timestamp: new Date(), message: errorMsg };
+  addDiagnosticLog({
+    source: 'api-client',
+    component: 'network',
+    level: 'error',
+    errorCode: 'core_unreachable',
+    message: errorMsg,
+    retryable: true,
+  });
+  const event: CoreStatusEvent = {
+    isOnline: false,
+    coreUrl: url,
+    error: errorMsg,
+    lastChecked: new Date(),
+    snapshot: getDiagnosticSnapshot(),
+  };
   for (const listener of statusListeners) {
     listener(event);
   }
@@ -282,6 +354,11 @@ async function request<T>(
   }
 
   console.info(`[Assistant API] source=api-client url=${coreUrl} port=${port} endpoint=${path} cached=${isFromCache} retry=${isRetry} result=success status=${response.status}`);
+  lastRequest = { endpoint: path, method, status: response.status, timestamp: new Date() };
+  if (path === '/api/system/status' || path === '/api/health') {
+    lastSuccessfulHealthCheck = new Date();
+  }
+
   notifyCoreOnline(coreUrl);
 
   if (!response.ok) {
@@ -301,11 +378,38 @@ async function request<T>(
     }
 
     const apiError = new ApiError(response.status, detail, structured);
+    lastProviderError = {
+      code: apiError.code,
+      provider: apiError.provider,
+      retryable: apiError.retryable,
+      timestamp: new Date(),
+    };
+    addDiagnosticLog({
+      source: 'api-client',
+      component: path.startsWith('/api/ai') ? 'ai' : path.startsWith('/api/db') ? 'database' : 'core',
+      level: 'warn',
+      endpoint: path,
+      method,
+      httpStatus: response.status,
+      errorCode: apiError.code,
+      message: apiError.message,
+      retryable: apiError.retryable,
+    });
     console.warn(
       `[API Log] ApiError thrown: status=${response.status} code=${apiError.code} provider=${apiError.provider} message="${apiError.message}"`
     );
     throw apiError;
   }
+
+  addDiagnosticLog({
+    source: 'api-client',
+    component: path.startsWith('/api/ai') ? 'ai' : path.startsWith('/api/db') ? 'database' : 'core',
+    level: 'info',
+    endpoint: path,
+    method,
+    httpStatus: response.status,
+    message: `Request ${method} ${path} succeeded`,
+  });
 
   try {
     return (await response.json()) as T;
@@ -325,7 +429,10 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }, timeoutMs),
   put: <T>(path: string, body: unknown, timeoutMs?: number) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }, timeoutMs),
+  delete: <T>(path: string, timeoutMs?: number) => request<T>(path, { method: 'DELETE' }, timeoutMs),
   getCoreUrl,
   getCoreDiagnostics,
   resetCoreUrlForRetry,
+  getDiagnosticSnapshot,
+  addDiagnosticLog,
 };

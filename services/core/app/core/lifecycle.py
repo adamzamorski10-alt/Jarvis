@@ -2,11 +2,22 @@
 AI Operator Core — Application Lifecycle (startup/shutdown)
 """
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from fastapi import FastAPI
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.database import init_db
+
+START_TIME = datetime.now(timezone.utc)
+
+
+def get_uptime_seconds() -> float:
+    return (datetime.now(timezone.utc) - START_TIME).total_seconds()
+
+
+def get_start_time_iso() -> str:
+    return START_TIME.isoformat()
 
 
 @asynccontextmanager

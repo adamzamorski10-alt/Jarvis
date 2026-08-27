@@ -1,10 +1,11 @@
 /**
- * Settings View — General, Autonomy, and System tabs.
+ * Settings View — General, Autonomy, AI, and System/Diagnostics tabs.
  * All changes persist via Python Core API.
  */
 import { useState, useEffect } from 'react';
 import { useSettings } from '../../hooks/useSettings';
 import { useCoreStatus } from '../../hooks/useCoreStatus';
+import { useDiagnostics } from '../../hooks/useDiagnostics';
 import { useAISettings, formatAIStatus } from '../../hooks/useAI';
 import { ErrorState } from '../../components/Common/ErrorState';
 
@@ -42,6 +43,53 @@ function SystemInfoRow({ label, value, highlight = false }: { label: string; val
   );
 }
 
+function formatBytes(bytes?: number | null): string {
+  if (!bytes) return 'Unknown size';
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(0)} MB`;
+}
+
+interface RecommendedModel {
+  name: string;
+  title: string;
+  description: string;
+  vramReq: string;
+  category: string;
+}
+
+const RECOMMENDED_OLLAMA_MODELS: RecommendedModel[] = [
+  {
+    name: 'qwen2.5-coder:7b',
+    title: 'Qwen2.5 Coder 7B',
+    description: 'Optimal for code analysis, programming, and AI Operator agent workflows.',
+    vramReq: '~4.7 GB VRAM',
+    category: 'Code & Development',
+  },
+  {
+    name: 'qwen3:8b',
+    title: 'Qwen3 8B',
+    description: 'High-quality general reasoning and dialogue assistant.',
+    vramReq: '~4.9 GB VRAM',
+    category: 'General Assistant',
+  },
+  {
+    name: 'llama3.2:3b',
+    title: 'Llama 3.2 3B',
+    description: 'Ultra-fast lightweight assistant with low latency for quick tasks.',
+    vramReq: '~2.0 GB VRAM',
+    category: 'Fast & Lightweight',
+  },
+  {
+    name: 'mistral:7b',
+    title: 'Mistral 7B',
+    description: 'Balanced general-purpose 7B model.',
+    vramReq: '~4.1 GB VRAM',
+    category: 'General Knowledge',
+  },
+];
+
 function AISettingsSection() {
   const ai = useAISettings();
   const [provider, setProvider] = useState('ollama');
@@ -52,6 +100,22 @@ function AISettingsSection() {
   const [kimiApiKey, setKimiApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [result, setResult] = useState<string | null>(null);
+  const [deletingModel, setDeletingModel] = useState<string | null>(null);
+
+  const handleRemoveClick = (modelName: string) => {
+    if (selectedModel && (selectedModel === modelName || selectedModel.startsWith(`${modelName}:`))) {
+      setDeletingModel(modelName);
+    } else {
+      ai.deleteModel(modelName);
+    }
+  };
+
+  const confirmDeleteActiveModel = async () => {
+    if (!deletingModel) return;
+    const target = deletingModel;
+    setDeletingModel(null);
+    await ai.deleteModel(target);
+  };
 
   useEffect(() => {
     if (ai.config) {
@@ -78,6 +142,18 @@ function AISettingsSection() {
     setKimiApiKey('');
     setOpenrouterApiKey('');
     setResult('Configuration saved');
+  };
+
+  const selectAndSaveModel = async (modelName: string) => {
+    setSelectedModel(modelName);
+    await ai.save({
+      provider,
+      ollama_url: ollamaUrl,
+      openrouter_base_url: openrouterBaseUrl,
+      kimi_base_url: kimiBaseUrl,
+      selected_model: modelName,
+    });
+    setResult(`Active model set to ${modelName}`);
   };
 
   const handleClearKey = async (targetProvider: 'openrouter' | 'kimi') => {
@@ -121,12 +197,38 @@ function AISettingsSection() {
   const connected = ai.status?.ai_ready;
   const isFreeRouter = provider === 'openrouter' && (selectedModel === 'openrouter/free' || ai.status?.model === 'openrouter/free');
 
+  // Ollama status computation
+  const providerStatus = ai.status?.provider_status ?? 'unknown';
+  const isOllamaInstalled = ai.status?.installed ?? (providerStatus !== 'not_installed');
+  const isOllamaRunning = ai.status?.service_running ?? (providerStatus === 'online' || providerStatus === 'ready' || providerStatus === 'no_models');
+  const isApiResponding = ai.status?.api_responding ?? isOllamaRunning;
+  const areModelsAvailable = ai.status?.models_available ?? (ai.models.length > 0);
+
+  const ollamaStateMessage =
+    providerStatus === 'not_installed'
+      ? 'Ollama is not installed on this computer.'
+      : providerStatus === 'stopped'
+      ? 'Ollama is installed, but its local service is not currently running.'
+      : providerStatus === 'online'
+      ? 'Ollama is running, but model information could not be fully loaded.'
+      : providerStatus === 'no_models'
+      ? 'Ollama is running correctly, but no local AI models are installed.'
+      : providerStatus === 'ready'
+      ? 'Ollama is ready to use.'
+      : formatAIStatus(ai.status);
+
+  const isSelectedModelMissing =
+    selectedModel &&
+    (providerStatus === 'ready' || providerStatus === 'online') &&
+    !ai.models.some(m => m.name === selectedModel || m.name.startsWith(`${selectedModel}:`));
+
   if (ai.isLoading && !ai.config) {
     return <div className="spinner" />;
   }
 
   return (
     <div className="settings-section fade-in">
+      {/* Provider Selector */}
       <div className="card">
         <div className="card-header"><span className="card-title">AI Provider</span></div>
         <div className="settings-row">
@@ -146,6 +248,7 @@ function AISettingsSection() {
         </div>
       </div>
 
+      {/* Provider Specific Configuration Card */}
       {provider === 'openrouter' ? (
         <div className="card">
           <div className="card-header">
@@ -223,12 +326,59 @@ function AISettingsSection() {
           </div>
         </div>
       ) : (
+        /* OLLAMA LOCAL AI CARD */
         <div className="card">
-          <div className="card-header"><span className="card-title">Ollama Connection</span></div>
-          <div className="settings-row">
+          <div className="card-header">
+            <span className="card-title">Ollama Local AI Diagnostics</span>
+            <StatusBadge status={providerStatus} />
+          </div>
+
+          <div style={{
+            padding: 'var(--space-3)',
+            marginBottom: 'var(--space-4)',
+            borderRadius: 6,
+            background: providerStatus === 'ready' ? 'rgba(52,211,153,0.08)' : providerStatus === 'stopped' ? 'rgba(251,191,36,0.08)' : 'rgba(239,68,68,0.08)',
+            borderLeft: `4px solid ${providerStatus === 'ready' ? 'var(--color-success)' : providerStatus === 'stopped' ? 'var(--color-warning)' : 'var(--color-error)'}`,
+            fontSize: 'var(--text-sm)',
+            color: 'var(--color-text-primary)',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>
+              {ollamaStateMessage}
+            </div>
+            {isSelectedModelMissing && (
+              <div style={{ color: 'var(--color-error)', marginTop: 4, fontSize: 'var(--text-xs)' }}>
+                ⚠ Selected local model &quot;{selectedModel}&quot; is not installed.
+              </div>
+            )}
+          </div>
+
+          <SystemInfoRow label="Installed" value={isOllamaInstalled ? 'Yes' : 'No'} highlight={isOllamaInstalled} />
+          <SystemInfoRow label="Service Running" value={isOllamaRunning ? 'Yes (127.0.0.1:11434)' : 'No'} highlight={isOllamaRunning} />
+          <SystemInfoRow label="API Responding" value={isApiResponding ? 'Yes' : 'No'} highlight={isApiResponding} />
+          <SystemInfoRow label="Models Available" value={areModelsAvailable ? `Yes (${ai.models.length} installed)` : 'No models'} highlight={areModelsAvailable} />
+          {ai.status?.executable_path && (
+            <SystemInfoRow label="Executable Path" value={ai.status.executable_path} />
+          )}
+          {ai.status?.provider_version && (
+            <SystemInfoRow label="Ollama Version" value={ai.status.provider_version} />
+          )}
+          {ai.storageInfo?.location && (
+            <SystemInfoRow label="Model Storage Location" value={ai.storageInfo.location} />
+          )}
+          {ai.storageInfo?.drive && (
+            <SystemInfoRow label="Storage Drive" value={ai.storageInfo.drive} />
+          )}
+          {ai.storageInfo?.available_bytes !== undefined && (
+            <SystemInfoRow label="Available Space" value={formatBytes(ai.storageInfo.available_bytes)} highlight={true} />
+          )}
+          {ai.storageInfo?.used_bytes !== undefined && (
+            <SystemInfoRow label="Used Space by Models" value={formatBytes(ai.storageInfo.used_bytes)} />
+          )}
+
+          <div className="settings-row" style={{ marginTop: 'var(--space-3)' }}>
             <div className="settings-row-info">
-              <div className="settings-row-title">URL</div>
-              <div className="settings-row-desc">Local Ollama API endpoint.</div>
+              <div className="settings-row-title">Ollama API URL</div>
+              <div className="settings-row-desc">Local Ollama endpoint address.</div>
             </div>
             <div className="settings-row-control">
               <input className="form-input" value={ollamaUrl} onChange={event => setOllamaUrl(event.target.value)} />
@@ -237,9 +387,63 @@ function AISettingsSection() {
         </div>
       )}
 
+      {/* Live Download Progress Card */}
+      {provider === 'ollama' && ai.pullStatus?.active && (
+        <div className="card" style={{ border: '1px solid var(--color-primary)', background: 'rgba(59,130,246,0.04)' }}>
+          <div className="card-header">
+            <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <span className="spinner" style={{ width: 14, height: 14 }} />
+              Downloading Model
+            </span>
+            <button className="btn btn-secondary btn-sm" style={{ color: 'var(--color-error)' }} onClick={ai.cancelPull}>
+              Cancel Download
+            </button>
+          </div>
+          <div style={{ marginBottom: 'var(--space-2)', fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+            {ai.pullStatus.model}
+          </div>
+          <div style={{ width: '100%', height: 10, background: 'var(--color-bg-muted)', borderRadius: 5, overflow: 'hidden', marginBottom: 'var(--space-2)' }}>
+            <div style={{
+              height: '100%',
+              width: typeof ai.pullStatus.percentage === 'number' ? `${ai.pullStatus.percentage}%` : '100%',
+              background: 'var(--color-primary)',
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
+            <span>{ai.pullStatus.message || 'Downloading...'}</span>
+            <span>
+              {typeof ai.pullStatus.percentage === 'number' ? `${ai.pullStatus.percentage}%` : 'Downloading...'}
+              {ai.pullStatus.completed ? ` (${formatBytes(ai.pullStatus.completed)}${ai.pullStatus.total ? ` / ${formatBytes(ai.pullStatus.total)}` : ''})` : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Disk Space Error Alert */}
+      {provider === 'ollama' && ai.pullError && (
+        <div className="card" style={{ border: '1px solid var(--color-error)', background: 'rgba(239,68,68,0.06)' }}>
+          <div className="card-header">
+            <span className="card-title" style={{ color: 'var(--color-error)' }}>Not enough disk space</span>
+            <button className="btn btn-ghost btn-sm" onClick={ai.clearPullError}>✕</button>
+          </div>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)', marginBottom: 'var(--space-2)' }}>
+            {ai.pullError.message}
+          </p>
+          {ai.pullError.required_bytes !== undefined && (
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div>Required: ~{formatBytes(ai.pullError.required_bytes)}</div>
+              <div>Available: ~{formatBytes(ai.pullError.available_bytes)}</div>
+              <div>Model storage: {ai.pullError.drive || 'F:'}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected Model Card */}
       <div className="card">
         <div className="card-header">
-          <span className="card-title">Model</span>
+          <span className="card-title">Active Model Selection</span>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             {provider === 'openrouter' && (
               <button
@@ -250,7 +454,7 @@ function AISettingsSection() {
                 Use Free Router (openrouter/free)
               </button>
             )}
-            <button className="btn btn-secondary btn-sm" onClick={ai.refreshModels}>Refresh Models</button>
+            <button className="btn btn-secondary btn-sm" onClick={ai.refreshModels}>⟳ Refresh Models</button>
           </div>
         </div>
         <div className="settings-row">
@@ -260,7 +464,7 @@ function AISettingsSection() {
               {ai.models.length
                 ? `${ai.models.length} models available for ${providerName}.`
                 : 'No models detected yet.'}
-              {isFreeRouter ? ' (Using OpenRouter Free Router — rate limits & provider availability apply)' : ''}
+              {isFreeRouter ? ' (Using OpenRouter Free Router — rate limits apply)' : ''}
             </div>
           </div>
           <div className="settings-row-control">
@@ -279,9 +483,139 @@ function AISettingsSection() {
         </div>
       </div>
 
+      {/* Available Local Models Section (Model Management) */}
+      {provider === 'ollama' && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Model Management</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              {ai.models.length} installed in Ollama
+            </span>
+          </div>
+          {ai.models.length === 0 ? (
+            <div style={{ padding: 'var(--space-3) 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+              No local AI models installed. Choose a recommended model below to download.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {ai.models.map(model => {
+                const isSelected = selectedModel === model.name;
+                return (
+                  <div key={model.name} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: 'var(--space-3)', borderRadius: 6,
+                    background: isSelected ? 'rgba(59,130,246,0.08)' : 'var(--color-bg-subtle)',
+                    border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border-subtle)'}`,
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+                        {model.name}
+                      </div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        Size: {formatBytes(model.size)} | Modified: {model.modified_at ? new Date(model.modified_at).toLocaleDateString() : 'Unknown'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                      <button
+                        className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                        disabled={isSelected}
+                        onClick={() => selectAndSaveModel(model.name)}
+                      >
+                        {isSelected ? '✓ ACTIVE MODEL' : 'Select as Active'}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: 'var(--color-error)' }}
+                        onClick={() => handleRemoveClick(model.name)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recommended Models Section for User Hardware (Ollama specific) */}
+      {provider === 'ollama' && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Recommended for your PC</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              NVIDIA GTX 1080 Ti (11 GB VRAM) + 24 GB RAM
+            </span>
+          </div>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-3)' }}>
+            These models are optimized for your GTX 1080 Ti GPU (11 GB VRAM). Click Download Model to pull automatically.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {RECOMMENDED_OLLAMA_MODELS.map(rec => {
+              const isInstalled = ai.models.some(m => m.name === rec.name || m.name.startsWith(`${rec.name}:`));
+              const isSelected = selectedModel === rec.name || selectedModel.startsWith(`${rec.name}:`);
+
+              return (
+                <div key={rec.name} style={{
+                  padding: 'var(--space-3)', borderRadius: 6,
+                  background: 'var(--color-bg-subtle)',
+                  border: '1px solid var(--color-border-subtle)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+                        {rec.title}
+                      </span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>({rec.name})</span>
+                      <span style={{
+                        padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                        background: isInstalled ? 'rgba(52,211,153,0.15)' : 'rgba(156,163,175,0.15)',
+                        color: isInstalled ? 'var(--color-success)' : 'var(--color-text-muted)',
+                      }}>
+                        {isInstalled ? 'INSTALLED' : 'NOT INSTALLED'}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-primary)' }}>
+                      {rec.vramReq}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                    {rec.description}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <code style={{ fontSize: 'var(--text-xs)', background: 'var(--color-bg-muted)', padding: '2px 6px', borderRadius: 4 }}>
+                      ollama pull {rec.name}
+                    </code>
+                    {isInstalled ? (
+                      <button
+                        className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                        disabled={isSelected}
+                        onClick={() => selectAndSaveModel(rec.name)}
+                      >
+                        {isSelected ? '✓ ACTIVE MODEL' : 'Select as Active'}
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={ai.pullStatus?.active}
+                        onClick={() => ai.startPull(rec.name)}
+                      >
+                        Download Model
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* AI Status Footer & Actions */}
       <div className="card">
         <div className="card-header">
-          <span className="card-title">AI Status</span>
+          <span className="card-title">AI Status Summary</span>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button className="btn btn-secondary btn-sm" onClick={testConnection}>Test Connection</button>
             <button className="btn btn-primary btn-sm" onClick={save}>Save Configuration</button>
@@ -304,6 +638,236 @@ function AISettingsSection() {
         {result && <div style={{ color: 'var(--color-success)', marginTop: 'var(--space-2)' }}>{result}</div>}
         {ai.error && <div style={{ color: 'var(--color-error)', marginTop: 'var(--space-2)' }}>{ai.error}</div>}
       </div>
+
+      {/* Confirmation Modal for Active Model Deletion */}
+      {deletingModel && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="card" style={{ maxWidth: 460, width: '90%', border: '1px solid var(--color-error)' }}>
+            <div className="card-header">
+              <span className="card-title" style={{ color: 'var(--color-error)' }}>Confirm Active Model Removal</span>
+            </div>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)', margin: 'var(--space-3) 0' }}>
+              You are about to remove the currently active AI model.
+            </p>
+            <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--color-bg-subtle)', borderRadius: 6, marginBottom: 'var(--space-4)' }}>
+              <strong>Model:</strong> <code>{deletingModel}</code>
+            </div>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
+              The model will no longer be available to the Assistant.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setDeletingModel(null)}>Cancel</button>
+              <button className="btn btn-sm" style={{ background: 'var(--color-error)', color: '#fff' }} onClick={confirmDeleteActiveModel}>
+                Remove Model
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const isGood = status === 'running' || status === 'connected' || status === 'ready';
+  const isWarn = status === 'loading' || status === 'not_configured' || status === 'no_models' || status === 'stopped';
+  const labelMap: Record<string, string> = {
+    stopped: 'SERVICE STOPPED',
+    not_installed: 'NOT INSTALLED',
+    no_models: 'NO MODELS',
+    ready: 'READY',
+    online: 'OLLAMA RUNNING',
+  };
+  const label = labelMap[status] ?? status.toUpperCase();
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '2px 8px', borderRadius: 4,
+      fontSize: 'var(--text-xs)', fontWeight: 700, letterSpacing: '0.04em',
+      background: isGood ? 'rgba(52,211,153,0.12)' : isWarn ? 'rgba(251,191,36,0.12)' : 'rgba(239,68,68,0.12)',
+      color: isGood ? 'var(--color-success)' : isWarn ? 'var(--color-warning)' : 'var(--color-error)',
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: isGood ? 'var(--color-success)' : isWarn ? 'var(--color-warning)' : 'var(--color-error)',
+        display: 'inline-block',
+      }} />
+      {label}
+    </span>
+  );
+}
+
+function DiagRow({ label, value, mono = false }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  return (
+    <div className="info-row">
+      <span className="info-key">{label}</span>
+      <span className="info-value" style={mono ? { fontFamily: 'monospace', fontSize: 'var(--text-xs)' } : {}}>
+        {value ?? '—'}
+      </span>
+    </div>
+  );
+}
+
+function fmtDate(d: Date | null): string {
+  if (!d) return '—';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function fmtUptime(seconds: number | null): string {
+  if (seconds === null) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function DiagnosticsSection() {
+  const { diagnostics, refresh } = useDiagnostics();
+  const d = diagnostics;
+
+  return (
+    <div className="settings-section fade-in">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+        <div>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>System Diagnostics</h2>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>Live status of all core components</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={refresh}>⟳ Refresh</button>
+      </div>
+
+      {/* Core */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Core Service</span>
+          <StatusBadge status={d.coreStatus} />
+        </div>
+        <DiagRow label="Status" value={d.coreStatus} />
+        <DiagRow label="Version" value={d.coreVersion} />
+        <DiagRow label="Framework" value="Python + FastAPI (asyncio)" />
+        <DiagRow label="URL" value={d.coreUrl} mono />
+        <DiagRow label="PID" value={d.corePid !== null ? String(d.corePid) : null} />
+        <DiagRow label="Uptime" value={fmtUptime(d.coreUptimeSeconds)} />
+        <DiagRow label="Start Time" value={d.coreStartTime ?? null} mono />
+        <DiagRow label="Last Health Check" value={fmtDate(d.coreLastCheck)} />
+        <DiagRow label="Last Successful Check" value={fmtDate(d.lastSuccessfulHealthCheck)} />
+        {d.coreLastError && (
+          <div className="info-row">
+            <span className="info-key">Last Error</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontFamily: 'monospace' }}>
+              {d.coreLastError}
+            </span>
+          </div>
+        )}
+        {d.lastNetworkError && (
+          <div className="info-row">
+            <span className="info-key">Last Network Error</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontFamily: 'monospace' }}>
+              {fmtDate(d.lastNetworkError.timestamp)} — {d.lastNetworkError.message}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Database */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Database</span>
+          <StatusBadge status={d.dbStatus} />
+        </div>
+        <DiagRow label="Status" value={d.dbStatus} />
+        <DiagRow label="Engine" value={d.dbEngine} />
+        <DiagRow label="Migration Status" value={d.dbMigrationStatus} />
+        <DiagRow label="Schema Version" value={d.dbSchemaVersion} />
+        {d.dbLastError && (
+          <div className="info-row">
+            <span className="info-key">Last Error</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontFamily: 'monospace' }}>
+              {d.dbLastError}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* AI Provider */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">AI Provider</span>
+          <StatusBadge status={d.aiStatus} />
+        </div>
+        <DiagRow label="Status" value={d.aiStatus} />
+        <DiagRow label="Provider" value={d.aiProvider} />
+        <DiagRow label="Configured" value={d.aiConfigured ? 'Yes' : 'No — set key in AI tab'} />
+        <DiagRow label="Selected Model" value={d.aiSelectedModel} />
+        <DiagRow label="Message" value={d.aiMessage} />
+        {d.lastProviderError && (
+          <>
+            <DiagRow label="Last Error Code" value={d.lastProviderError.code} mono />
+            <DiagRow label="Provider" value={d.lastProviderError.provider} />
+            <DiagRow label="Retryable" value={d.lastProviderError.retryable ? 'Yes' : 'No'} />
+            <DiagRow label="Error Time" value={fmtDate(d.lastProviderError.timestamp)} />
+          </>
+        )}
+      </div>
+
+      {/* Application */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Application</span>
+        </div>
+        <DiagRow label="Name" value="AI Operator" />
+        <DiagRow label="Version" value={d.appVersion} />
+        <DiagRow label="Phase" value="1 — Foundation MVP" />
+        <DiagRow label="Stack" value="Tauri v2 + React + TypeScript + Vite" />
+      </div>
+
+      {/* Diagnostic Log */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Recent Diagnostic Events</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+            Last {d.recentLogs.length} events (max 50)
+          </span>
+        </div>
+        {d.recentLogs.length === 0 ? (
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', padding: 'var(--space-3) 0' }}>
+            No diagnostic events recorded yet.
+          </div>
+        ) : (
+          <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+            {d.recentLogs.map(log => (
+              <div key={log.id} style={{
+                display: 'grid', gridTemplateColumns: '80px 70px 70px 1fr', gap: 'var(--space-2)',
+                padding: 'var(--space-1) 0', borderBottom: '1px solid var(--color-border-subtle)',
+                fontSize: 'var(--text-xs)', fontFamily: 'monospace', alignItems: 'center',
+              }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>
+                  {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+                <span style={{
+                  color: log.level === 'error' ? 'var(--color-error)' : log.level === 'warn' ? 'var(--color-warning)' : 'var(--color-success)',
+                  fontWeight: 600,
+                }}>
+                  {log.level.toUpperCase()}
+                </span>
+                <span style={{ color: 'var(--color-text-muted)' }}>{log.component}</span>
+                <span style={{ color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {log.endpoint ? `${log.endpoint} ` : ''}{log.message}
+                  {log.errorCode ? ` [${log.errorCode}]` : ''}
+                  {log.httpStatus ? ` HTTP ${log.httpStatus}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -311,7 +875,7 @@ function AISettingsSection() {
 export function SettingsView() {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const { settings, isLoading, isSaving, savedAt, error, updateSettings } = useSettings();
-  const { isOnline, status, coreUrl, diagnostics } = useCoreStatus();
+  const { diagnostics } = useCoreStatus();
 
   const [localTheme, setLocalTheme] = useState('dark');
   const [localLanguage, setLocalLanguage] = useState('en');
@@ -506,59 +1070,8 @@ export function SettingsView() {
 
         {activeTab === 'ai' && <AISettingsSection />}
 
-        {/* System Tab */}
-        {activeTab === 'system' && (
-          <div className="settings-section fade-in">
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Application</span>
-              </div>
-              <SystemInfoRow label="Name" value="AI Operator" />
-              <SystemInfoRow label="Version" value="0.1.0" />
-              <SystemInfoRow label="Phase" value="1 — Foundation MVP" />
-              <SystemInfoRow label="Stack" value="Tauri + React + TypeScript" />
-            </div>
-
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Core Service</span>
-              </div>
-              <SystemInfoRow
-                label="Status"
-                value={isOnline ? 'Running' : 'Offline'}
-                highlight={isOnline}
-              />
-              <SystemInfoRow label="URL" value={coreUrl ?? 'Unknown'} />
-              <SystemInfoRow label="Framework" value="Python + FastAPI" />
-            </div>
-
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Database</span>
-              </div>
-              <SystemInfoRow
-                label="Status"
-                value={
-                  !isOnline ? 'Unknown'
-                  : status?.database.status === 'connected' ? 'Connected'
-                  : 'Error'
-                }
-                highlight={isOnline && status?.database.status === 'connected'}
-              />
-              <SystemInfoRow label="Engine" value="SQLite (aiosqlite)" />
-              <SystemInfoRow label="Location" value="Application local data directory" />
-            </div>
-
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">AI Provider</span>
-              </div>
-              <SystemInfoRow label="Status" value="Not Configured" />
-              <SystemInfoRow label="Planned" value="Ollama (Phase 2)" />
-              <SystemInfoRow label="Models" value="Qwen3 8B, Qwen2.5-Coder 7B, Qwen3-VL 8B" />
-            </div>
-          </div>
-        )}
+        {/* System / Diagnostics Tab */}
+        {activeTab === 'system' && <DiagnosticsSection />}
       </div>
     </div>
   );

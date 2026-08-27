@@ -10,7 +10,7 @@ from app.services.activity_service import ActivityService
 
 logger = get_logger(__name__)
 
-READY_PROVIDER_STATES = {"online", "ready"}
+READY_PROVIDER_STATES = {"online", "ready", "no_models"}
 
 
 class AIUnavailable(ValueError):
@@ -20,12 +20,14 @@ class AIUnavailable(ValueError):
         code: str = "ai_not_ready",
         provider: str | None = None,
         retryable: bool = False,
+        details: dict | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.status = code  # backward-compat
         self.provider = provider
         self.retryable = retryable
+        self.details = details or {}
 
 
 def _provider_url(config: dict) -> str | None:
@@ -98,6 +100,11 @@ class AIService:
             "model_status": model_status,
             "models_count": len(models),
             "ai_ready": health.status in READY_PROVIDER_STATES and model_status == "ready",
+            "installed": getattr(health, "installed", None),
+            "service_running": getattr(health, "service_running", None),
+            "api_responding": getattr(health, "api_responding", None),
+            "models_available": getattr(health, "models_available", None),
+            "executable_path": getattr(health, "executable_path", None),
         }
 
     async def list_models(self) -> list:
@@ -111,11 +118,17 @@ class AIService:
                 level="WARNING",
                 details={"provider": config["provider"], "status": health.status},
             )
+            code = (
+                "ollama_not_installed" if health.status == "not_installed"
+                else "ollama_service_stopped" if health.status == "stopped"
+                else health.status
+            )
+            retryable = health.status == "stopped" or health.status == "unreachable"
             raise AIUnavailable(
                 health.message or "AI provider is not reachable",
-                code=health.status,
+                code=code,
                 provider=str(config["provider"]),
-                retryable=True,
+                retryable=retryable,
             )
         return await provider.list_models()
 
@@ -139,11 +152,50 @@ class AIService:
 
         provider = await self._providers.get_provider()
 
-        # Validate provider-specific configuration
+        # Validate provider-specific configuration & status
         if provider_name == "kimi" and not config.get("kimi_api_key_configured"):
             raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
         if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
             raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
+
+        if provider_name == "ollama":
+            health = await provider.health_check()
+            if health.status == "not_installed":
+                raise AIUnavailable(
+                    health.message or "Ollama is not installed on this computer.",
+                    code="ollama_not_installed",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status == "stopped":
+                raise AIUnavailable(
+                    health.message or "Ollama service is not running on 127.0.0.1:11434.",
+                    code="ollama_service_stopped",
+                    provider="ollama",
+                    retryable=True,
+                )
+            if health.status == "no_models":
+                raise AIUnavailable(
+                    health.message or "No AI models are installed in Ollama.",
+                    code="ollama_no_models",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status in ("online", "ready"):
+                models = await provider.list_models()
+                model_names = {m.name for m in models}
+                model_found = (
+                    selected_model in model_names
+                    or f"{selected_model}:latest" in model_names
+                    or any(m.name.startswith(f"{selected_model}:") for m in models)
+                )
+                if not model_found:
+                    raise AIUnavailable(
+                        f"Selected model '{selected_model}' is not installed in Ollama. Run 'ollama pull {selected_model}' to download it.",
+                        code="ollama_model_missing",
+                        provider="ollama",
+                        retryable=False,
+                    )
 
         # Get or create conversation
         if conversation_id:
@@ -180,6 +232,12 @@ class AIService:
                 level="ERROR",
                 details={"provider": provider_name, "reason": "network_error"},
             )
+            if provider_name == "ollama":
+                from app.ai.providers.ollama import find_ollama_executable
+                exe_found = find_ollama_executable() is not None
+                code = "ollama_service_stopped" if exe_found else "ollama_not_installed"
+                msg = "Ollama service is not running on 127.0.0.1:11434." if exe_found else "Ollama executable is not installed."
+                raise AIUnavailable(msg, code=code, provider="ollama", retryable=exe_found) from exc
             raise AIUnavailable(f"Could not reach {provider_name.title()} service (network error)", code="provider_unreachable", provider=provider_name, retryable=True) from exc
         except (OpenRouterProviderError, KimiProviderError) as exc:
             logger.warning("AI provider error", provider=provider_name, model=selected_model, status=exc.status)
@@ -209,3 +267,140 @@ class AIService:
             details={"provider": provider_name, "model": selected_model},
         )
         return {"conversation": conversation, "message": assistant_message}
+
+    async def pull_model(self, model_name: str) -> dict:
+        config = await self._providers.get_config()
+        if config["provider"] != "ollama":
+            raise AIUnavailable(
+                "Model downloading is only supported for Ollama.",
+                code="provider_not_supported",
+                provider=str(config["provider"]),
+                retryable=False,
+            )
+
+        provider = await self._providers.get_provider()
+        health = await provider.health_check()
+
+        if health.status in ("not_installed", "stopped"):
+            code = "ollama_not_installed" if health.status == "not_installed" else "ollama_service_stopped"
+            raise AIUnavailable(
+                health.message or "Ollama service is not available.",
+                code=code,
+                provider="ollama",
+                retryable=health.status == "stopped",
+            )
+
+        # Storage & disk space check
+        storage_info = await provider.get_storage_info()
+        required_bytes = MODEL_ESTIMATED_BYTES.get(model_name)
+        if not required_bytes:
+            for k, v in MODEL_ESTIMATED_BYTES.items():
+                if model_name.startswith(k) or k.startswith(model_name):
+                    required_bytes = v
+                    break
+        if not required_bytes:
+            required_bytes = DEFAULT_ESTIMATED_BYTES
+
+        available_bytes = storage_info.get("available_bytes", 0)
+        if available_bytes > 0 and available_bytes < required_bytes:
+            raise AIUnavailable(
+                f"Not enough free disk space to download {model_name}.",
+                code="insufficient_disk_space",
+                provider="ollama",
+                retryable=False,
+                details={
+                    "required_bytes": required_bytes,
+                    "available_bytes": available_bytes,
+                    "drive": storage_info.get("drive"),
+                    "location": storage_info.get("location"),
+                },
+            )
+
+        from app.ai.providers.ollama import invalidate_storage_cache
+        from app.ai.services.ollama_download_manager import download_manager
+
+        result = download_manager.start_pull(
+            config["ollama_url"], model_name, on_complete=invalidate_storage_cache
+        )
+        await self._activity.create_event(
+            f"Started downloading Ollama model {model_name}",
+            category="ai",
+            details={"model": model_name},
+        )
+        return result
+
+    async def get_pull_status(self) -> dict:
+        from app.ai.services.ollama_download_manager import download_manager
+        return download_manager.get_status()
+
+    async def cancel_pull(self) -> dict:
+        from app.ai.services.ollama_download_manager import download_manager
+        result = download_manager.cancel_pull()
+        await self._activity.create_event("Cancelled model download", category="ai")
+        return result
+
+    async def delete_model(self, model_name: str) -> dict:
+        config = await self._providers.get_config()
+        if config["provider"] != "ollama":
+            raise AIUnavailable(
+                "Model deletion is only supported for Ollama.",
+                code="provider_not_supported",
+                provider=str(config["provider"]),
+                retryable=False,
+            )
+
+        provider = await self._providers.get_provider()
+        health = await provider.health_check()
+        if health.status in ("not_installed", "stopped"):
+            code = "ollama_not_installed" if health.status == "not_installed" else "ollama_service_stopped"
+            raise AIUnavailable(
+                health.message or "Ollama service is not available.",
+                code=code,
+                provider="ollama",
+                retryable=health.status == "stopped",
+            )
+
+        try:
+            await provider.delete_model(model_name)
+        except Exception as exc:
+            raise AIUnavailable(
+                f"Failed to delete model {model_name}: {str(exc)}",
+                code="model_delete_failed",
+                provider="ollama",
+                retryable=True,
+            ) from exc
+
+        selected_model = config.get("selected_model")
+        if selected_model and (selected_model == model_name or selected_model.startswith(f"{model_name}:")):
+            await self._providers.update_config(str(config["provider"]), config.get("ollama_url"), selected_model=None)
+
+        await self._activity.create_event(
+            f"Deleted Ollama model {model_name}",
+            category="ai",
+            details={"model": model_name},
+        )
+        return {"success": True, "model": model_name}
+
+    async def get_storage_info(self) -> dict:
+        config = await self._providers.get_config()
+        if config["provider"] != "ollama":
+            return {"location": None, "drive": None, "available_bytes": None, "used_bytes": None}
+
+        provider = await self._providers.get_provider()
+        if hasattr(provider, "get_storage_info"):
+            return await provider.get_storage_info()
+        return {"location": None, "drive": None, "available_bytes": None, "used_bytes": None}
+
+
+MODEL_ESTIMATED_BYTES: dict[str, int] = {
+    "qwen2.5-coder:7b": 4_700_000_000,
+    "qwen3:8b": 5_200_000_000,
+    "llama3.2:3b": 2_000_000_000,
+    "mistral:7b": 4_100_000_000,
+    "nomic-embed-text:latest": 300_000_000,
+    "llama3.1:8b": 4_700_000_000,
+    "qwen2.5-coder:1.5b-base": 1_000_000_000,
+}
+DEFAULT_ESTIMATED_BYTES = 5_000_000_000
+
+

@@ -42,6 +42,11 @@ class AIStatusResponse(BaseModel):
     model_status: str
     models_count: int
     ai_ready: bool
+    installed: bool | None = None
+    service_running: bool | None = None
+    api_responding: bool | None = None
+    models_available: bool | None = None
+    executable_path: str | None = None
 
 
 class AIModelResponse(BaseModel):
@@ -77,3 +82,29 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     conversation: ConversationResponse
     message: MessageResponse
+
+
+class PullModelRequest(BaseModel):
+    model: str = Field(min_length=1)
+
+
+class PullStatusResponse(BaseModel):
+    active: bool
+    model: str | None = None
+    status: str | None = None
+    phase: str | None = None
+    completed: int | None = None
+    total: int | None = None
+    percentage: float | None = None
+    message: str | None = None
+    error: dict | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+
+
+class OllamaStorageResponse(BaseModel):
+    location: str | None = None
+    drive: str | None = None
+    available_bytes: int | None = None
+    used_bytes: int | None = None
+
