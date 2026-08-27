@@ -1,0 +1,67 @@
+# ============================================================
+# AI OPERATOR — Root .gitignore
+# ============================================================
+
+# === Node / npm ===
+node_modules/
+.npm/
+dist/
+build/
+*.tsbuildinfo
+.cache/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.log
+
+# === Rust / Tauri ===
+target/
+Cargo.lock
+!apps/desktop/src-tauri/Cargo.lock
+
+# === SQLite databases (user data) ===
+*.db
+*.sqlite
+*.sqlite3
+!services/core/tests/*.db
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === Secrets ===
+*.pem
+*.key
+*.cert
+secrets/
+.secrets
+
+# === Tauri build outputs ===
+apps/desktop/src-tauri/target/
+apps/desktop/dist/
+
+# === OS ===
+desktop.ini
+ehthumbs.db

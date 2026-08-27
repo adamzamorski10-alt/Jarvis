@@ -1,0 +1,162 @@
+"""AI provider and assistant routes."""
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.ai.services.ai_service import AIService, AIUnavailable
+from app.ai.services.conversation_service import ConversationNotFound, ConversationService
+from app.ai.services.provider_manager import AIConfigError, ProviderManager
+from app.api.schemas.ai import (
+    AIConfigResponse,
+    AIModelResponse,
+    AIProviderItem,
+    AIStatusResponse,
+    ChatRequest,
+    ChatResponse,
+    ConversationResponse,
+    UpdateAIConfigRequest,
+)
+from app.dependencies import get_ai_service, get_conversation_service, get_provider_manager, get_activity_service
+from app.services.activity_service import ActivityService
+
+router = APIRouter(prefix="/ai")
+
+
+def conversation_to_response(conversation) -> ConversationResponse:
+    return ConversationResponse(
+        id=conversation.id,
+        title=conversation.title,
+        provider=conversation.provider,
+        model=conversation.model,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+        messages=[
+            {
+                "id": message.id,
+                "conversation_id": message.conversation_id,
+                "role": message.role,
+                "content": message.content,
+                "created_at": message.created_at,
+            }
+            for message in getattr(conversation, "messages", [])
+        ],
+    )
+
+
+@router.get("/providers", response_model=list[AIProviderItem])
+async def providers(manager: ProviderManager = Depends(get_provider_manager)):
+    return await manager.list_supported_providers()
+
+
+@router.get("/config", response_model=AIConfigResponse)
+async def get_config(manager: ProviderManager = Depends(get_provider_manager)):
+    return await manager.get_config()
+
+
+@router.put("/config", response_model=AIConfigResponse)
+async def update_config(
+    request: UpdateAIConfigRequest,
+    manager: ProviderManager = Depends(get_provider_manager),
+    activity: ActivityService = Depends(get_activity_service),
+):
+    try:
+        before = await manager.get_config()
+        config = await manager.update_config(
+            request.provider,
+            request.ollama_url,
+            request.selected_model,
+            request.kimi_base_url,
+            request.kimi_api_key,
+        )
+    except AIConfigError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if before["provider"] != config["provider"]:
+        await activity.create_event("AI provider changed", category="ai", details={"provider": config["provider"]})
+    await activity.create_event(
+        "AI configuration updated",
+        category="ai",
+        details={"provider": config["provider"], "model_selected": bool(config["selected_model"])},
+    )
+    if config["selected_model"]:
+        await activity.create_event("AI model selected", category="ai", details={"provider": config["provider"]})
+    return config
+
+
+@router.get("/status", response_model=AIStatusResponse)
+async def status(ai: AIService = Depends(get_ai_service)):
+    return await ai.get_status()
+
+
+@router.post("/test-connection", response_model=AIStatusResponse)
+async def test_connection(
+    ai: AIService = Depends(get_ai_service),
+    activity: ActivityService = Depends(get_activity_service),
+):
+    result = await ai.get_status()
+    if result["provider"] == "kimi":
+        await activity.create_event(
+            "Kimi connection successful" if result["ai_ready"] else "Kimi connection failed",
+            category="ai",
+            level="INFO" if result["ai_ready"] else "WARNING",
+            details={"status": result["provider_status"], "model_status": result["model_status"]},
+        )
+    return result
+
+
+@router.get("/models", response_model=list[AIModelResponse])
+async def models(ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.list_models()
+    except AIUnavailable as exc:
+        raise HTTPException(status_code=503, detail={"message": str(exc), "status": exc.status}) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/models/refresh", response_model=list[AIModelResponse])
+async def refresh_models(ai: AIService = Depends(get_ai_service)):
+    return await models(ai)
+
+
+@router.get("/conversations", response_model=list[ConversationResponse])
+async def list_conversations(conversations: ConversationService = Depends(get_conversation_service)):
+    return [conversation_to_response(item) for item in await conversations.list()]
+
+
+@router.post("/conversations", response_model=ConversationResponse)
+async def create_conversation(
+    manager: ProviderManager = Depends(get_provider_manager),
+    conversations: ConversationService = Depends(get_conversation_service),
+    activity: ActivityService = Depends(get_activity_service),
+):
+    config = await manager.get_config()
+    conversation = await conversations.create(str(config["provider"]), config["selected_model"])
+    await activity.create_event("Conversation created", category="ai")
+    return conversation_to_response(conversation)
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
+async def get_conversation(conversation_id: str, conversations: ConversationService = Depends(get_conversation_service)):
+    try:
+        return conversation_to_response(await conversations.get(conversation_id))
+    except ConversationNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
+    try:
+        result = await ai.chat(request.conversation_id, request.message)
+        result["conversation"] = await ai._conversations.get(result["conversation"].id)
+        return {
+            "conversation": conversation_to_response(result["conversation"]),
+            "message": {
+                "id": result["message"].id,
+                "conversation_id": result["message"].conversation_id,
+                "role": result["message"].role,
+                "content": result["message"].content,
+                "created_at": result["message"].created_at,
+            },
+        }
+    except ConversationNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AIUnavailable as exc:
+        raise HTTPException(status_code=409, detail={"message": str(exc), "status": exc.status}) from exc

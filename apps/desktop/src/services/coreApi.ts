@@ -1,0 +1,141 @@
+/**
+ * Typed API functions for all Core service endpoints.
+ */
+import { apiClient } from './apiClient';
+
+/* ---- Types ---- */
+export interface HealthResponse {
+  status: string;
+  service: string;
+  version: string;
+  timestamp: string;
+}
+
+export interface ComponentStatus {
+  status: string;
+  message?: string;
+}
+
+export interface SystemStatusResponse {
+  core: ComponentStatus;
+  database: ComponentStatus;
+  ai: ComponentStatus;
+}
+
+export interface SettingsResponse {
+  settings: Record<string, string | null>;
+}
+
+export interface ActivityEvent {
+  id: number;
+  timestamp: string;
+  level: string;
+  category: string;
+  message: string;
+  details?: Record<string, unknown> | null;
+}
+
+export interface PaginatedActivityResponse {
+  events: ActivityEvent[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AIStatusResponse {
+  provider: string;
+  provider_status: string;
+  configured: boolean;
+  provider_url: string | null;
+  provider_version?: string | null;
+  message?: string | null;
+  model: string | null;
+  model_status: string;
+  models_count: number;
+  ai_ready: boolean;
+}
+
+export interface AIProviderItem {
+  id: string;
+  label: string;
+  available: boolean;
+}
+
+export interface AIConfigResponse {
+  provider: string;
+  ollama_url: string;
+  kimi_base_url: string;
+  kimi_api_key_configured: boolean;
+  kimi_api_key_hint?: string | null;
+  selected_model: string | null;
+}
+
+export interface UpdateAIConfigRequest {
+  provider: string;
+  ollama_url?: string | null;
+  kimi_base_url?: string | null;
+  kimi_api_key?: string | null;
+  selected_model?: string | null;
+}
+
+export interface AIModelResponse {
+  name: string;
+  size?: number | null;
+  modified_at?: string | null;
+}
+
+export interface AIMessage {
+  id: number;
+  conversation_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
+}
+
+export interface AIConversation {
+  id: string;
+  title: string;
+  provider: string;
+  model: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: AIMessage[];
+}
+
+/* ---- API Functions ---- */
+export const coreApi = {
+  getHealth: () => apiClient.get<HealthResponse>('/api/health'),
+
+  getSystemStatus: () => apiClient.get<SystemStatusResponse>('/api/system/status'),
+
+  getSettings: () => apiClient.get<SettingsResponse>('/api/settings'),
+
+  updateSettings: (settings: Record<string, string | null>) =>
+    apiClient.put<SettingsResponse>('/api/settings', { settings }),
+
+  getActivity: (params?: { limit?: number; offset?: number; category?: string; level?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.offset !== undefined) q.set('offset', String(params.offset));
+    if (params?.category) q.set('category', params.category);
+    if (params?.level) q.set('level', params.level);
+    const qs = q.toString();
+    return apiClient.get<PaginatedActivityResponse>(`/api/activity${qs ? `?${qs}` : ''}`);
+  },
+
+  createActivityEvent: (event: { message: string; level?: string; category?: string; details?: Record<string, unknown> }) =>
+    apiClient.post<ActivityEvent>('/api/activity', event),
+
+  getAIStatus: () => apiClient.get<AIStatusResponse>('/api/ai/status'),
+  getAIProviders: () => apiClient.get<AIProviderItem[]>('/api/ai/providers'),
+  getAIConfig: () => apiClient.get<AIConfigResponse>('/api/ai/config'),
+  updateAIConfig: (config: UpdateAIConfigRequest) => apiClient.put<AIConfigResponse>('/api/ai/config', config),
+  testAIConnection: () => apiClient.post<AIStatusResponse>('/api/ai/test-connection', {}),
+  getAIModels: () => apiClient.get<AIModelResponse[]>('/api/ai/models'),
+  refreshAIModels: () => apiClient.post<AIModelResponse[]>('/api/ai/models/refresh', {}),
+  getConversations: () => apiClient.get<AIConversation[]>('/api/ai/conversations'),
+  createConversation: () => apiClient.post<AIConversation>('/api/ai/conversations', {}),
+  getConversation: (id: string) => apiClient.get<AIConversation>(`/api/ai/conversations/${id}`),
+  sendChat: (payload: { conversation_id?: string | null; message: string }) =>
+    apiClient.post<{ conversation: AIConversation; message: AIMessage }>('/api/ai/chat', payload),
+};
