@@ -1,8 +1,8 @@
 # AI OPERATOR — MASTER PROJECT CONTEXT
 ## Kompletny blueprint projektu dla AI programującego
-**Status:** zaakceptowany plan architektury  
-**Data aktualizacji:** 2026-08-26  
-**Wersja dokumentu:** 1.0
+**Status:** zaakceptowany plan architektury & zweryfikowana Faza 1 (Foundation MVP)  
+**Data aktualizacji:** 2026-08-27  
+**Wersja dokumentu:** 1.1
 
 ---
 
@@ -1070,18 +1070,18 @@ Uruchomiona aplikacja desktopowa.
 
 Zakres:
 
-- [ ] Tauri;
-- [ ] React;
-- [ ] TypeScript;
-- [ ] Python local core;
-- [ ] FastAPI health endpoint;
-- [ ] SQLite;
-- [ ] podstawowy UI shell;
-- [ ] sidebar;
-- [ ] Dashboard;
-- [ ] Activity panel;
-- [ ] Settings;
-- [ ] logging.
+- [x] Tauri;
+- [x] React;
+- [x] TypeScript;
+- [x] Python local core;
+- [x] FastAPI health endpoint;
+- [x] SQLite;
+- [x] podstawowy UI shell;
+- [x] sidebar;
+- [x] Dashboard;
+- [x] Activity panel;
+- [x] Settings;
+- [x] logging.
 
 Definition of Done:
 
@@ -1660,6 +1660,92 @@ https://docs.n8n.io/
 
 Security audit:
 https://docs.n8n.io/hosting/securing/security-audit/
+
+---
+
+# 31. CRITICAL ARCHITECTURAL RULES (ZASADY ARCHITEKTONICZNE)
+
+Poniższe zasady stanowią twarde wymagania projektowe wynikające ze zweryfikowanej architektury i nie mogą być łamane podczas dalszych prac:
+
+1. **Dynamiczny port Core**:
+   - Python Core zawsze uruchamia się na dynamicznym porcie przypisywanym przez system operacyjny (`TcpListener::bind("127.0.0.1:0")`).
+   - Zakazane jest hardcodowanie portów (np. `8000` lub `3854`) we frontendzie i logice aplikacyjnej.
+
+2. **Jednolite źródło prawdy dla Core URL**:
+   - Wszystkie moduły frontendowe (zarówno `apiClient` / `Assistant`, jak i polling `useCoreStatus`) korzystają ze wspólnej metody `getCoreUrl()` oraz szyny powiadomień `subscribeCoreStatus`.
+   - Każde udane zapytanie API w `apiClient` (np. odpowiedź z Assistant) natychmiast rozgłasza stan `CORE ONLINE` dla całego interfejsu.
+
+3. **Separacja błędów aplikacyjnych HTTP od braku połączenia**:
+   - Odpowiedź HTTP z Core (w tym statusy 401, 409, 429, 500, 503) oznacza, że serwer Core działa i odpowiada. Taki błąd NIE MOŻE ustawiać statusu aplikacji na `CORE OFFLINE`.
+   - Klasa `CoreOfflineError` jest zastrzeżona wyłącznie dla rzeczywistego braku połączenia sieciowego po wykorzystaniu próby auto-retry.
+
+4. **Bezpieczne logowanie bez wycieku sekretów**:
+   - Wszystkie wpisy logowania diagnostycznego (`[Assistant API]` oraz `[Core Status]`) muszą automatycznie maskować klucze API (`openrouter_api_key`, `kimi_api_key`), nagłówki `Authorization` oraz tokeny, zastępując wartości ciągiem `"***"`.
+
+5. **Niezależność produkcyjnego EXE od Node/Vite**:
+   - Produkcyjny pakiet Tauri (`tauri-app.exe`) budowany poleceniem `npm run tauri -- build` ładuje statyczne pliki z `frontendDist: "../dist"` (`http://tauri.localhost/`) i działa bez serwera deweloperskiego Node.js / Vite.
+   - Zakazane jest nadpisywanie produkcyjnej binarki bezpośrednim poleceniem `cargo build --release` bez zmiennych CLI Tauri.
+
+6. **Deduplikacja, obsługa Retry i `client_message_id`**:
+   - Wszystkie wiadomości wysyłane z Assistant posiadają unikalne `client_message_id` zapobiegające powielaniu wpisów.
+   - Nowe wysłanie identycznej treści przez użytkownika jako osobnej wiadomości musi być zawsze możliwe.
+
+7. **Automatyczne migracje bazy danych SQLite**:
+   - Procedura `init_db()` w backendzie automatycznie przeprowadza migracje SQLite (`ALTER TABLE messages ADD COLUMN client_message_id`), zapewniając kompatybilność ze starszymi lokalnymi bazami danych użytkownika.
+
+---
+
+# 32. ERROR HANDLING AND DIAGNOSTICS (OBSŁUGA BŁĘDÓW I DIAGNOSTYKA)
+
+Architektura obsługi błędów rozróżnia komunikat dla użytkownika, wewnętrzny kod błędu oraz diagnostykę techniczną:
+
+| Kod błędu (`code`) | Opis techniczny | Status HTTP | Retryable | Prezentowany komunikat dla użytkownika |
+| :--- | :--- | :--- | :--- | :--- |
+| `core_unreachable` | Brak połączenia z sidecarem Core na porcie dynamicznym | Network error | Tak (1x) | "The local AI Operator Core could not be reached." |
+| `core_timeout` | Przekroczono limit czasu zapytania (np. 120s dla chatu) | Timeout | Tak | "AI response timed out" |
+| `provider_not_configured` | Brak skonfigurowanego klucza API dla wybranego providera | HTTP 409 | Nie | "[Provider] is not configured. Please enter your API key in Settings → AI." |
+| `invalid_api_key` | Nieprawidłowy lub wygasły klucz API | HTTP 401 | Nie | "Invalid API key for [Provider]. Please update key in Settings." |
+| `provider_rate_limited` | Przekroczono limit zapytań u dostawcy AI | HTTP 429 | Tak | "The [Provider] service is currently rate limited." |
+| `provider_quota_exceeded` | Przekroczono limit środków / kredytów u dostawcy AI | HTTP 402 | Nie | "API quota exceeded for [Provider]." |
+| `model_not_found` | Wybrany model nie istnieje lub jest niedostępny | HTTP 404 | Nie | "Selected model is not available." |
+| `provider_unavailable` | Usługa dostawcy AI jest niedostępna lub przeciążona | HTTP 503 | Tak | "[Provider] service is temporarily unavailable." |
+| `http_500` / `internal_error` | Wewnętrzny błąd serwera Core / błąd zapytania DB | HTTP 500 | Tak | Wyświetla szczegółowy `detail` zwrócony przez backend |
+
+---
+
+# 33. CURRENT VERIFIED STATE (AKTUALNY ZWERYFIKOWANY STAN)
+
+| Komponent | Status | Poziom weryfikacji | Opis i potwierdzenie weryfikacji |
+| :--- | :--- | :--- | :--- |
+| **Frontend Production Build** | VERIFIED | Automated & Build | `npm run build` tworzy produkcyjny bundle w `apps/desktop/dist`. 34/34 testów vitest passed. |
+| **Backend Core Service** | VERIFIED | Automated & Unit | `FastAPI` + `asyncio`. 75/75 testów pytest passed. |
+| **Python Sidecar Binary** | VERIFIED | Real Build | Binarka `ai-operator-core.exe` zbudowana przez PyInstaller i skopiowana do binaries. |
+| **Dynamic Core Port Resolution** | VERIFIED | Real Runtime | Port przydzielany dynamicznie przez OS; przekazywany do UI komendą `get_core_url`. |
+| **ApiClient Auto-Retry** | VERIFIED | Automated & Runtime | Auto-retry ze świeżym `get_core_url` po błędzie `TypeError`. |
+| **Single Source of Truth Status** | VERIFIED | Automated & Real EXE | Pasek statusu oraz Assistant dzielą ten sam stan `CORE ONLINE`. |
+| **Assistant & OpenRouter Integration** | VERIFIED | End-to-End Chat | Wysłanie wiadomości i odebranie realnej odpowiedzi AI przez Assistant. |
+| **SQLite Auto-Migration** | VERIFIED | Automated & Real DB | Automatyczne dodawanie kolumny `client_message_id` w `init_db()`. |
+| **Production EXE Execution** | VERIFIED | Real Launch | Świeży `tauri-app.exe` (SHA256: `2CF9E57A...`) przetestowany bez Node/Vite w tle. |
+| **Core Status Indicator** | VERIFIED | Real Launch & Chat | Status `CORE ONLINE` pozostaje spójny podczas rozmowy z Assistant. |
+
+---
+
+# 34. KNOWN LIMITATIONS AND NEXT STEPS (OGRANICZENIA I KOLEJNE KROKI)
+
+### 1. Rozwiązane problemy (Naprawione)
+- Usunięto fałszywy status `CORE OFFLINE` występujący podczas prawidłowego działania Assistant.
+- Naprawiono błąd braku kolumny `client_message_id` w SQLite za pomocą automatycznej migracji w `init_db()`.
+- Dodano maskowanie sekretów w logach diagnostycznych `[Assistant API]` oraz `[Core Status]`.
+- Naprawiono konfigurację `tauri.conf.json` (`url: "index.html"`) zapobiegającą ładowaniu dev-url w trybie produkcyjnym.
+
+### 2. Aktualne ograniczenia
+- **OpenRouter Free Router Limits**: Zewnętrzny model `openrouter/free` przy dużym obciążeniu serwerów OpenRouter może zwracać status HTTP 429/503.
+- **Dostępność Klucza API**: Dla płatnych/chmurowych providerów wymagane jest podanie własnego klucza API w Settings → AI.
+
+### 3. Następne kroki w projekcie (Roadmap)
+- **Faza 2 (Local AI)**: Wykrywanie lokalnej instancji Ollama oraz automatyczne pobieranie/zarządzanie lokalnymi modelami GPU.
+- **Faza 3 (Tool System)**: Tool Registry, silnik uprawnień Permission Engine oraz panel zatwierdzeń Approval Center.
+- **Faza 4 (File Agent)**: Moduł zarządzania plikami z bezpiecznym przenoszeniem do kosza.
 
 ---
 
