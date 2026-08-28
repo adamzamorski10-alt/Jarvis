@@ -70,6 +70,33 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Could not seed default settings", error=str(exc))
 
+    # 5. Check and execute optional Ollama autostart
+    try:
+        from app.services.settings_service import SettingsService
+        from app.db.database import AsyncSessionLocal
+        from app.ai.services.ollama_process_manager import process_manager
+
+        async with AsyncSessionLocal() as session:
+            svc = SettingsService(session)
+            autostart_val = await svc.get_one("ai_ollama_autostart")
+            ollama_url = await svc.get_one("ai_ollama_url") or "http://127.0.0.1:11434"
+
+        if autostart_val and autostart_val.lower() == "true":
+            logger.info("Ollama autostart is enabled. Checking service status...", url=ollama_url)
+            if await process_manager.is_running(base_url=ollama_url):
+                logger.info("Ollama service is already running. Autostart skipped.")
+            else:
+                logger.info("Starting Ollama background process via autostart...")
+                start_res = await process_manager.start(base_url=ollama_url)
+                if start_res.get("success"):
+                    logger.info("Ollama autostart completed successfully", pid=start_res.get("managed_pid"))
+                else:
+                    logger.warning("Ollama autostart failed to complete", result=start_res)
+        else:
+            logger.info("Ollama autostart is disabled.")
+    except Exception as exc:
+        logger.warning("Error during Ollama autostart check", error=str(exc))
+
     logger.info("AI Operator Core is ready", host=settings.host, port=settings.port)
 
     # --- yield: application runs here ---
@@ -77,6 +104,18 @@ async def lifespan(app: FastAPI):
 
     # --- shutdown ---
     logger.info("Shutting down AI Operator Core")
+
+    # Clean up managed Ollama process if one was started by AI Operator
+    try:
+        from app.ai.services.ollama_process_manager import process_manager
+        if process_manager.managed_pid is not None:
+            logger.info("Cleaning up managed Ollama process on shutdown", pid=process_manager.managed_pid)
+            stop_res = await process_manager.stop()
+            logger.info("Managed Ollama process shutdown complete", result=stop_res)
+        else:
+            logger.info("No managed Ollama process to clean up during shutdown")
+    except Exception as exc:
+        logger.warning("Error during Ollama process shutdown cleanup", error=str(exc))
 
     try:
         from app.services.activity_service import ActivityService
@@ -92,3 +131,4 @@ async def lifespan(app: FastAPI):
             await session.commit()
     except Exception as exc:
         logger.warning("Could not write shutdown activity event", error=str(exc))
+

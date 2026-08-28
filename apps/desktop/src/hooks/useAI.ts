@@ -5,6 +5,7 @@ import {
   AIModelResponse,
   AIProviderItem,
   AIStatusResponse,
+  OllamaProcessStatusResponse,
   OllamaStorageResponse,
   PullStatusResponse,
   UpdateAIConfigRequest,
@@ -72,6 +73,9 @@ export function useAISettings() {
   const [pullStatus, setPullStatus] = useState<PullStatusResponse | null>(null);
   const [storageInfo, setStorageInfo] = useState<OllamaStorageResponse | null>(null);
   const [pullError, setPullError] = useState<PullErrorDetails | null>(null);
+  const [processStatus, setProcessStatus] = useState<OllamaProcessStatusResponse | null>(null);
+  const [processActionState, setProcessActionState] = useState<'starting' | 'stopping' | 'restarting' | null>(null);
+  const [processError, setProcessError] = useState<string | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,28 +87,38 @@ export function useAISettings() {
     }
   }, []);
 
+  const refreshProcessStatus = useCallback(async () => {
+    try {
+      setProcessStatus(await coreApi.getOllamaProcessStatus());
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const refreshModels = useCallback(async () => {
     setModels(await coreApi.refreshAIModels());
     setStatus(await coreApi.getAIStatus());
-    await refreshStorage();
-  }, [refreshStorage]);
+    await Promise.all([refreshStorage(), refreshProcessStatus()]);
+  }, [refreshStorage, refreshProcessStatus]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [providerList, cfg, aiStatus, pStatus, stInfo] = await Promise.all([
+      const [providerList, cfg, aiStatus, pStatus, stInfo, procStatus] = await Promise.all([
         coreApi.getAIProviders(),
         coreApi.getAIConfig(),
         coreApi.getAIStatus(),
         coreApi.getPullStatus().catch(() => ({ active: false })),
         coreApi.getOllamaStorage().catch(() => ({})),
+        coreApi.getOllamaProcessStatus().catch(() => null),
       ]);
       setProviders(providerList);
       setConfig(cfg);
       setStatus(aiStatus);
       setPullStatus(pStatus);
       setStorageInfo(stInfo);
+      setProcessStatus(procStatus);
       if (aiStatus.provider_status === 'online' || aiStatus.provider_status === 'ready') {
         setModels(await coreApi.getAIModels());
       }
@@ -131,6 +145,84 @@ export function useAISettings() {
     }, 1000);
     return () => clearInterval(interval);
   }, [pullStatus?.active, refreshModels]);
+
+  // Periodic refresh for process status (5 seconds)
+  useEffect(() => {
+    if (config?.provider !== 'ollama') return;
+    refreshProcessStatus();
+    const interval = setInterval(() => {
+      refreshProcessStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [config?.provider, refreshProcessStatus]);
+
+  const startOllamaProcess = useCallback(async () => {
+    setProcessActionState('starting');
+    setProcessError(null);
+    try {
+      await coreApi.startOllamaProcess();
+      await load();
+      await refreshModels();
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err) {
+        const apiErr = err as { code?: string; message?: string };
+        setProcessError(apiErr.message || 'Failed to start Ollama service.');
+      } else {
+        setProcessError(err instanceof Error ? err.message : 'Failed to start Ollama service.');
+      }
+      await refreshProcessStatus();
+    } finally {
+      setProcessActionState(null);
+    }
+  }, [load, refreshModels, refreshProcessStatus]);
+
+  const stopOllamaProcess = useCallback(async () => {
+    setProcessActionState('stopping');
+    setProcessError(null);
+    try {
+      await coreApi.stopOllamaProcess();
+      await load();
+      await refreshModels();
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err) {
+        const apiErr = err as { code?: string; message?: string };
+        if (apiErr.code === 'not_managed') {
+          setProcessError('Ollama is managed externally and cannot be stopped by AI Operator.');
+        } else {
+          setProcessError(apiErr.message || 'Failed to stop Ollama service.');
+        }
+      } else {
+        setProcessError(err instanceof Error ? err.message : 'Failed to stop Ollama service.');
+      }
+      await refreshProcessStatus();
+    } finally {
+      setProcessActionState(null);
+    }
+  }, [load, refreshModels, refreshProcessStatus]);
+
+  const restartOllamaProcess = useCallback(async () => {
+    setProcessActionState('restarting');
+    setProcessError(null);
+    try {
+      await coreApi.restartOllamaProcess();
+      await load();
+      await refreshModels();
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err) {
+        const apiErr = err as { code?: string; message?: string };
+        if (apiErr.code === 'not_managed') {
+          setProcessError('Ollama is managed externally and cannot be restarted by AI Operator.');
+        } else {
+          setProcessError(apiErr.message || 'Failed to restart Ollama service.');
+        }
+      } else {
+        setProcessError(err instanceof Error ? err.message : 'Failed to restart Ollama service.');
+      }
+      await refreshProcessStatus();
+    } finally {
+      setProcessActionState(null);
+    }
+  }, [load, refreshModels, refreshProcessStatus]);
 
   const startPull = useCallback(async (modelName: string) => {
     setPullError(null);
@@ -206,7 +298,16 @@ export function useAISettings() {
     cancelPull,
     deleteModel,
     refreshStorage,
+    processStatus,
+    processActionState,
+    isProcessOperating: processActionState !== null,
+    processError,
+    startOllamaProcess,
+    stopOllamaProcess,
+    restartOllamaProcess,
+    refreshProcessStatus,
     clearPullError: () => setPullError(null),
+    clearProcessError: () => setProcessError(null),
   };
 }
 

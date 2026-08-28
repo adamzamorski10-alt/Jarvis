@@ -348,6 +348,220 @@ describe('SettingsView AI tab', () => {
     expect(screen.getByText('Not enough free disk space to download qwen3:8b.')).toBeInTheDocument();
     expect(screen.getByText('Model storage: F:')).toBeInTheDocument();
   });
+
+  /* ---- STAGE 4.4 OLLAMA PROCESS CONTROL TESTS ---- */
+
+  it('renders Ollama process status in STOPPED state with Start Service button', async () => {
+    const startProcessMock = vi.fn();
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+      processStatus: {
+        state: 'stopped',
+        running: false,
+        managed: false,
+        managed_pid: null,
+        executable_path: 'C:\\Ollama\\ollama.exe',
+        base_url: 'http://127.0.0.1:11434',
+        storage_location: 'F:\\AI-Models\\.ollama\\models',
+      },
+      isProcessOperating: false,
+      processActionState: null,
+      startOllamaProcess: startProcessMock,
+    }));
+    render(<SettingsView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('Ollama Service Process')).toBeInTheDocument();
+    expect(screen.getByText('STOPPED')).toBeInTheDocument();
+    const startBtn = screen.getByRole('button', { name: 'Start Service' });
+    expect(startBtn).toBeInTheDocument();
+    expect(startBtn).not.toBeDisabled();
+
+    fireEvent.click(startBtn);
+    expect(startProcessMock).toHaveBeenCalled();
+  });
+
+  it('renders Ollama process status in RUNNING — MANAGED state with Stop and Restart Service buttons', async () => {
+    const stopProcessMock = vi.fn();
+    const restartProcessMock = vi.fn();
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: 'qwen3:8b' },
+      processStatus: {
+        state: 'running_managed',
+        running: true,
+        managed: true,
+        managed_pid: 43210,
+        executable_path: 'C:\\Ollama\\ollama.exe',
+        base_url: 'http://127.0.0.1:11434',
+        storage_location: 'F:\\AI-Models\\.ollama\\models',
+      },
+      isProcessOperating: false,
+      processActionState: null,
+      stopOllamaProcess: stopProcessMock,
+      restartOllamaProcess: restartProcessMock,
+    }));
+    render(<SettingsView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('RUNNING — MANAGED')).toBeInTheDocument();
+    expect(screen.getByText('43210')).toBeInTheDocument();
+
+    const stopBtn = screen.getByRole('button', { name: 'Stop Service' });
+    const restartBtn = screen.getByRole('button', { name: 'Restart Service' });
+
+    expect(stopBtn).toBeInTheDocument();
+    expect(restartBtn).toBeInTheDocument();
+
+    fireEvent.click(stopBtn);
+    expect(stopProcessMock).toHaveBeenCalled();
+
+    fireEvent.click(restartBtn);
+    expect(restartProcessMock).toHaveBeenCalled();
+  });
+
+  it('renders Ollama process status in RUNNING — EXTERNAL state with disabled Stop button and safety notice', async () => {
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: 'qwen3:8b' },
+      processStatus: {
+        state: 'running_external',
+        running: true,
+        managed: false,
+        managed_pid: null,
+        executable_path: 'C:\\Ollama\\ollama.exe',
+        base_url: 'http://127.0.0.1:11434',
+        storage_location: 'F:\\AI-Models\\.ollama\\models',
+      },
+      isProcessOperating: false,
+      processActionState: null,
+    }));
+    render(<SettingsView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('RUNNING — EXTERNAL')).toBeInTheDocument();
+    expect(screen.getByText(/Ollama is running externally\. AI Operator will not stop or restart this process\./)).toBeInTheDocument();
+
+    const disabledStopBtn = screen.getByRole('button', { name: 'Stop Service (External)' });
+    expect(disabledStopBtn).toBeDisabled();
+  });
+
+  it('renders process action error message and clear button', async () => {
+    const clearProcessErrorMock = vi.fn();
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+      processStatus: {
+        state: 'stopped',
+        running: false,
+        managed: false,
+        managed_pid: null,
+      },
+      processError: 'Ollama is managed externally and cannot be stopped by AI Operator.',
+      clearProcessError: clearProcessErrorMock,
+    }));
+    render(<SettingsView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('Ollama is managed externally and cannot be stopped by AI Operator.')).toBeInTheDocument();
+  });
+
+  /* ---- STAGE 4.5 AUTOSTART OLLAMA TOGGLE TESTS ---- */
+
+  it('renders Autostart Ollama toggle in OFF state by default', async () => {
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+    }));
+    // ai_ollama_autostart not set → defaults to false
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual', ai_ollama_autostart: 'false' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: vi.fn(),
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('Autostart Ollama')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: '' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('enables Autostart Ollama toggle when setting is true', async () => {
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+    }));
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual', ai_ollama_autostart: 'true' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: vi.fn(),
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    const toggle = screen.getByRole('switch', { name: '' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('calls updateSettings with false when Autostart toggle is clicked while ON', async () => {
+    const updateSettingsMock = vi.fn().mockResolvedValue(true);
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+    }));
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual', ai_ollama_autostart: 'true' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: updateSettingsMock,
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    const toggle = screen.getByRole('switch', { name: '' });
+    fireEvent.click(toggle);
+    expect(updateSettingsMock).toHaveBeenCalledWith({ ai_ollama_autostart: 'false' });
+  });
+
+  it('calls updateSettings with true when Autostart toggle is clicked while OFF', async () => {
+    const updateSettingsMock = vi.fn().mockResolvedValue(true);
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+    }));
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual', ai_ollama_autostart: 'false' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: updateSettingsMock,
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    const toggle = screen.getByRole('switch', { name: '' });
+    fireEvent.click(toggle);
+    expect(updateSettingsMock).toHaveBeenCalledWith({ ai_ollama_autostart: 'true' });
+  });
+
+  it('shows "next time AI Operator starts" info text below the Autostart toggle', async () => {
+    aiSettingsMock.mockReturnValue(baseAI({
+      config: { provider: 'ollama', ollama_url: 'http://127.0.0.1:11434', selected_model: null },
+    }));
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ai' }));
+
+    expect(screen.getByText('This setting takes effect the next time AI Operator starts.')).toBeInTheDocument();
+  });
 });
+
+
 
 

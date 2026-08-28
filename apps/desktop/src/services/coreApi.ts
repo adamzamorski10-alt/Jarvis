@@ -151,6 +151,26 @@ export interface OllamaStorageResponse {
   used_bytes?: number | null;
 }
 
+export interface OllamaProcessOperationResponse {
+  success: boolean;
+  already_running?: boolean | null;
+  state: string;
+  managed: boolean;
+  managed_pid?: number | null;
+  code?: string | null;
+  message: string;
+}
+
+export interface OllamaProcessStatusResponse {
+  state: string;
+  running: boolean;
+  managed: boolean;
+  managed_pid?: number | null;
+  executable_path?: string | null;
+  base_url: string;
+  storage_location?: string | null;
+}
+
 export interface AIConversation {
   id: string;
   title: string;
@@ -197,6 +217,10 @@ export const coreApi = {
   cancelPull: () => apiClient.post<PullStatusResponse>('/api/ai/models/pull/cancel', {}),
   deleteAIModel: (modelName: string) => apiClient.delete<{ success: boolean; model: string }>(`/api/ai/models/${encodeURIComponent(modelName)}`),
   getOllamaStorage: () => apiClient.get<OllamaStorageResponse>('/api/ai/models/storage'),
+  startOllamaProcess: () => apiClient.post<OllamaProcessOperationResponse>('/api/ai/ollama/start', {}),
+  stopOllamaProcess: () => apiClient.post<OllamaProcessOperationResponse>('/api/ai/ollama/stop', {}),
+  restartOllamaProcess: () => apiClient.post<OllamaProcessOperationResponse>('/api/ai/ollama/restart', {}),
+  getOllamaProcessStatus: () => apiClient.get<OllamaProcessStatusResponse>('/api/ai/ollama/process'),
   getConversations: () => apiClient.get<AIConversation[]>('/api/ai/conversations'),
   createConversation: () => apiClient.post<AIConversation>('/api/ai/conversations', {}),
   getConversation: (id: string) => apiClient.get<AIConversation>(`/api/ai/conversations/${id}`),

@@ -92,6 +92,7 @@ const RECOMMENDED_OLLAMA_MODELS: RecommendedModel[] = [
 
 function AISettingsSection() {
   const ai = useAISettings();
+  const { settings, updateSettings } = useSettings();
   const [provider, setProvider] = useState('ollama');
   const [ollamaUrl, setOllamaUrl] = useState('');
   const [openrouterBaseUrl, setOpenrouterBaseUrl] = useState('');
@@ -99,6 +100,7 @@ function AISettingsSection() {
   const [kimiBaseUrl, setKimiBaseUrl] = useState('');
   const [kimiApiKey, setKimiApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const [ollamaAutostart, setOllamaAutostart] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [deletingModel, setDeletingModel] = useState<string | null>(null);
 
@@ -128,6 +130,17 @@ function AISettingsSection() {
       setOpenrouterApiKey('');
     }
   }, [ai.config]);
+
+  useEffect(() => {
+    if (settings.ai_ollama_autostart !== undefined) {
+      setOllamaAutostart(settings.ai_ollama_autostart === 'true');
+    }
+  }, [settings.ai_ollama_autostart]);
+
+  const handleToggleAutostart = async (enabled: boolean) => {
+    setOllamaAutostart(enabled);
+    await updateSettings({ ai_ollama_autostart: enabled ? 'true' : 'false' });
+  };
 
   const save = async () => {
     await ai.save({
@@ -382,6 +395,212 @@ function AISettingsSection() {
             </div>
             <div className="settings-row-control">
               <input className="form-input" value={ollamaUrl} onChange={event => setOllamaUrl(event.target.value)} />
+            </div>
+          </div>
+
+          {/* Ollama Process Service Control Block */}
+          <div style={{
+            marginTop: 'var(--space-4)',
+            padding: 'var(--space-3)',
+            borderRadius: 6,
+            background: 'var(--color-bg-subtle)',
+            border: '1px solid var(--color-border-subtle)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+                  Ollama Service Process
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                  Background process management for local AI service (ollama serve).
+                </div>
+              </div>
+              <span className={`process-badge process-badge-${ai.processActionState || (ai.processStatus?.state ?? (isOllamaRunning ? 'running_external' : 'stopped'))}`} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '3px 10px', borderRadius: 4,
+                fontSize: 'var(--text-xs)', fontWeight: 700, letterSpacing: '0.04em',
+                background: ai.isProcessOperating || (ai.processStatus?.state === 'starting' || ai.processStatus?.state === 'stopping' || ai.processStatus?.state === 'restarting')
+                  ? 'rgba(251,191,36,0.15)'
+                  : (ai.processStatus?.state === 'running_managed')
+                  ? 'rgba(52,211,153,0.15)'
+                  : (ai.processStatus?.state === 'running_external' || (!ai.processStatus?.state && isOllamaRunning))
+                  ? 'rgba(59,130,246,0.15)'
+                  : (ai.processStatus?.state === 'failed')
+                  ? 'rgba(239,68,68,0.15)'
+                  : 'rgba(156,163,175,0.15)',
+                color: ai.isProcessOperating || (ai.processStatus?.state === 'starting' || ai.processStatus?.state === 'stopping' || ai.processStatus?.state === 'restarting')
+                  ? 'var(--color-warning)'
+                  : (ai.processStatus?.state === 'running_managed')
+                  ? 'var(--color-success)'
+                  : (ai.processStatus?.state === 'running_external' || (!ai.processStatus?.state && isOllamaRunning))
+                  ? 'var(--color-primary)'
+                  : (ai.processStatus?.state === 'failed')
+                  ? 'var(--color-error)'
+                  : 'var(--color-text-muted)',
+              }}>
+                {ai.processActionState === 'starting' ? 'STARTING...' :
+                 ai.processActionState === 'stopping' ? 'STOPPING...' :
+                 ai.processActionState === 'restarting' ? 'RESTARTING...' :
+                 ai.processStatus?.state === 'running_managed' ? 'RUNNING — MANAGED' :
+                 ai.processStatus?.state === 'running_external' || (!ai.processStatus?.state && isOllamaRunning) ? 'RUNNING — EXTERNAL' :
+                 ai.processStatus?.state === 'stopped' || (!ai.processStatus?.state && providerStatus === 'stopped') ? 'STOPPED' :
+                 ai.processStatus?.state === 'failed' ? 'START FAILED' :
+                 (ai.processStatus?.state ? ai.processStatus.state.toUpperCase() : 'STOPPED')}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 'var(--space-3)', fontSize: 'var(--text-xs)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Managed by AI Operator:</span>
+                <span style={{ fontWeight: 600, color: ai.processStatus?.managed ? 'var(--color-success)' : 'var(--color-text-primary)' }}>
+                  {ai.processStatus?.managed ? 'Yes' : 'No'}
+                </span>
+              </div>
+              {ai.processStatus?.managed_pid && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Managed Process PID:</span>
+                  <code style={{ fontWeight: 600, background: 'var(--color-bg-muted)', padding: '1px 5px', borderRadius: 3 }}>
+                    {ai.processStatus.managed_pid}
+                  </code>
+                </div>
+              )}
+              {ai.processStatus?.executable_path && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Executable Path:</span>
+                  <span style={{ color: 'var(--color-text-muted)', wordBreak: 'break-all', textAlign: 'right' }}>
+                    {ai.processStatus.executable_path}
+                  </span>
+                </div>
+              )}
+              {ai.processStatus?.storage_location && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Storage Location:</span>
+                  <span style={{ color: 'var(--color-text-muted)', wordBreak: 'break-all', textAlign: 'right' }}>
+                    {ai.processStatus.storage_location}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {(ai.processStatus?.state === 'running_external' || (!ai.processStatus?.state && isOllamaRunning && !ai.processStatus?.managed)) && (
+              <div style={{
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 4,
+                marginBottom: 'var(--space-3)',
+                background: 'rgba(59,130,246,0.08)',
+                border: '1px solid rgba(59,130,246,0.2)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-primary)',
+              }}>
+                ℹ Ollama is running externally. AI Operator will not stop or restart this process.
+              </div>
+            )}
+
+            {ai.processError && (
+              <div style={{
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 4,
+                marginBottom: 'var(--space-3)',
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-error)',
+              }}>
+                <span>{ai.processError}</span>
+                <button className="btn btn-ghost btn-sm" style={{ padding: '0 4px', height: 'auto' }} onClick={ai.clearProcessError}>
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+              {ai.processStatus?.state === 'running_external' || (!ai.processStatus?.state && isOllamaRunning && !ai.processStatus?.managed) ? (
+                <button className="btn btn-secondary btn-sm" disabled title="Cannot stop external process">
+                  Stop Service (External)
+                </button>
+              ) : ai.processStatus?.managed ? (
+                <>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={ai.isProcessOperating}
+                    onClick={ai.restartOllamaProcess}
+                  >
+                    {ai.processActionState === 'restarting' ? 'Restarting...' : 'Restart Service'}
+                  </button>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{ color: 'var(--color-error)' }}
+                    disabled={ai.isProcessOperating}
+                    onClick={ai.stopOllamaProcess}
+                  >
+                    {ai.processActionState === 'stopping' ? 'Stopping...' : 'Stop Service'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={ai.isProcessOperating}
+                  onClick={ai.startOllamaProcess}
+                >
+                  {ai.processActionState === 'starting' ? 'Starting...' : 'Start Service'}
+                </button>
+              )}
+            </div>
+
+            {/* Autostart Ollama toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              marginTop: 'var(--space-3)',
+              paddingTop: 'var(--space-3)',
+              borderTop: '1px solid var(--color-border-subtle)',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>
+                  Autostart Ollama
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                  Automatically start Ollama when AI Operator starts.
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                  This setting takes effect the next time AI Operator starts.
+                </div>
+              </div>
+              <button
+                id="ollama-autostart-toggle"
+                role="switch"
+                aria-checked={ollamaAutostart}
+                onClick={() => handleToggleAutostart(!ollamaAutostart)}
+                style={{
+                  flexShrink: 0,
+                  marginLeft: 'var(--space-4)',
+                  position: 'relative',
+                  width: 40,
+                  height: 22,
+                  borderRadius: 11,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: ollamaAutostart ? 'var(--color-primary)' : 'var(--color-border)',
+                  transition: 'background 0.2s ease',
+                  padding: 0,
+                }}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: 3,
+                  left: ollamaAutostart ? 21 : 3,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  transition: 'left 0.2s ease',
+                  display: 'block',
+                }} />
+              </button>
             </div>
           </div>
         </div>

@@ -391,6 +391,85 @@ class AIService:
             return await provider.get_storage_info()
         return {"location": None, "drive": None, "available_bytes": None, "used_bytes": None}
 
+    async def start_ollama_process(self) -> dict:
+        config = await self._providers.get_config()
+        base_url = config.get("ollama_url") or "http://127.0.0.1:11434"
+        from app.ai.services.ollama_process_manager import process_manager
+        res = await process_manager.start(base_url=base_url)
+        if not res.get("success"):
+            code = res.get("code", "ollama_start_failed")
+            raise AIUnavailable(
+                res.get("message", "Failed to start Ollama service."),
+                code=code,
+                provider="ollama",
+                retryable=False,
+            )
+        await self._activity.create_event(
+            f"Ollama process start operation: {res.get('state')}",
+            category="ai",
+            details=res,
+        )
+        return res
+
+    async def stop_ollama_process(self) -> dict:
+        from app.ai.services.ollama_process_manager import process_manager
+        res = await process_manager.stop()
+        if not res.get("success"):
+            code = res.get("code", "not_managed")
+            raise AIUnavailable(
+                res.get("message", "Cannot stop Ollama service."),
+                code=code,
+                provider="ollama",
+                retryable=False,
+            )
+        await self._activity.create_event(
+            "Stopped managed Ollama process",
+            category="ai",
+            details=res,
+        )
+        return res
+
+    async def restart_ollama_process(self) -> dict:
+        config = await self._providers.get_config()
+        base_url = config.get("ollama_url") or "http://127.0.0.1:11434"
+        from app.ai.services.ollama_process_manager import process_manager
+        res = await process_manager.restart(base_url=base_url)
+        if not res.get("success"):
+            code = res.get("code", "ollama_start_failed")
+            raise AIUnavailable(
+                res.get("message", "Failed to restart Ollama service."),
+                code=code,
+                provider="ollama",
+                retryable=False,
+            )
+        await self._activity.create_event(
+            "Restarted managed Ollama process",
+            category="ai",
+            details=res,
+        )
+        return res
+
+    async def get_ollama_process_status(self) -> dict:
+        config = await self._providers.get_config()
+        base_url = config.get("ollama_url") or "http://127.0.0.1:11434"
+        from app.ai.services.ollama_process_manager import process_manager
+        from app.ai.providers.ollama import find_ollama_executable, get_ollama_models_path
+
+        state_info = await process_manager.get_state_info(base_url=base_url)
+        exe_path = find_ollama_executable()
+        storage_path = get_ollama_models_path()
+
+        return {
+            "state": state_info["state"],
+            "running": state_info["running"],
+            "managed": state_info["managed"],
+            "managed_pid": state_info["managed_pid"],
+            "executable_path": exe_path,
+            "base_url": base_url,
+            "storage_location": str(storage_path),
+        }
+
+
 
 MODEL_ESTIMATED_BYTES: dict[str, int] = {
     "qwen2.5-coder:7b": 4_700_000_000,

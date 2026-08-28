@@ -12,6 +12,8 @@ from app.api.schemas.ai import (
     ChatRequest,
     ChatResponse,
     ConversationResponse,
+    OllamaProcessOperationResponse,
+    OllamaProcessStatusResponse,
     OllamaStorageResponse,
     PullModelRequest,
     PullStatusResponse,
@@ -233,5 +235,68 @@ async def delete_model(model_name: str, ai: AIService = Depends(get_ai_service))
             },
         }
         raise HTTPException(status_code=400, detail=detail) from exc
+
+
+@router.post("/ollama/start", response_model=OllamaProcessOperationResponse)
+async def start_ollama(ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.start_ollama_process()
+    except AIUnavailable as exc:
+        status_code = 409 if exc.code in ("ollama_startup_timeout", "ollama_process_crashed", "ollama_start_failed") else 400
+        detail = {
+            "message": str(exc),
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": str(exc),
+                "provider": "ollama",
+                "retryable": exc.retryable,
+            },
+        }
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.post("/ollama/stop", response_model=OllamaProcessOperationResponse)
+async def stop_ollama(ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.stop_ollama_process()
+    except AIUnavailable as exc:
+        status_code = 409 if exc.code == "not_managed" else 400
+        detail = {
+            "message": str(exc),
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": str(exc),
+                "provider": "ollama",
+                "retryable": False,
+            },
+        }
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.post("/ollama/restart", response_model=OllamaProcessOperationResponse)
+async def restart_ollama(ai: AIService = Depends(get_ai_service)):
+    try:
+        return await ai.restart_ollama_process()
+    except AIUnavailable as exc:
+        status_code = 409 if exc.code in ("not_managed", "ollama_startup_timeout", "ollama_process_crashed", "ollama_start_failed") else 400
+        detail = {
+            "message": str(exc),
+            "status": exc.code,
+            "error": {
+                "code": exc.code,
+                "message": str(exc),
+                "provider": "ollama",
+                "retryable": False,
+            },
+        }
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get("/ollama/process", response_model=OllamaProcessStatusResponse)
+async def get_ollama_process(ai: AIService = Depends(get_ai_service)):
+    return await ai.get_ollama_process_status()
+
 
 

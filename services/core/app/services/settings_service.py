@@ -13,6 +13,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "autonomy_mode": "manual",
     "ai_provider": "ollama",
     "ai_ollama_url": "http://127.0.0.1:11434",
+    "ai_ollama_autostart": "false",
     "ai_kimi_base_url": "https://api.moonshot.ai/v1",
     "ai_kimi_api_key_encrypted": "",
     "ai_selected_model": "",

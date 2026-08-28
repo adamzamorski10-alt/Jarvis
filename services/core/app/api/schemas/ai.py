@@ -108,3 +108,24 @@ class OllamaStorageResponse(BaseModel):
     available_bytes: int | None = None
     used_bytes: int | None = None
 
+
+class OllamaProcessOperationResponse(BaseModel):
+    success: bool
+    already_running: bool | None = None
+    state: str
+    managed: bool
+    managed_pid: int | None = None
+    code: str | None = None
+    message: str
+
+
+class OllamaProcessStatusResponse(BaseModel):
+    state: str
+    running: bool
+    managed: bool
+    managed_pid: int | None = None
+    executable_path: str | None = None
+    base_url: str = "http://127.0.0.1:11434"
+    storage_location: str | None = None
+
+
