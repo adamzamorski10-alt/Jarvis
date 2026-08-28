@@ -127,6 +127,15 @@ async def test_ollama_pull_model_success(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ollama_pull_duplicate_blocked(client, monkeypatch):
+    monkeypatch.setattr("app.ai.providers.ollama.find_ollama_executable", lambda: r"C:\path\to\ollama.exe")
+
+    async def handler(request):
+        if request.url.path == "/api/version":
+            return httpx.Response(200, json={"version": "0.5.1"})
+        return httpx.Response(404)
+
+    mock_async_client(monkeypatch, handler)
+
     download_manager.active = True
     download_manager.model = "llama3:8b"
 
