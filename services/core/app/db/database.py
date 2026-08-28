@@ -56,7 +56,7 @@ def AsyncSessionLocal() -> AsyncSession:
 async def init_db() -> None:
     """Create all tables if they don't exist and run lightweight migrations."""
     # Import models so SQLAlchemy knows about them
-    from app.db.models import settings, activity, conversation  # noqa: F401
+    from app.db.models import settings, activity, conversation, permission_grant  # noqa: F401
 
     engine = get_engine()
     async with engine.begin() as conn:
