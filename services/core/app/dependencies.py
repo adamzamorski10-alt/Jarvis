@@ -16,6 +16,7 @@ from app.ai.services.ai_service import AIService
 
 if TYPE_CHECKING:
     from app.repositories.grant_repository import GrantRepository
+    from app.repositories.audit_log_repository import AuditLogRepository
     from app.tools.registry import ToolRegistry
     from app.tools.permission_engine import PermissionEngine
 
@@ -70,3 +71,10 @@ async def get_permission_engine(
 ) -> AsyncGenerator[PermissionEngine, None]:
     from app.tools.permission_engine import PermissionEngine
     yield PermissionEngine(registry=registry, grant_repo=grant_repo)
+
+
+async def get_audit_log_repository(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[AuditLogRepository, None]:
+    from app.repositories.audit_log_repository import AuditLogRepository
+    yield AuditLogRepository(session)

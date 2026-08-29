@@ -3,5 +3,6 @@ from app.db.models.settings import AppSetting
 from app.db.models.activity import ActivityEvent
 from app.db.models.conversation import Conversation, Message
 from app.db.models.permission_grant import PermissionGrantModel
+from app.db.models.audit_event import AuditEventModel
 
-__all__ = ["AppSetting", "ActivityEvent", "Conversation", "Message", "PermissionGrantModel"]
+__all__ = ["AppSetting", "ActivityEvent", "Conversation", "Message", "PermissionGrantModel", "AuditEventModel"]

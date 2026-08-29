@@ -26,7 +26,7 @@ async def engine():
     eng = create_async_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
     async with eng.begin() as conn:
         # Import models to register them
-        from app.db.models import settings, activity, conversation  # noqa: F401
+        from app.db.models import settings, activity, conversation, permission_grant, audit_event  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     async with eng.begin() as conn:
