@@ -27,6 +27,13 @@ from app.tools.models import (
     ToolExecutionResult,
     ToolExecutionStatus,
 )
+from app.tools.audit_models import (
+    AuditEvent,
+    AuditEventType,
+    sanitize_payload,
+    make_audit_event,
+)
+from app.tools.audit_service import AuditLogService
 from app.tools.permission_engine import PermissionEngine
 from app.tools.registry import ToolRegistry, tool_registry
 
@@ -54,4 +61,9 @@ __all__ = [
     "ToolRegistry",
     "tool_registry",
     "PermissionEngine",
+    "AuditEvent",
+    "AuditEventType",
+    "sanitize_payload",
+    "make_audit_event",
+    "AuditLogService",
 ]

@@ -25,6 +25,7 @@ class AuditEventModel(Base):
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tool_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     action: Mapped[str | None] = mapped_column(String(100), nullable=True)

@@ -5,9 +5,12 @@ atomic one-time grant consumption (with concurrency test), and fail-closed secur
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
-import pytest
+from pathlib import Path
 
-from app.db.database import AsyncSessionLocal, init_db
+import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from app.db.database import Base
 from app.db.models.permission_grant import PermissionGrantModel
 from app.repositories.grant_repository import GrantRepository, match_action, match_tool_id
 from app.tools.models import (
@@ -15,7 +18,6 @@ from app.tools.models import (
     GrantType,
     PermissionDecisionType,
     PermissionEvaluationRequest,
-    PermissionGrant,
     RiskLevel,
     ToolCategory,
     ToolDefinition,
@@ -283,196 +285,197 @@ async def test_permission_requires_confirmation_constraint():
 # --- 3. GRANT LIFECYCLE & PERSISTENCE TESTS ---
 
 @pytest.mark.asyncio
-async def test_grant_repository_crud():
+async def test_grant_repository_crud(session):
     """Test creating, fetching, listing, and revoking grants in SQLite."""
-    await init_db()
-    async with AsyncSessionLocal() as session:
-        repo = GrantRepository(session)
+    repo = GrantRepository(session)
 
-        # Create persistent grant
-        g1 = await repo.create_grant(
-            tool_id="files.write_file",
-            action_pattern="write",
-            grant_type=GrantType.PERSISTENT,
-        )
-        assert g1.id is not None
-        assert g1.tool_id == "files.write_file"
+    # Create persistent grant
+    g1 = await repo.create_grant(
+        tool_id="files.write_file",
+        action_pattern="write",
+        grant_type=GrantType.PERSISTENT,
+    )
+    assert g1.id is not None
+    assert g1.tool_id == "files.write_file"
 
-        # List grants
-        grants = await repo.list_grants(tool_id="files.write_file")
-        assert len(grants) == 1
-        assert grants[0].id == g1.id
+    # List grants
+    grants = await repo.list_grants(tool_id="files.write_file")
+    assert len(grants) == 1
+    assert grants[0].id == g1.id
 
-        # Revoke grant
-        revoked = await repo.revoke_grant(g1.id)
-        assert revoked is True
+    # Revoke grant
+    revoked = await repo.revoke_grant(g1.id)
+    assert revoked is True
 
-        # Verify revoked
-        grants_after = await repo.list_grants(tool_id="files.write_file")
-        assert len(grants_after) == 0
+    # Verify revoked
+    grants_after = await repo.list_grants(tool_id="files.write_file")
+    assert len(grants_after) == 0
 
 
 @pytest.mark.asyncio
-async def test_permission_engine_with_active_grant():
+async def test_permission_engine_with_active_grant(session):
     """Test PermissionEngine evaluates ALLOW when a matching valid grant exists."""
-    await init_db()
     reg = _create_test_registry()
+    repo = GrantRepository(session)
+    g = await repo.create_grant(
+        tool_id="files.write_file",
+        action_pattern="write",
+        grant_type=GrantType.PERSISTENT,
+    )
 
-    async with AsyncSessionLocal() as session:
-        repo = GrantRepository(session)
-        g = await repo.create_grant(
-            tool_id="files.write_file",
-            action_pattern="write",
-            grant_type=GrantType.PERSISTENT,
-        )
+    engine = PermissionEngine(registry=reg, grant_repo=repo)
+    req = PermissionEvaluationRequest(
+        tool_id="files.write_file",
+        risk_level=RiskLevel.MEDIUM,
+        action="write",
+        autonomy_mode=AutonomyMode.MANUAL,  # Would normally be ASK_USER in MANUAL
+    )
+    decision = await engine.evaluate(req)
 
-        engine = PermissionEngine(registry=reg, grant_repo=repo)
-        req = PermissionEvaluationRequest(
-            tool_id="files.write_file",
-            risk_level=RiskLevel.MEDIUM,
-            action="write",
-            autonomy_mode=AutonomyMode.MANUAL,  # Would normally be ASK_USER in MANUAL
-        )
-        decision = await engine.evaluate(req)
-
-        assert decision.decision == PermissionDecisionType.ALLOW
-        assert decision.grant_id == g.id
+    assert decision.decision == PermissionDecisionType.ALLOW
+    assert decision.grant_id == g.id
 
 
 @pytest.mark.asyncio
-async def test_expired_time_bound_grant_ignored():
+async def test_expired_time_bound_grant_ignored(session):
     """Test that expired time-bound grants do NOT grant permission."""
-    await init_db()
     reg = _create_test_registry()
     now = datetime.now(timezone.utc)
     past = now - timedelta(minutes=10)
 
-    async with AsyncSessionLocal() as session:
-        repo = GrantRepository(session)
-        # Insert an already-expired grant directly via ORM (bypasses domain validation,
-        # which correctly rejects expires_at < created_at for new grants from user input).
-        import uuid
-        expired_model = PermissionGrantModel(
-            id=f"grant_{uuid.uuid4().hex[:12]}",
-            tool_id="files.write_file",
-            action_pattern="write",
-            grant_type=GrantType.TIME_BOUND.value,
-            created_at=past - timedelta(minutes=30),
-            expires_at=past,
-            consumed=False,
-        )
-        session.add(expired_model)
-        await session.flush()
+    repo = GrantRepository(session)
+    # Insert an already-expired grant directly via ORM (bypasses domain validation,
+    # which correctly rejects expires_at < created_at for new grants from user input).
+    import uuid
+    expired_model = PermissionGrantModel(
+        id=f"grant_{uuid.uuid4().hex[:12]}",
+        tool_id="files.write_file",
+        action_pattern="write",
+        grant_type=GrantType.TIME_BOUND.value,
+        created_at=past - timedelta(minutes=30),
+        expires_at=past,
+        consumed=False,
+    )
+    session.add(expired_model)
+    await session.flush()
 
-        engine = PermissionEngine(registry=reg, grant_repo=repo)
-        req = PermissionEvaluationRequest(
-            tool_id="files.write_file",
-            risk_level=RiskLevel.MEDIUM,
-            action="write",
-            autonomy_mode=AutonomyMode.MANUAL,
-        )
-        decision = await engine.evaluate(req)
+    engine = PermissionEngine(registry=reg, grant_repo=repo)
+    req = PermissionEvaluationRequest(
+        tool_id="files.write_file",
+        risk_level=RiskLevel.MEDIUM,
+        action="write",
+        autonomy_mode=AutonomyMode.MANUAL,
+    )
+    decision = await engine.evaluate(req)
 
-        # Expired grant ignored -> falls back to MANUAL mode rule (ASK_USER)
-        assert decision.decision == PermissionDecisionType.ASK_USER
-        assert decision.grant_id is None
+    # Expired grant ignored -> falls back to MANUAL mode rule (ASK_USER)
+    assert decision.decision == PermissionDecisionType.ASK_USER
+    assert decision.grant_id is None
 
 
 @pytest.mark.asyncio
-async def test_grant_cleanup_expired():
+async def test_grant_cleanup_expired(session):
     """Test cleaning up expired time-bound grants."""
-    await init_db()
     now = datetime.now(timezone.utc)
     past = now - timedelta(minutes=10)
     future = now + timedelta(minutes=10)
 
-    async with AsyncSessionLocal() as session:
-        repo = GrantRepository(session)
-        import uuid
-        # Insert pre-expired grant directly via ORM to bypass domain validation
-        expired_model = PermissionGrantModel(
-            id=f"grant_{uuid.uuid4().hex[:12]}",
-            tool_id="cleanup.tool1",
-            action_pattern="*",
-            grant_type=GrantType.TIME_BOUND.value,
-            created_at=past - timedelta(minutes=30),
-            expires_at=past,
-            consumed=False,
-        )
-        session.add(expired_model)
-        await session.flush()
+    repo = GrantRepository(session)
+    import uuid
+    # Insert pre-expired grant directly via ORM to bypass domain validation
+    expired_model = PermissionGrantModel(
+        id=f"grant_{uuid.uuid4().hex[:12]}",
+        tool_id="cleanup.tool1",
+        action_pattern="*",
+        grant_type=GrantType.TIME_BOUND.value,
+        created_at=past - timedelta(minutes=30),
+        expires_at=past,
+        consumed=False,
+    )
+    session.add(expired_model)
+    await session.flush()
 
-        # Normal (non-expired) grant created via repository
-        await repo.create_grant(
-            tool_id="cleanup.tool2",
-            grant_type=GrantType.TIME_BOUND,
-            expires_at=future,
-        )
+    # Normal (non-expired) grant created via repository
+    await repo.create_grant(
+        tool_id="cleanup.tool2",
+        grant_type=GrantType.TIME_BOUND,
+        expires_at=future,
+    )
 
-        cleaned_count = await repo.cleanup_expired_grants()
-        assert cleaned_count == 1
+    cleaned_count = await repo.cleanup_expired_grants()
+    assert cleaned_count == 1
 
-        active = await repo.list_grants()
-        assert len(active) == 1
-        assert active[0].tool_id == "cleanup.tool2"
+    active = await repo.list_grants()
+    assert len(active) == 1
+    assert active[0].tool_id == "cleanup.tool2"
 
 
 # --- 4. ATOMIC ONE-TIME GRANT & CONCURRENCY TESTS ---
 
 @pytest.mark.asyncio
-async def test_one_time_grant_atomic_consumption():
+async def test_one_time_grant_atomic_consumption(session):
     """Test that a one-time grant is consumed upon first execution and cannot be reused."""
-    await init_db()
     reg = _create_test_registry()
+    repo = GrantRepository(session)
+    g = await repo.create_grant(
+        tool_id="files.write_file",
+        action_pattern="write",
+        grant_type=GrantType.ONE_TIME,
+    )
 
-    async with AsyncSessionLocal() as session:
-        repo = GrantRepository(session)
-        g = await repo.create_grant(
-            tool_id="files.write_file",
-            action_pattern="write",
-            grant_type=GrantType.ONE_TIME,
-        )
+    engine = PermissionEngine(registry=reg, grant_repo=repo)
+    req = PermissionEvaluationRequest(
+        tool_id="files.write_file",
+        risk_level=RiskLevel.MEDIUM,
+        action="write",
+        autonomy_mode=AutonomyMode.MANUAL,
+    )
 
-        engine = PermissionEngine(registry=reg, grant_repo=repo)
-        req = PermissionEvaluationRequest(
-            tool_id="files.write_file",
-            risk_level=RiskLevel.MEDIUM,
-            action="write",
-            autonomy_mode=AutonomyMode.MANUAL,
-        )
+    # 1st attempt -> ALLOW (one-time grant consumed)
+    dec1 = await engine.evaluate(req)
+    assert dec1.decision == PermissionDecisionType.ALLOW
+    assert dec1.grant_id == g.id
 
-        # 1st attempt -> ALLOW (one-time grant consumed)
-        dec1 = await engine.evaluate(req)
-        assert dec1.decision == PermissionDecisionType.ALLOW
-        assert dec1.grant_id == g.id
-
-        # 2nd attempt -> ASK_USER (grant already consumed)
-        dec2 = await engine.evaluate(req)
-        assert dec2.decision == PermissionDecisionType.ASK_USER
-        assert dec2.grant_id is None
+    # 2nd attempt -> ASK_USER (grant already consumed)
+    dec2 = await engine.evaluate(req)
+    assert dec2.decision == PermissionDecisionType.ASK_USER
+    assert dec2.grant_id is None
 
 
 @pytest.mark.asyncio
-async def test_parallel_one_time_grant_race_condition():
+async def test_parallel_one_time_grant_race_condition(tmp_path: Path):
     """
     Test 20 parallel async requests attempting to consume the exact same one-time grant.
     Guarantees that EXACTLY ONE request succeeds (ALLOW) and 19 fail (ASK_USER).
+    Uses a throwaway SQLite file — never data/ai_operator.db.
     """
-    await init_db()
+    db_path = tmp_path / "grant_race.db"
+    url = f"sqlite+aiosqlite:///{db_path.resolve().as_posix()}"
+    engine_db = create_async_engine(url, connect_args={"check_same_thread": False})
+    async with engine_db.begin() as conn:
+        from app.db.models import (  # noqa: F401
+            settings,
+            activity,
+            conversation,
+            permission_grant,
+            audit_event,
+        )
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = async_sessionmaker(bind=engine_db, expire_on_commit=False, autocommit=False)
     reg = _create_test_registry()
 
-    async with AsyncSessionLocal() as session:
+    async with factory() as session:
         repo = GrantRepository(session)
-        g = await repo.create_grant(
+        await repo.create_grant(
             tool_id="files.write_file",
             action_pattern="write",
             grant_type=GrantType.ONE_TIME,
         )
         await session.commit()
 
-    # Parallel requests with independent DB sessions
     async def try_consume():
-        async with AsyncSessionLocal() as session:
+        async with factory() as session:
             repo = GrantRepository(session)
             engine = PermissionEngine(registry=reg, grant_repo=repo)
             req = PermissionEvaluationRequest(
@@ -485,14 +488,17 @@ async def test_parallel_one_time_grant_race_condition():
             await session.commit()
             return res.decision
 
-    tasks = [try_consume() for _ in range(20)]
-    results = await asyncio.gather(*tasks)
+    try:
+        tasks = [try_consume() for _ in range(20)]
+        results = await asyncio.gather(*tasks)
 
-    allows = [r for r in results if r == PermissionDecisionType.ALLOW]
-    ask_users = [r for r in results if r == PermissionDecisionType.ASK_USER]
+        allows = [r for r in results if r == PermissionDecisionType.ALLOW]
+        ask_users = [r for r in results if r == PermissionDecisionType.ASK_USER]
 
-    assert len(allows) == 1, "Exactly one parallel request must consume the one-time grant"
-    assert len(ask_users) == 19
+        assert len(allows) == 1, "Exactly one parallel request must consume the one-time grant"
+        assert len(ask_users) == 19
+    finally:
+        await engine_db.dispose()
 
 
 # --- 5. SECURITY & IMMUTABILITY GUARANTEES ---

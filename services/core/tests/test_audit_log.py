@@ -5,13 +5,17 @@ filtering, pagination, UTC handling, payload security, and immutability.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.db.database import Base
 from app.db.models.audit_event import AuditEventModel
 from app.repositories.audit_log_repository import AuditLogRepository, make_audit_event
 from app.tools.audit_models import (
@@ -34,6 +38,7 @@ def _make_event(**kwargs) -> AuditEvent:
     defaults = dict(
         id="audit_test_001",
         event_type=AuditEventType.PERMISSION_EVALUATED,
+        reason="test reason",
         tool_id="files.read_file",
         action="read",
         decision="ALLOW",
@@ -52,6 +57,7 @@ def test_audit_event_valid_creation():
     ev = _make_event()
     assert ev.id == "audit_test_001"
     assert ev.event_type == AuditEventType.PERMISSION_EVALUATED
+    assert ev.reason == "test reason"
     assert ev.tool_id == "files.read_file"
     assert ev.decision == "ALLOW"
     assert ev.timestamp.tzinfo is not None
@@ -67,12 +73,19 @@ def test_audit_event_immutability():
 def test_audit_event_id_cannot_be_empty():
     """Test that empty id raises ValidationError."""
     with pytest.raises(ValidationError):
-        AuditEvent(id="   ", event_type=AuditEventType.TOOL_CALL_REQUESTED)
+        AuditEvent(id="   ", event_type=AuditEventType.TOOL_CALL_REQUESTED, reason="test")
 
 
-def test_audit_event_all_optional_fields_none():
-    """Test that all optional fields can be None without error."""
-    ev = AuditEvent(id="audit_min", event_type=AuditEventType.TOOL_CALL_REQUESTED)
+def test_audit_event_reason_is_required():
+    """Test that reason is a required field."""
+    with pytest.raises(ValidationError):
+        AuditEvent(id="audit_min", event_type=AuditEventType.TOOL_CALL_REQUESTED)
+
+
+def test_audit_event_optional_fields_none_excluding_reason():
+    """Test that optional fields can be None without error."""
+    ev = AuditEvent(id="audit_min", event_type=AuditEventType.TOOL_CALL_REQUESTED, reason="test")
+    assert ev.reason == "test"
     assert ev.tool_id is None
     assert ev.request_id is None
     assert ev.decision is None
@@ -87,6 +100,7 @@ def test_audit_event_utc_timezone_enforcement():
     ev = AuditEvent(
         id="audit_tz",
         event_type=AuditEventType.PERMISSION_EVALUATED,
+        reason="test",
         timestamp=naive_dt,
     )
     assert ev.timestamp.tzinfo is not None
@@ -99,6 +113,7 @@ def test_audit_event_utc_aware_timestamp_preserved():
     ev = AuditEvent(
         id="audit_utc",
         event_type=AuditEventType.TOOL_EXECUTION_STARTED,
+        reason="test",
         timestamp=utc_dt,
     )
     assert ev.timestamp == utc_dt
@@ -110,6 +125,7 @@ def test_audit_event_non_utc_timestamp_converted_to_utc():
     ev = AuditEvent(
         id="audit_non_utc",
         event_type=AuditEventType.TOOL_EXECUTION_STARTED,
+        reason="test",
         timestamp=datetime(2024, 6, 1, 12, 0, 0, tzinfo=plus_two),
     )
     assert ev.timestamp == datetime(2024, 6, 1, 10, 0, 0, tzinfo=timezone.utc)
@@ -122,7 +138,7 @@ def test_audit_event_non_utc_timestamp_converted_to_utc():
 def test_all_event_types_valid():
     """Test that all AuditEventType variants can be used to create AuditEvents."""
     for et in AuditEventType:
-        ev = AuditEvent(id=f"audit_{et.value}", event_type=et)
+        ev = AuditEvent(id=f"audit_{et.value}", event_type=et, reason="test")
         assert ev.event_type == et
 
 
@@ -163,6 +179,7 @@ async def test_audit_events_table_schema_and_indexes(engine):
         "id",
         "timestamp",
         "event_type",
+        "reason",
         "request_id",
         "tool_id",
         "action",
@@ -237,8 +254,7 @@ def test_sanitize_payload_truncates_large_data():
     large_value = "x" * (AUDIT_PAYLOAD_MAX_BYTES * 2)
     result = sanitize_payload({"data": large_value})
     assert result is not None
-    # Must fit within reasonable overhead
-    assert len(result.encode("utf-8")) <= AUDIT_PAYLOAD_MAX_BYTES + 256
+    assert len(result.encode("utf-8")) <= AUDIT_PAYLOAD_MAX_BYTES
     parsed = json.loads(result)
     assert parsed.get("__truncated__") is True
 
@@ -248,7 +264,6 @@ def test_sanitize_payload_non_serializable_safe_fallback():
     class Unserializable:
         pass
 
-    # Should not raise, should return a safe fallback or use default=str
     result = sanitize_payload({"obj": Unserializable()})
     assert result is not None
     parsed = json.loads(result)
@@ -271,6 +286,7 @@ def test_make_audit_event_factory():
     """Test the make_audit_event factory applies sanitize_payload to arguments/result."""
     ev = make_audit_event(
         AuditEventType.PERMISSION_EVALUATED,
+        reason="factory test",
         tool_id="files.write_file",
         action="write",
         decision="ALLOW",
@@ -278,14 +294,13 @@ def test_make_audit_event_factory():
         result={"bytes_written": 128},
     )
     assert ev.event_type == AuditEventType.PERMISSION_EVALUATED
+    assert ev.reason == "factory test"
     assert ev.tool_id == "files.write_file"
 
-    # arguments must be serialized with redaction applied
     args = json.loads(ev.arguments)
     assert args["password"] == "[REDACTED]"
     assert args["path"] == "/tmp/test.txt"
 
-    # result should be properly serialized
     res = json.loads(ev.result)
     assert res["bytes_written"] == 128
 
@@ -299,6 +314,7 @@ async def test_repository_record_and_get(session):
     """Test recording and retrieving an AuditEvent."""
     ev = make_audit_event(
         AuditEventType.PERMISSION_EVALUATED,
+        reason="record test",
         tool_id="files.read_file",
         action="read",
         decision="ALLOW",
@@ -314,6 +330,7 @@ async def test_repository_record_and_get(session):
     assert fetched.event_type == AuditEventType.PERMISSION_EVALUATED
     assert fetched.tool_id == "files.read_file"
     assert fetched.decision == "ALLOW"
+    assert fetched.reason == "record test"
 
 
 @pytest.mark.asyncio
@@ -329,7 +346,7 @@ async def test_repository_record_rejects_non_audit_event(session):
     """Test that record() rejects non-AuditEvent objects."""
     repo = AuditLogRepository(session)
     with pytest.raises(TypeError):
-        await repo.record({"id": "fake", "event_type": "PERMISSION_EVALUATED"})
+        await repo.record({"id": "fake", "event_type": "PERMISSION_EVALUATED", "reason": "test"})
 
 
 # ===========================================================================
@@ -340,8 +357,8 @@ async def test_repository_record_rejects_non_audit_event(session):
 async def test_repository_list_filter_by_tool_id(session):
     """Test list() filters correctly by tool_id."""
     repo = AuditLogRepository(session)
-    ev1 = make_audit_event(AuditEventType.PERMISSION_EVALUATED, tool_id="files.read_file", action="read")
-    ev2 = make_audit_event(AuditEventType.PERMISSION_EVALUATED, tool_id="system.restart", action="restart")
+    ev1 = make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason="t1", tool_id="files.read_file", action="read")
+    ev2 = make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason="t2", tool_id="system.restart", action="restart")
     await repo.record(ev1)
     await repo.record(ev2)
 
@@ -356,7 +373,7 @@ async def test_repository_list_filter_by_request_id(session):
     """Test list() filters correctly by request_id."""
     rid = f"req_{id(object())}"
     repo = AuditLogRepository(session)
-    ev = make_audit_event(AuditEventType.TOOL_CALL_REQUESTED, request_id=rid, tool_id="files.test")
+    ev = make_audit_event(AuditEventType.TOOL_CALL_REQUESTED, reason="rid", request_id=rid, tool_id="files.test")
     await repo.record(ev)
 
     results = await repo.list(request_id=rid)
@@ -368,8 +385,8 @@ async def test_repository_list_filter_by_request_id(session):
 async def test_repository_list_filter_by_event_type(session):
     """Test list() filters correctly by event_type."""
     repo = AuditLogRepository(session)
-    ev1 = make_audit_event(AuditEventType.PERMISSION_GRANTED, tool_id="filter.test.1", action="read")
-    ev2 = make_audit_event(AuditEventType.TOOL_EXECUTION_STARTED, tool_id="filter.test.2", action="exec")
+    ev1 = make_audit_event(AuditEventType.PERMISSION_GRANTED, reason="et1", tool_id="filter.test.1", action="read")
+    ev2 = make_audit_event(AuditEventType.TOOL_EXECUTION_STARTED, reason="et2", tool_id="filter.test.2", action="exec")
     await repo.record(ev1)
     await repo.record(ev2)
 
@@ -382,8 +399,8 @@ async def test_repository_list_filter_by_event_type(session):
 async def test_repository_list_filter_by_decision(session):
     """Test list() filters correctly by decision."""
     repo = AuditLogRepository(session)
-    ev_allow = make_audit_event(AuditEventType.PERMISSION_GRANTED, tool_id="decision.test.1", decision="ALLOW")
-    ev_deny = make_audit_event(AuditEventType.PERMISSION_DENIED, tool_id="decision.test.2", decision="DENY")
+    ev_allow = make_audit_event(AuditEventType.PERMISSION_GRANTED, reason="allow", tool_id="decision.test.1", decision="ALLOW")
+    ev_deny = make_audit_event(AuditEventType.PERMISSION_DENIED, reason="deny", tool_id="decision.test.2", decision="DENY")
     await repo.record(ev_allow)
     await repo.record(ev_deny)
 
@@ -404,10 +421,9 @@ async def test_repository_list_filter_by_time_range(session):
     future = now + timedelta(hours=2)
 
     repo = AuditLogRepository(session)
-    ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, tool_id="time.range.test")
+    ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason="time", tool_id="time.range.test")
     await repo.record(ev)
 
-    # Within range
     results_in = await repo.list(
         tool_id="time.range.test",
         from_timestamp=past,
@@ -415,7 +431,6 @@ async def test_repository_list_filter_by_time_range(session):
     )
     assert len(results_in) >= 1
 
-    # Completely before event timestamp
     results_before = await repo.list(
         tool_id="time.range.test",
         from_timestamp=future,
@@ -436,6 +451,7 @@ async def test_repository_list_deterministic_order(session):
     for i in range(5):
         ev = make_audit_event(
             AuditEventType.TOOL_CALL_REQUESTED,
+            reason=f"order-{i}",
             request_id=rid,
             tool_id=f"order.test.{i}",
         )
@@ -456,7 +472,7 @@ async def test_repository_list_pagination(session):
     rid = f"req_page_{id(object())}"
     repo = AuditLogRepository(session)
     for i in range(10):
-        ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, request_id=rid, tool_id=f"page.tool.{i}")
+        ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason=f"page-{i}", request_id=rid, tool_id=f"page.tool.{i}")
         await repo.record(ev)
 
     page1 = await repo.list(request_id=rid, limit=3, offset=0)
@@ -473,7 +489,6 @@ async def test_repository_list_pagination(session):
 async def test_repository_list_limit_capped_at_max(session):
     """Test list() clamps limit to MAX_LIMIT (500)."""
     repo = AuditLogRepository(session)
-    # Should not raise, limit is clamped
     results = await repo.list(limit=999999)
     assert isinstance(results, tuple)
 
@@ -488,7 +503,7 @@ async def test_repository_count(session):
     rid = f"req_count_{id(object())}"
     repo = AuditLogRepository(session)
     for i in range(4):
-        await repo.record(make_audit_event(AuditEventType.PERMISSION_EVALUATED, request_id=rid, tool_id=f"count.tool.{i}"))
+        await repo.record(make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason=f"cnt-{i}", request_id=rid, tool_id=f"count.tool.{i}"))
 
     total = await repo.count(request_id=rid)
     assert total == 4
@@ -509,15 +524,13 @@ async def test_repository_delete_before(session):
     """Test delete_before() removes events older than cutoff timestamp."""
     rid = f"req_delete_{id(object())}"
     repo = AuditLogRepository(session)
-    ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, request_id=rid, tool_id="delete.before.tool")
+    ev = make_audit_event(AuditEventType.PERMISSION_EVALUATED, reason="del", request_id=rid, tool_id="delete.before.tool")
     await repo.record(ev)
 
-    # Delete events created strictly before now+1h (should delete ev)
     cutoff = datetime.now(timezone.utc) + timedelta(hours=1)
     deleted = await repo.delete_before(cutoff)
     assert deleted >= 1
 
-    # Event should no longer be findable
     fetched = await repo.get(ev.id)
     assert fetched is None
 
@@ -533,6 +546,7 @@ async def test_repository_utc_preserved_round_trip(session):
     ev = AuditEvent(
         id=f"audit_utc_rt_{id(object())}",
         event_type=AuditEventType.PERMISSION_EVALUATED,
+        reason="utc",
         timestamp=utc_dt,
         tool_id="files.read_file",
     )
@@ -542,7 +556,6 @@ async def test_repository_utc_preserved_round_trip(session):
 
     assert fetched is not None
     assert fetched.timestamp.tzinfo is not None
-    # Timestamps must be equivalent (both UTC-aware, same moment)
     assert fetched.timestamp.replace(tzinfo=timezone.utc) == utc_dt
 
 
@@ -554,8 +567,8 @@ async def test_repository_utc_preserved_round_trip(session):
 async def test_events_are_isolated(session):
     """Test that two different events in the same session are completely independent."""
     repo = AuditLogRepository(session)
-    ev1 = make_audit_event(AuditEventType.PERMISSION_GRANTED, tool_id="iso.tool.1", decision="ALLOW")
-    ev2 = make_audit_event(AuditEventType.PERMISSION_DENIED, tool_id="iso.tool.2", decision="DENY")
+    ev1 = make_audit_event(AuditEventType.PERMISSION_GRANTED, reason="iso1", tool_id="iso.tool.1", decision="ALLOW")
+    ev2 = make_audit_event(AuditEventType.PERMISSION_DENIED, reason="iso2", tool_id="iso.tool.2", decision="DENY")
     await repo.record(ev1)
     await repo.record(ev2)
 
@@ -573,6 +586,7 @@ def test_fetched_event_immutability():
     ev = AuditEvent.model_construct(
         id="audit_immutable",
         event_type=AuditEventType.PERMISSION_EVALUATED,
+        reason="immutable",
         decision="ALLOW",
         timestamp=datetime.now(timezone.utc),
     )
@@ -610,9 +624,237 @@ def test_payload_does_not_accidentally_redact_normal_keys():
 
 def test_payload_large_value_truncation_marks_clearly():
     """Test that truncated payloads contain the __truncated__ marker for consumers."""
-    oversized = {"key": "x" * (AUDIT_PAYLOAD_MAX_BYTES * 3)}
+    oversized = {"data": "x" * (AUDIT_PAYLOAD_MAX_BYTES * 3)}
     result = sanitize_payload(oversized)
     parsed = json.loads(result)
     assert "__truncated__" in parsed
     assert parsed["__truncated__"] is True
     assert "__original_bytes__" in parsed
+    assert len(result.encode("utf-8")) <= AUDIT_PAYLOAD_MAX_BYTES
+
+
+# ===========================================================================
+# 14. Append-only / production write path
+# ===========================================================================
+
+def test_repository_has_no_update_method():
+    """Audit records are append-only — repository must not expose update()."""
+    assert "update" not in AuditLogRepository.__dict__
+
+
+@pytest.mark.asyncio
+async def test_record_sanitizes_direct_constructor_payload(session):
+    """Direct AuditEvent(arguments=raw JSON) cannot persist unsanitized secrets."""
+    ev = AuditEvent(
+        id="audit_bypass_raw",
+        event_type=AuditEventType.PERMISSION_EVALUATED,
+        reason="sanitize test",
+        arguments='{"password": "supersecret", "path": "/tmp/file.txt"}',
+    )
+    repo = AuditLogRepository(session)
+    stored = await repo.record(ev)
+    args = json.loads(stored.arguments)
+    assert args["password"] == "[REDACTED]"
+    assert args["path"] == "/tmp/file.txt"
+    fetched = await repo.get(ev.id)
+    assert fetched is not None
+    assert "supersecret" not in (fetched.arguments or "")
+
+
+@pytest.mark.asyncio
+async def test_duplicate_audit_id_rejected(session):
+    """Primary key rejects a second insert with the same id."""
+    from sqlalchemy.exc import IntegrityError
+
+    repo = AuditLogRepository(session)
+    first = make_audit_event(
+        AuditEventType.PERMISSION_EVALUATED,
+        reason="dup",
+        tool_id="dup.tool.1",
+        event_id="audit_duplicate_pk",
+    )
+    await repo.record(first)
+    second = make_audit_event(
+        AuditEventType.PERMISSION_DENIED,
+        reason="dup2",
+        tool_id="dup.tool.2",
+        event_id="audit_duplicate_pk",
+    )
+    with pytest.raises(IntegrityError):
+        await repo.record(second)
+
+
+def test_app_has_no_audit_http_routes():
+    """Stage 5.4 must not expose a public /api/audit REST surface."""
+    from app.main import app
+
+    for route in app.routes:
+        path = getattr(route, "path", "") or ""
+        assert "/audit" not in path.lower()
+
+
+def test_sanitize_payload_never_exceeds_max_bytes():
+    """Wrapped truncation JSON must never exceed the 4096-byte cap."""
+    result = sanitize_payload({"blob": "y" * (AUDIT_PAYLOAD_MAX_BYTES * 5)})
+    assert result is not None
+    assert len(result.encode("utf-8")) <= AUDIT_PAYLOAD_MAX_BYTES
+
+
+def test_sanitize_payload_redacts_nested_lists():
+    """Secrets nested in lists-of-lists must be redacted."""
+    result = sanitize_payload([[{"password": "secret"}]])
+    assert result is not None
+    parsed = json.loads(result)
+    assert parsed[0][0]["password"] == "[REDACTED]"
+    assert "secret" not in result
+
+
+def test_sanitize_payload_redacts_exact_key():
+    """The exact key name 'key' is treated as sensitive."""
+    result = sanitize_payload({"key": "sk-secret", "path": "/tmp/file.txt"})
+    parsed = json.loads(result)
+    assert parsed["key"] == "[REDACTED]"
+    assert parsed["path"] == "/tmp/file.txt"
+
+
+def test_sanitize_payload_does_not_redact_author():
+    """'author' and 'authorized_path' must not be treated as 'auth'."""
+    result = sanitize_payload({"author": "ada", "authorized_path": "/ok"})
+    parsed = json.loads(result)
+    assert parsed["author"] == "ada"
+    assert parsed["authorized_path"] == "/ok"
+
+
+# ===========================================================================
+# 15. reason field
+# ===========================================================================
+
+def test_audit_event_reason_is_required():
+    """Test that reason is a required field."""
+    with pytest.raises(ValidationError):
+        AuditEvent(id="audit_min", event_type=AuditEventType.TOOL_CALL_REQUESTED)
+
+
+def test_make_audit_event_requires_reason():
+    """Test that make_audit_event requires reason."""
+    with pytest.raises(TypeError):
+        make_audit_event(
+            AuditEventType.PERMISSION_EVALUATED,
+            tool_id="files.write_file",
+            action="write",
+            decision="ALLOW",
+        )
+
+
+@pytest.mark.asyncio
+async def test_audit_event_reason_stored_and_retrieved(session):
+    """Test that reason is stored in SQLite and retrieved correctly."""
+    repo = AuditLogRepository(session)
+    ev = make_audit_event(
+        AuditEventType.PERMISSION_EVALUATED,
+        reason="Tool not found in registry",
+        tool_id="unknown.tool",
+        action="read",
+        decision="DENY",
+    )
+    recorded = await repo.record(ev)
+    assert recorded.reason == "Tool not found in registry"
+
+    fetched = await repo.get(ev.id)
+    assert fetched is not None
+    assert fetched.reason == "Tool not found in registry"
+
+
+# ===========================================================================
+# 16. Concurrent writes
+# ===========================================================================
+
+@pytest.mark.asyncio
+async def test_repository_concurrent_writes(session_factory):
+    """Test 10 concurrent record() calls — no race conditions, no lost writes."""
+    async def write_event(idx: int) -> AuditEvent:
+        async with session_factory() as s:
+            repo = AuditLogRepository(s)
+            ev = make_audit_event(
+                AuditEventType.PERMISSION_EVALUATED,
+                reason=f"concurrent-{idx}",
+                tool_id=f"concurrent.tool.{idx}",
+                action="read",
+                decision="ALLOW",
+            )
+            return await repo.record(ev)
+
+    tasks = [write_event(i) for i in range(10)]
+    results = await asyncio.gather(*tasks)
+
+    ids = [r.id for r in results]
+    assert len(set(ids)) == 10, "Each concurrent write must produce a unique id"
+
+    reasons = {r.reason for r in results}
+    assert len(reasons) == 10, "All concurrent reasons must be preserved"
+
+
+# ===========================================================================
+# 17. SQLite persistence
+# ===========================================================================
+
+@pytest.mark.asyncio
+async def test_audit_log_persists_across_db_reopen(tmp_path: Path):
+    """Test that audit events survive database close and reopen."""
+    db_path = tmp_path / "audit_persist.db"
+    url = f"sqlite+aiosqlite:///{db_path.resolve().as_posix()}"
+
+    engine_persist = create_async_engine(url, connect_args={"check_same_thread": False})
+    async with engine_persist.begin() as conn:
+        from app.db.models import (  # noqa: F401
+            settings,
+            activity,
+            conversation,
+            permission_grant,
+            audit_event,
+        )
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = async_sessionmaker(bind=engine_persist, expire_on_commit=False, autocommit=False)
+
+    async with factory() as s:
+        repo = AuditLogRepository(s)
+        ev = make_audit_event(
+            AuditEventType.PERMISSION_GRANTED,
+            reason="persistent-reason",
+            tool_id="files.read_file",
+            action="read",
+            decision="ALLOW",
+        )
+        await repo.record(ev)
+        await s.commit()
+
+    await engine_persist.dispose()
+
+    engine_reopen = create_async_engine(url, connect_args={"check_same_thread": False})
+    async with engine_reopen.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory_reopen = async_sessionmaker(bind=engine_reopen, expire_on_commit=False, autocommit=False)
+    async with factory_reopen() as s:
+        repo = AuditLogRepository(s)
+        fetched = await repo.get(ev.id)
+        assert fetched is not None
+        assert fetched.reason == "persistent-reason"
+        assert fetched.tool_id == "files.read_file"
+        assert fetched.decision == "ALLOW"
+
+    await engine_reopen.dispose()
+
+
+# ===========================================================================
+# 18. No public HTTP delete endpoint
+# ===========================================================================
+
+def test_app_has_no_audit_delete_routes():
+    """Stage 5.4 must not expose any public audit deletion routes."""
+    from app.main import app
+
+    for route in app.routes:
+        path = getattr(route, "path", "") or ""
+        assert "/audit" not in path.lower()

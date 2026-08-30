@@ -11,6 +11,8 @@ async def test_tables_are_created(engine):
         )
     assert "app_settings" in tables
     assert "activity_events" in tables
+    assert "permission_grants" in tables
+    assert "audit_events" in tables
 
 
 @pytest.mark.asyncio

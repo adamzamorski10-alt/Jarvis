@@ -6,14 +6,18 @@ pagination, and retention management.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.audit_event import AuditEventModel
-from app.tools.audit_models import AuditEvent, AuditEventType
+from app.tools.audit_models import (
+    AuditEvent,
+    AuditEventType,
+    ensure_sanitized_payload,
+    make_audit_event,
+)
 
 # Hard limits to guard against pathological queries
 _MAX_LIMIT = 500
@@ -34,6 +38,7 @@ class AuditLogRepository:
     """
     Repository for AuditEvent persistence.
     Provides structured, immutable audit trail for tool operations.
+    There is no update() — records are append-only aside from retention delete_before().
     """
 
     def __init__(self, session: AsyncSession) -> None:
@@ -42,8 +47,9 @@ class AuditLogRepository:
     async def record(self, event: AuditEvent) -> AuditEvent:
         """
         Persist an AuditEvent to the database.
-        The event is immutable — once written it cannot be changed.
-        Returns the same AuditEvent (immutable; no re-read needed).
+        Payloads are re-sanitized so callers cannot bypass sanitize_payload
+        by constructing AuditEvent(arguments=...) directly.
+        Timestamp from the domain object is kept (factory sets UTC now).
         """
         if not isinstance(event, AuditEvent):
             raise TypeError(f"Expected AuditEvent, got {type(event).__name__}")
@@ -52,6 +58,7 @@ class AuditLogRepository:
             id=event.id,
             timestamp=event.timestamp,
             event_type=event.event_type.value,
+            reason=event.reason,
             request_id=event.request_id,
             tool_id=event.tool_id,
             action=event.action,
@@ -65,12 +72,17 @@ class AuditLogRepository:
             error_code=event.error_code,
             error_message=event.error_message,
             execution_time_ms=event.execution_time_ms,
-            arguments=event.arguments,
-            result=event.result,
+            arguments=ensure_sanitized_payload(event.arguments),
+            result=ensure_sanitized_payload(event.result),
         )
         self._session.add(model)
         await self._session.flush()
-        return event
+        return event.model_copy(
+            update={
+                "arguments": model.arguments,
+                "result": model.result,
+            }
+        )
 
     async def get(self, event_id: str) -> AuditEvent | None:
         """Return AuditEvent by ID, or None if not found."""
@@ -133,6 +145,7 @@ class AuditLogRepository:
         """
         Delete all audit events with timestamp strictly before the given datetime.
         Returns count of deleted records. Used for retention management.
+        Not exposed as a public HTTP API.
         """
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=timezone.utc)
@@ -174,6 +187,7 @@ class AuditLogRepository:
             id=model.id,
             timestamp=_normalize_dt(model.timestamp),
             event_type=AuditEventType(model.event_type),
+            reason=model.reason or "unknown",
             request_id=model.request_id,
             tool_id=model.tool_id,
             action=model.action,
@@ -192,53 +206,4 @@ class AuditLogRepository:
         )
 
 
-def make_audit_event(
-    event_type: AuditEventType | str,
-    *,
-    request_id: str | None = None,
-    tool_id: str | None = None,
-    action: str | None = None,
-    risk_level: str | None = None,
-    autonomy_mode: str | None = None,
-    decision: str | None = None,
-    rule_id: str | None = None,
-    grant_id: str | None = None,
-    execution_status: str | None = None,
-    success: bool | None = None,
-    error_code: str | None = None,
-    error_message: str | None = None,
-    execution_time_ms: float | None = None,
-    arguments: dict | None = None,
-    result: dict | None = None,
-    event_id: str | None = None,
-) -> AuditEvent:
-    """
-    Factory function: creates a valid AuditEvent with sanitized payloads.
-    Central place for sanitize_payload() application — callers must NOT
-    pre-serialize arguments/result themselves.
-    """
-    from app.tools.audit_models import sanitize_payload
-
-    et = event_type if isinstance(event_type, AuditEventType) else AuditEventType(event_type)
-    eid = event_id or f"audit_{uuid.uuid4().hex}"
-
-    return AuditEvent(
-        id=eid,
-        timestamp=datetime.now(timezone.utc),
-        event_type=et,
-        request_id=request_id,
-        tool_id=tool_id,
-        action=action,
-        risk_level=risk_level,
-        autonomy_mode=autonomy_mode,
-        decision=decision,
-        rule_id=rule_id,
-        grant_id=grant_id,
-        execution_status=execution_status,
-        success=success,
-        error_code=error_code,
-        error_message=error_message,
-        execution_time_ms=execution_time_ms,
-        arguments=sanitize_payload(arguments),
-        result=sanitize_payload(result),
-    )
+__all__ = ["AuditLogRepository", "make_audit_event"]

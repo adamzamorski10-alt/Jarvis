@@ -75,6 +75,8 @@ async def init_db() -> None:
                     connection.execute(text("ALTER TABLE audit_events RENAME COLUMN arguments_json TO arguments"))
                 if "result_json" in columns and "result" not in columns:
                     connection.execute(text("ALTER TABLE audit_events RENAME COLUMN result_json TO result"))
+                if "reason" not in columns:
+                    connection.execute(text("ALTER TABLE audit_events ADD COLUMN reason VARCHAR(500) DEFAULT 'unknown'"))
 
         await conn.run_sync(migrate_sqlite)
 

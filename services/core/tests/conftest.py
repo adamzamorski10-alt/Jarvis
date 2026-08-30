@@ -44,6 +44,12 @@ async def session(engine):
 
 
 @pytest_asyncio.fixture(scope="function")
+async def session_factory(engine):
+    """Session factory bound to the isolated in-memory test engine."""
+    return async_sessionmaker(bind=engine, expire_on_commit=False, autocommit=False)
+
+
+@pytest_asyncio.fixture(scope="function")
 async def client(engine):
     """Provide an AsyncClient wired to a test DB via dependency override."""
     from app.main import app

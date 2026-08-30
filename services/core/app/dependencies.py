@@ -17,6 +17,7 @@ from app.ai.services.ai_service import AIService
 if TYPE_CHECKING:
     from app.repositories.grant_repository import GrantRepository
     from app.repositories.audit_log_repository import AuditLogRepository
+    from app.tools.audit_service import AuditLogService
     from app.tools.registry import ToolRegistry
     from app.tools.permission_engine import PermissionEngine
 
@@ -65,16 +66,28 @@ async def get_grant_repository(
     yield GrantRepository(session)
 
 
-async def get_permission_engine(
-    registry: ToolRegistry = Depends(get_tool_registry),
-    grant_repo: GrantRepository = Depends(get_grant_repository),
-) -> AsyncGenerator[PermissionEngine, None]:
-    from app.tools.permission_engine import PermissionEngine
-    yield PermissionEngine(registry=registry, grant_repo=grant_repo)
-
-
 async def get_audit_log_repository(
     session: AsyncSession = Depends(get_db),
 ) -> AsyncGenerator[AuditLogRepository, None]:
     from app.repositories.audit_log_repository import AuditLogRepository
     yield AuditLogRepository(session)
+
+
+async def get_audit_log_service(
+    repo: AuditLogRepository = Depends(get_audit_log_repository),
+) -> AsyncGenerator[AuditLogService, None]:
+    from app.tools.audit_service import AuditLogService
+    yield AuditLogService(repo)
+
+
+async def get_permission_engine(
+    registry: ToolRegistry = Depends(get_tool_registry),
+    grant_repo: GrantRepository = Depends(get_grant_repository),
+    audit_service: AuditLogService = Depends(get_audit_log_service),
+) -> AsyncGenerator[PermissionEngine, None]:
+    from app.tools.permission_engine import PermissionEngine
+    yield PermissionEngine(
+        registry=registry,
+        grant_repo=grant_repo,
+        audit_service=audit_service,
+    )
