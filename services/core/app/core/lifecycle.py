@@ -97,6 +97,24 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Error during Ollama autostart check", error=str(exc))
 
+    # 6. Register builtin tool definitions and implementations
+    try:
+        from app.tools.registry import tool_registry
+        from app.tools.implementation_registry import tool_implementation_registry
+        from app.tools.implementations.system_time import SystemGetTime
+        from app.tools.exceptions import ToolAlreadyRegisteredError
+
+        system_time_impl = SystemGetTime()
+        if not tool_registry.exists(system_time_impl.tool_id):
+            tool_registry.register(system_time_impl.definition)
+            tool_implementation_registry.register(system_time_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=system_time_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=system_time_impl.tool_id)
+    except Exception as exc:
+        logger.error("Failed to register builtin tools", error=str(exc))
+        raise
+
     logger.info("AI Operator Core is ready", host=settings.host, port=settings.port)
 
     # --- yield: application runs here ---

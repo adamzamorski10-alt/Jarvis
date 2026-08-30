@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from app.repositories.grant_repository import GrantRepository
     from app.repositories.audit_log_repository import AuditLogRepository
     from app.tools.audit_service import AuditLogService
+    from app.tools.executor import ToolExecutor
+    from app.tools.implementation_registry import ToolImplementationRegistry
     from app.tools.registry import ToolRegistry
     from app.tools.permission_engine import PermissionEngine
 
@@ -91,3 +93,11 @@ async def get_permission_engine(
         grant_repo=grant_repo,
         audit_service=audit_service,
     )
+
+
+def get_tool_executor(
+    registry: ToolRegistry = Depends(get_tool_registry),
+) -> ToolExecutor:
+    from app.tools.executor import ToolExecutor
+    from app.tools.implementation_registry import tool_implementation_registry
+    return ToolExecutor(registry=registry, impl_registry=tool_implementation_registry)

@@ -34,10 +34,33 @@ from app.tools.audit_models import (
     make_audit_event,
 )
 from app.tools.audit_service import AuditLogService
+from app.tools.base import BaseTool
+from app.tools.executor import ToolExecutor
+from app.tools.implementation_registry import ToolImplementationRegistry, tool_implementation_registry
+from app.tools.models import (
+    ApprovalRequest,
+    ApprovalStatus,
+    AutonomyMode,
+    GrantType,
+    PermissionDecision,
+    PermissionDecisionType,
+    PermissionEvaluationRequest,
+    PermissionGrant,
+    RiskLevel,
+    ToolCall,
+    ToolCategory,
+    ToolDefinition,
+    ToolExecutionResult,
+    ToolExecutionStatus,
+)
 from app.tools.permission_engine import PermissionEngine
 from app.tools.registry import ToolRegistry, tool_registry
 
 __all__ = [
+    "BaseTool",
+    "ToolExecutor",
+    "ToolImplementationRegistry",
+    "tool_implementation_registry",
     "ToolCategory",
     "RiskLevel",
     "AutonomyMode",
@@ -60,6 +83,8 @@ __all__ = [
     "InvalidToolDefinitionError",
     "ToolRegistry",
     "tool_registry",
+    "ToolImplementationRegistry",
+    "tool_implementation_registry",
     "PermissionEngine",
     "AuditEvent",
     "AuditEventType",
