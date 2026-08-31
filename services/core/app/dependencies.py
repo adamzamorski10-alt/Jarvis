@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.tools.implementation_registry import ToolImplementationRegistry
     from app.tools.registry import ToolRegistry
     from app.tools.permission_engine import PermissionEngine
+    from app.tools.tool_execution_service import ToolExecutionService
 
 
 async def get_settings_service(
@@ -101,3 +102,20 @@ def get_tool_executor(
     from app.tools.executor import ToolExecutor
     from app.tools.implementation_registry import tool_implementation_registry
     return ToolExecutor(registry=registry, impl_registry=tool_implementation_registry)
+
+
+def get_tool_execution_service(
+    registry: ToolRegistry = Depends(get_tool_registry),
+    permission_engine: PermissionEngine = Depends(get_permission_engine),
+    audit_service: AuditLogService = Depends(get_audit_log_service),
+    executor: ToolExecutor = Depends(get_tool_executor),
+) -> ToolExecutionService:
+    from app.tools.implementation_registry import tool_implementation_registry
+    from app.tools.tool_execution_service import ToolExecutionService
+    return ToolExecutionService(
+        registry=registry,
+        impl_registry=tool_implementation_registry,
+        permission_engine=permission_engine,
+        audit_service=audit_service,
+        executor=executor,
+    )

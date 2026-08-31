@@ -55,12 +55,17 @@ from app.tools.models import (
 )
 from app.tools.permission_engine import PermissionEngine
 from app.tools.registry import ToolRegistry, tool_registry
+from app.tools.tool_execution_service import ToolExecutionService
+from app.tools.validation import validate_arguments, validate_result
 
 __all__ = [
     "BaseTool",
     "ToolExecutor",
     "ToolImplementationRegistry",
     "tool_implementation_registry",
+    "ToolExecutionService",
+    "validate_arguments",
+    "validate_result",
     "ToolCategory",
     "RiskLevel",
     "AutonomyMode",
