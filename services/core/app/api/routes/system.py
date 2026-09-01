@@ -74,6 +74,8 @@ async def system_status(session: AsyncSession = Depends(get_db)) -> SystemStatus
         from app.repositories.audit_log_repository import AuditLogRepository
         from app.tools.audit_service import AuditLogService
         from app.tools.permission_engine import PermissionEngine
+        from app.repositories.approval_repository import ApprovalRepository
+        from app.tools.approval_service import ApprovalService
 
         grant_repo = GrantRepository(session)
         audit_repo = AuditLogRepository(session)
@@ -91,7 +93,9 @@ async def system_status(session: AsyncSession = Depends(get_db)) -> SystemStatus
             audit_service=audit_service,
             executor=executor,
         )
-        ai = AIService(provider_manager, conversation_service, activity_service, settings, tool_execution_service)
+        approval_repo = ApprovalRepository(session)
+        approval_service = ApprovalService(repo=approval_repo, tool_execution_service=tool_execution_service)
+        ai = AIService(provider_manager, conversation_service, activity_service, settings, tool_execution_service, approval_service)
         ai_status = await ai.get_status()
         ai_status_str = "ready" if ai_status["ai_ready"] else ai_status["provider_status"]
         ai_component = AIComponentStatus(

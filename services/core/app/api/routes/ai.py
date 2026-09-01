@@ -166,6 +166,7 @@ async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
         if result.get("approval_required"):
             response["approval_required"] = True
             response["pending_tool_call"] = result.get("pending_tool_call")
+            response["approval_id"] = result.get("approval_id")
         if result.get("agent_loop"):
             response["agent_loop"] = result.get("agent_loop")
         return response

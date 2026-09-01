@@ -230,7 +230,33 @@ export const coreApi = {
       message: AIMessage;
       approval_required?: boolean;
       pending_tool_call?: Record<string, unknown> | null;
+      approval_id?: string | null;
       agent_loop?: Record<string, unknown> | null;
     }>('/api/ai/chat', payload, CHAT_TIMEOUT_MS),
+  approveTool: (approvalId: string, reason?: string) =>
+    apiClient.post<{
+      approval_id: string;
+      status: string;
+      tool_id: string;
+      arguments: Record<string, unknown>;
+      tool_call_id: string;
+      conversation_id: string;
+      created_at: string;
+      expires_at: string;
+      decision_reason?: string | null;
+      execution_result?: Record<string, unknown> | null;
+    }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/approve`, { decision_reason: reason }),
+  rejectTool: (approvalId: string, reason?: string) =>
+    apiClient.post<{
+      approval_id: string;
+      status: string;
+      tool_id: string;
+      arguments: Record<string, unknown>;
+      tool_call_id: string;
+      conversation_id: string;
+      created_at: string;
+      expires_at: string;
+      decision_reason?: string | null;
+    }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/reject`, { decision_reason: reason }),
 };
 

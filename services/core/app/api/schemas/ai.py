@@ -84,6 +84,7 @@ class ChatResponse(BaseModel):
     message: MessageResponse
     approval_required: bool | None = None
     pending_tool_call: dict | None = None
+    approval_id: str | None = None
     agent_loop: dict | None = None
 
 
@@ -130,5 +131,26 @@ class OllamaProcessStatusResponse(BaseModel):
     executable_path: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     storage_location: str | None = None
+
+
+class ApprovalApproveRequest(BaseModel):
+    decision_reason: str | None = Field(None, description="Optional user-provided reason")
+
+
+class ApprovalRejectRequest(BaseModel):
+    decision_reason: str | None = Field(None, description="Optional user-provided reason")
+
+
+class ApprovalResponse(BaseModel):
+    approval_id: str
+    status: str
+    tool_id: str
+    arguments: dict
+    tool_call_id: str
+    conversation_id: str
+    created_at: datetime
+    expires_at: datetime
+    decision_reason: str | None = None
+    execution_result: dict | None = None
 
 

@@ -17,12 +17,14 @@ from app.ai.services.ai_service import AIService
 if TYPE_CHECKING:
     from app.repositories.grant_repository import GrantRepository
     from app.repositories.audit_log_repository import AuditLogRepository
+    from app.repositories.approval_repository import ApprovalRepository
     from app.tools.audit_service import AuditLogService
     from app.tools.executor import ToolExecutor
     from app.tools.implementation_registry import ToolImplementationRegistry
     from app.tools.registry import ToolRegistry
     from app.tools.permission_engine import PermissionEngine
     from app.tools.tool_execution_service import ToolExecutionService
+    from app.tools.approval_service import ApprovalService
 
 
 async def get_settings_service(
@@ -59,6 +61,13 @@ async def get_grant_repository(
 ) -> AsyncGenerator[GrantRepository, None]:
     from app.repositories.grant_repository import GrantRepository
     yield GrantRepository(session)
+
+
+async def get_approval_repository(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[ApprovalRepository, None]:
+    from app.repositories.approval_repository import ApprovalRepository
+    yield ApprovalRepository(session)
 
 
 async def get_audit_log_repository(
@@ -113,11 +122,20 @@ def get_tool_execution_service(
     )
 
 
+def get_approval_service(
+    repo: ApprovalRepository = Depends(get_approval_repository),
+    tool_execution_service: ToolExecutionService = Depends(get_tool_execution_service),
+) -> ApprovalService:
+    from app.tools.approval_service import ApprovalService
+    return ApprovalService(repo=repo, tool_execution_service=tool_execution_service)
+
+
 async def get_ai_service(
     providers: ProviderManager = Depends(get_provider_manager),
     conversations: ConversationService = Depends(get_conversation_service),
     activity: ActivityService = Depends(get_activity_service),
     settings_svc: SettingsService = Depends(get_settings_service),
     tool_execution_service: ToolExecutionService = Depends(get_tool_execution_service),
+    approval_service: ApprovalService = Depends(get_approval_service),
 ) -> AsyncGenerator[AIService, None]:
-    yield AIService(providers, conversations, activity, settings_svc, tool_execution_service)
+    yield AIService(providers, conversations, activity, settings_svc, tool_execution_service, approval_service)

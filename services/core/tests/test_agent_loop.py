@@ -1,6 +1,6 @@
 """Tests for AI agent loop."""
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -14,6 +14,8 @@ from app.services.activity_service import ActivityService
 from app.services.settings_service import SettingsService
 from app.tools.models import AutonomyMode, ToolCall, ToolExecutionResult, ToolExecutionStatus
 from app.tools.tool_execution_service import ToolExecutionService
+from app.tools.approval_service import ApprovalService
+from app.tools.approval_models import ApprovalStatus, PendingApproval
 
 
 def _make_ai_service(
@@ -28,7 +30,21 @@ def _make_ai_service(
     if settings is None:
         settings = MagicMock(spec=SettingsService)
         settings.get_one.return_value = "manual"
-    return AIService(providers, conversations, activity, settings, tool_execution_service)
+    approval_service = MagicMock(spec=ApprovalService)
+    approval_service.create_pending_approval = AsyncMock(
+        return_value=PendingApproval(
+            approval_id="approval_test_123",
+            conversation_id="conv-1",
+            request_id=None,
+            tool_id="system.exec",
+            arguments={"command": "ls"},
+            tool_call_id="call-1",
+            status=ApprovalStatus.PENDING,
+            created_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+    )
+    return AIService(providers, conversations, activity, settings, tool_execution_service, approval_service)
 
 
 @pytest.mark.asyncio

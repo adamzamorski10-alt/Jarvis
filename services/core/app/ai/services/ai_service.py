@@ -19,6 +19,7 @@ from app.services.activity_service import ActivityService
 from app.services.settings_service import SettingsService
 from app.tools.models import AutonomyMode, ToolCall, ToolExecutionResult
 from app.tools.tool_execution_service import ToolExecutionService
+from app.tools.approval_service import ApprovalService
 
 logger = get_logger(__name__)
 
@@ -101,12 +102,14 @@ class AIService:
         activity: ActivityService,
         settings: SettingsService,
         tool_execution_service: ToolExecutionService,
+        approval_service: ApprovalService,
     ) -> None:
         self._providers = providers
         self._conversations = conversations
         self._activity = activity
         self._settings = settings
         self._tool_execution_service = tool_execution_service
+        self._approval_service = approval_service
 
     async def _get_autonomy_mode(self) -> AutonomyMode:
         raw = await self._settings.get_one("autonomy_mode")
@@ -223,6 +226,13 @@ class AIService:
 
             for call, result in zip(response.tool_calls, execution_results):
                 if result.status.value == "CANCELLED" and result.error_code == "ask_user":
+                    approval = await self._approval_service.create_pending_approval(
+                        conversation_id=request_id or "",
+                        tool_call=call,
+                        arguments=call.arguments,
+                        request_id=request_id,
+                        tool_call_result=result,
+                    )
                     return AgentLoopResult(
                         final_response=AIResponse(
                             content="This action requires user approval before proceeding.",
@@ -231,6 +241,7 @@ class AIService:
                         approval_required=True,
                         pending_tool_call=call,
                         pending_tool_result=result,
+                        approval_id=approval.approval_id,
                         iterations_used=limits.iterations_used,
                         total_tool_calls=limits.total_tool_calls,
                     )
@@ -468,6 +479,7 @@ class AIService:
         if loop_result.approval_required:
             result["approval_required"] = True
             result["pending_tool_call"] = loop_result.pending_tool_call.model_dump() if loop_result.pending_tool_call else None
+            result["approval_id"] = loop_result.approval_id
         if loop_result.iterations_used > 0:
             result["agent_loop"] = {
                 "iterations_used": loop_result.iterations_used,

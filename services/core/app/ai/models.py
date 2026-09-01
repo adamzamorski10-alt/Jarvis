@@ -29,6 +29,7 @@ class AgentLoopResult(BaseModel):
     approval_required: bool = False
     pending_tool_call: Optional[ToolCall] = None
     pending_tool_result: Optional[ToolExecutionResult] = None
+    approval_id: Optional[str] = None
     iterations_used: int = 0
     total_tool_calls: int = 0
     limit_reached: bool = False
