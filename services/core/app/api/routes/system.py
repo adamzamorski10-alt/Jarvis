@@ -63,7 +63,35 @@ async def system_status(session: AsyncSession = Depends(get_db)) -> SystemStatus
     # AI component check
     try:
         settings = SettingsService(session)
-        ai = AIService(ProviderManager(settings), ConversationService(session), ActivityService(session))
+        provider_manager = ProviderManager(settings)
+        conversation_service = ConversationService(session)
+        activity_service = ActivityService(session)
+        from app.tools.registry import tool_registry
+        from app.tools.executor import ToolExecutor
+        from app.tools.implementation_registry import tool_implementation_registry
+        from app.tools.tool_execution_service import ToolExecutionService
+        from app.repositories.grant_repository import GrantRepository
+        from app.repositories.audit_log_repository import AuditLogRepository
+        from app.tools.audit_service import AuditLogService
+        from app.tools.permission_engine import PermissionEngine
+
+        grant_repo = GrantRepository(session)
+        audit_repo = AuditLogRepository(session)
+        audit_service = AuditLogService(audit_repo)
+        permission_engine = PermissionEngine(
+            registry=tool_registry,
+            grant_repo=grant_repo,
+            audit_service=audit_service,
+        )
+        executor = ToolExecutor(registry=tool_registry, impl_registry=tool_implementation_registry)
+        tool_execution_service = ToolExecutionService(
+            registry=tool_registry,
+            impl_registry=tool_implementation_registry,
+            permission_engine=permission_engine,
+            audit_service=audit_service,
+            executor=executor,
+        )
+        ai = AIService(provider_manager, conversation_service, activity_service, settings, tool_execution_service)
         ai_status = await ai.get_status()
         ai_status_str = "ready" if ai_status["ai_ready"] else ai_status["provider_status"]
         ai_component = AIComponentStatus(

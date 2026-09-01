@@ -49,14 +49,6 @@ async def get_conversation_service(
     yield ConversationService(session)
 
 
-async def get_ai_service(
-    providers: ProviderManager = Depends(get_provider_manager),
-    conversations: ConversationService = Depends(get_conversation_service),
-    activity: ActivityService = Depends(get_activity_service),
-) -> AsyncGenerator[AIService, None]:
-    yield AIService(providers, conversations, activity)
-
-
 def get_tool_registry():
     from app.tools.registry import tool_registry
     return tool_registry
@@ -119,3 +111,13 @@ def get_tool_execution_service(
         audit_service=audit_service,
         executor=executor,
     )
+
+
+async def get_ai_service(
+    providers: ProviderManager = Depends(get_provider_manager),
+    conversations: ConversationService = Depends(get_conversation_service),
+    activity: ActivityService = Depends(get_activity_service),
+    settings_svc: SettingsService = Depends(get_settings_service),
+    tool_execution_service: ToolExecutionService = Depends(get_tool_execution_service),
+) -> AsyncGenerator[AIService, None]:
+    yield AIService(providers, conversations, activity, settings_svc, tool_execution_service)

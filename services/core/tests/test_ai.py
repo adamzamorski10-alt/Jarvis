@@ -147,7 +147,7 @@ async def test_kimi_chat_success(monkeypatch):
 
     mock_async_client(monkeypatch, handler)
     result = await KimiProvider("https://api.moonshot.ai/v1", "sk-test").chat("kimi-k3", [{"role": "user", "content": "hi"}])
-    assert result == "hello from kimi"
+    assert result.content == "hello from kimi"
     assert seen["auth"] == "Bearer sk-test"
 
 
@@ -247,7 +247,7 @@ async def test_openrouter_chat_success(monkeypatch):
     result = await OpenRouterProvider("https://openrouter.ai/api/v1", "sk-or-secret").chat(
         "openrouter/free", [{"role": "user", "content": "hi"}]
     )
-    assert result == "hello from openrouter"
+    assert result.content == "hello from openrouter"
     assert seen["auth"] == "Bearer sk-or-secret"
     assert seen["referer"] == "https://ai-operator.local"
     assert seen["title"] == "AI Operator"

@@ -2,6 +2,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from app.ai.models import AIResponse
+
 
 @dataclass(frozen=True)
 class AIModel:
@@ -35,5 +37,5 @@ class AIProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def chat(self, model: str, messages: list[dict[str, str]]) -> str:
+    async def chat(self, model: str, messages: list[dict[str, str]], tools: list[dict] | None = None) -> AIResponse:
         raise NotImplementedError

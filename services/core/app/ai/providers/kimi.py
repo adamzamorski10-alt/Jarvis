@@ -1,6 +1,8 @@
 """Kimi/Moonshot cloud AI provider."""
 import httpx
 
+from app.ai.models import AIResponse
+from app.ai.normalization import normalize_tool_calls, normalize_tool_definitions
 from app.ai.providers.base import AIModel, AIProvider, ProviderHealth
 
 
@@ -82,8 +84,10 @@ class KimiProvider(AIProvider):
             raise KimiProviderError("unknown_error", "Invalid Kimi models response")
         return [AIModel(name=str(item.get("id"))) for item in data if item.get("id")]
 
-    async def chat(self, model: str, messages: list[dict[str, str]]) -> str:
+    async def chat(self, model: str, messages: list[dict[str, str]], tools: list[dict] | None = None) -> AIResponse:
         payload = {"model": model, "messages": messages}
+        if tools:
+            payload["tools"] = normalize_tool_definitions(tools)
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(f"{self.base_url}/chat/completions", headers=self._headers(), json=payload)
@@ -95,9 +99,16 @@ class KimiProvider(AIProvider):
             raise self._map_http_error(response)
         body = response.json()
         try:
-            content = body["choices"][0]["message"]["content"]
+            choice = body["choices"][0]
+            message = choice["message"]
+            content = message.get("content")
+            if not isinstance(content, str) and content is not None:
+                raise KimiProviderError("unknown_error", "Invalid Kimi chat content")
+            tool_calls = None
+            raw_tool_calls = message.get("tool_calls")
+            if isinstance(raw_tool_calls, list) and raw_tool_calls:
+                tool_calls = normalize_tool_calls(raw_tool_calls)
+            finish_reason = choice.get("finish_reason") or ("tool_calls" if tool_calls else "stop")
+            return AIResponse(content=content, tool_calls=tool_calls, finish_reason=finish_reason)
         except Exception:
             raise KimiProviderError("unknown_error", "Invalid Kimi chat response") from None
-        if not isinstance(content, str):
-            raise KimiProviderError("unknown_error", "Invalid Kimi chat content")
-        return content

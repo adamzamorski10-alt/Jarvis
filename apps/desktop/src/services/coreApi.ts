@@ -225,6 +225,12 @@ export const coreApi = {
   createConversation: () => apiClient.post<AIConversation>('/api/ai/conversations', {}),
   getConversation: (id: string) => apiClient.get<AIConversation>(`/api/ai/conversations/${id}`),
   sendChat: (payload: { conversation_id?: string | null; message: string; client_message_id?: string }) =>
-    apiClient.post<{ conversation: AIConversation; message: AIMessage }>('/api/ai/chat', payload, CHAT_TIMEOUT_MS),
+    apiClient.post<{
+      conversation: AIConversation;
+      message: AIMessage;
+      approval_required?: boolean;
+      pending_tool_call?: Record<string, unknown> | null;
+      agent_loop?: Record<string, unknown> | null;
+    }>('/api/ai/chat', payload, CHAT_TIMEOUT_MS),
 };
 

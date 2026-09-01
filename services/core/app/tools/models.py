@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import re
 from typing import Any
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -122,6 +123,7 @@ class ToolCall(BaseModel):
     tool_id: str = Field(..., description="Target tool_id to invoke")
     arguments: dict[str, Any] = Field(default_factory=dict, description="Key-value arguments for tool execution")
     request_id: str | None = Field(None, description="Optional request correlation ID")
+    tool_call_id: str = Field(default_factory=lambda: uuid4().hex, description="Unique tool call identifier")
 
     @field_validator("tool_id")
     @classmethod
@@ -139,6 +141,7 @@ class ToolExecutionResult(BaseModel):
     success: bool = Field(..., description="True if tool executed successfully")
     tool_id: str = Field(..., description="Target tool_id")
     request_id: str | None = Field(None, description="Request correlation ID")
+    tool_call_id: str | None = Field(None, description="Unique tool call identifier")
     status: ToolExecutionStatus = Field(..., description="Detailed execution status")
     result: Any = Field(None, description="Result payload if successful")
     error_code: str | None = Field(None, description="Categorized error code if failed")

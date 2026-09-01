@@ -153,7 +153,7 @@ async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
     try:
         result = await ai.chat(request.conversation_id, request.message, request.client_message_id)
         result["conversation"] = await ai._conversations.get(result["conversation"].id)
-        return {
+        response: dict = {
             "conversation": conversation_to_response(result["conversation"]),
             "message": {
                 "id": result["message"].id,
@@ -163,6 +163,12 @@ async def chat(request: ChatRequest, ai: AIService = Depends(get_ai_service)):
                 "created_at": result["message"].created_at,
             },
         }
+        if result.get("approval_required"):
+            response["approval_required"] = True
+            response["pending_tool_call"] = result.get("pending_tool_call")
+        if result.get("agent_loop"):
+            response["agent_loop"] = result.get("agent_loop")
+        return response
     except ConversationNotFound as exc:
         raise HTTPException(
             status_code=404,

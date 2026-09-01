@@ -82,6 +82,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     conversation: ConversationResponse
     message: MessageResponse
+    approval_required: bool | None = None
+    pending_tool_call: dict | None = None
+    agent_loop: dict | None = None
 
 
 class PullModelRequest(BaseModel):

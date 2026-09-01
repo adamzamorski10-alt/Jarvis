@@ -1,4 +1,5 @@
 """Future provider placeholders."""
+from app.ai.models import AIResponse
 from app.ai.providers.base import AIProvider, ProviderHealth
 
 
@@ -12,5 +13,5 @@ class FutureProvider(AIProvider):
     async def list_models(self) -> list:
         return []
 
-    async def chat(self, model: str, messages: list[dict[str, str]]) -> str:
+    async def chat(self, model: str, messages: list[dict[str, str]], tools: list[dict] | None = None) -> AIResponse:
         raise RuntimeError(f"{self.name} is not implemented")

@@ -5,6 +5,8 @@ import shutil
 from pathlib import Path
 import httpx
 
+from app.ai.models import AIResponse
+from app.ai.normalization import normalize_tool_calls, normalize_tool_definitions
 from app.ai.providers.base import AIModel, AIProvider, ProviderHealth
 
 
@@ -174,16 +176,26 @@ class OllamaProvider(AIProvider):
             if item.get("name")
         ]
 
-    async def chat(self, model: str, messages: list[dict[str, str]]) -> str:
+    async def chat(self, model: str, messages: list[dict[str, str]], tools: list[dict] | None = None) -> AIResponse:
         payload = {"model": model, "messages": messages, "stream": False}
+        if tools:
+            payload["tools"] = normalize_tool_definitions(tools)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(f"{self.base_url}/api/chat", json=payload)
         response.raise_for_status()
         body = response.json()
         message = body.get("message")
-        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+        if not isinstance(message, dict):
             raise ValueError("Invalid Ollama chat response")
-        return message["content"]
+        content = message.get("content")
+        if not isinstance(content, str) and content is not None:
+            raise ValueError("Invalid Ollama chat content")
+        tool_calls = None
+        raw_tool_calls = message.get("tool_calls")
+        if isinstance(raw_tool_calls, list) and raw_tool_calls:
+            tool_calls = normalize_tool_calls(raw_tool_calls)
+        finish_reason = "tool_calls" if tool_calls else (body.get("done_reason") or "stop")
+        return AIResponse(content=content, tool_calls=tool_calls, finish_reason=finish_reason)
 
     async def delete_model(self, model: str) -> bool:
         async with httpx.AsyncClient(timeout=15.0) as client:
