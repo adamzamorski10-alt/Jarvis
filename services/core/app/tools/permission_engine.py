@@ -15,12 +15,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from app.repositories.approval_repository import ApprovalRepository
     from app.repositories.grant_repository import GrantRepository
-    from app.tools.approval_models import ApprovalStatus, ApprovalVerificationToken
     from app.tools.audit_service import AuditLogService
     from app.tools.models import ToolDefinition
 
-from app.core.logging import get_logger
-from app.tools.approval_models import compute_tool_definition_fingerprint
+from app.tools.approval_models import ApprovalStatus, ApprovalVerificationToken, compute_tool_definition_fingerprint
 from app.tools.audit_models import AuditEventType
 from app.tools.models import (
     AutonomyMode,
@@ -31,6 +29,8 @@ from app.tools.models import (
     RiskLevel,
 )
 from app.tools.registry import ToolRegistry, tool_registry as default_tool_registry
+
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -176,10 +176,24 @@ class PermissionEngine:
 
         # --- Rule 4: Permission Grants Evaluation ---
         if repo is not None:
-            matching_grant = await repo.find_matching_grant(
-                tool_id=request.tool_id,
-                action=request.action,
-            )
+            try:
+                matching_grant = await repo.find_matching_grant(
+                    tool_id=request.tool_id,
+                    action=request.action,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Grant repository query failed during permission evaluation",
+                    tool_id=request.tool_id,
+                    error=str(exc),
+                    exc_info=True,
+                )
+                decision = PermissionDecision(
+                    decision=PermissionDecisionType.DENY,
+                    reason="Permission evaluation failed: unable to verify grants.",
+                    rule_id="RULE_12_GRANT_REPO_FAILURE",
+                )
+                return await self._evaluate_approval_override(request, decision)
 
             if matching_grant is not None:
                 # Check CRITICAL risk restriction: CRITICAL risk level requires persistent grant
@@ -194,7 +208,23 @@ class PermissionEngine:
 
                 # Attempt one-time grant atomic consumption if one_time
                 if matching_grant.grant_type == GrantType.ONE_TIME:
-                    consumed = await repo.consume_one_time_grant_atomically(matching_grant.id)
+                    try:
+                        consumed = await repo.consume_one_time_grant_atomically(matching_grant.id)
+                    except Exception as exc:
+                        logger.error(
+                            "One-time grant consumption failed",
+                            tool_id=request.tool_id,
+                            grant_id=matching_grant.id,
+                            error=str(exc),
+                            exc_info=True,
+                        )
+                        decision = PermissionDecision(
+                            decision=PermissionDecisionType.DENY,
+                            reason="Permission evaluation failed: unable to consume one-time grant.",
+                            rule_id="RULE_13_GRANT_CONSUMPTION_FAILURE",
+                        )
+                        return await self._evaluate_approval_override(request, decision)
+
                     if consumed:
                         decision = PermissionDecision(
                             decision=PermissionDecisionType.ALLOW,
@@ -329,7 +359,20 @@ class PermissionEngine:
                 rule_id="RULE_APPROVAL_MISCONFIGURED",
             )
 
-        approval = self._approval_repo.get(request.approval_context.approval_id)
+        try:
+            approval = await self._approval_repo.get(request.approval_context.approval_id)
+        except Exception as exc:
+            logger.error(
+                "Approval repository query failed during permission evaluation",
+                approval_id=request.approval_context.approval_id,
+                error=str(exc),
+                exc_info=True,
+            )
+            return PermissionDecision(
+                decision=PermissionDecisionType.DENY,
+                reason="Permission evaluation failed: unable to verify approval.",
+                rule_id="RULE_APPROVAL_REPO_FAILURE",
+            )
 
         if approval is None:
             return PermissionDecision(
@@ -338,10 +381,10 @@ class PermissionEngine:
                 rule_id="RULE_APPROVAL_INVALID",
             )
 
-        if approval.status != ApprovalStatus.APPROVED:
+        if approval.status not in (ApprovalStatus.APPROVED, ApprovalStatus.EXECUTING):
             return PermissionDecision(
                 decision=PermissionDecisionType.DENY,
-                reason=f"Approval is not in APPROVED state (current: {approval.status}).",
+                reason=f"Approval is not in APPROVED or EXECUTING state (current: {approval.status}).",
                 rule_id="RULE_APPROVAL_NOT_APPROVED",
             )
 
