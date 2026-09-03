@@ -10,6 +10,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.tools.approval_models import ApprovalStatus
+
 
 # --- CONSTANTS & PATTERNS ---
 
@@ -53,14 +55,6 @@ class GrantType(str, Enum):
     PERSISTENT = "persistent"
 
 
-class ApprovalStatus(str, Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    DENIED = "DENIED"
-    EXPIRED = "EXPIRED"
-    CANCELLED = "CANCELLED"
-
-
 class ToolExecutionStatus(str, Enum):
     SUCCESS = "SUCCESS"
     ERROR = "ERROR"
@@ -79,6 +73,7 @@ class ToolDefinition(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     tool_id: str = Field(..., description="Unique tool identifier, e.g. 'files.read_file'")
+    action: str = Field(..., min_length=1, description="Canonical authorization action for this tool, e.g. 'read'")
     name: str = Field(..., min_length=1, description="Human-readable tool name")
     description: str = Field(..., min_length=1, description="Tool purpose and behavior description")
     version: str = Field("1.0.0", description="Semantic version string, e.g. '1.0.0'")
@@ -98,6 +93,13 @@ class ToolDefinition(BaseModel):
                 f"Invalid tool_id format '{v}'. Must be lowercase alphanumeric with dots/underscores/hyphens, e.g. 'files.read_file'."
             )
         return v_clean
+
+    @field_validator("action")
+    @classmethod
+    def validate_action(cls, v: str) -> str:
+        if not isinstance(v, str) or not v or not v.strip():
+            raise ValueError("Action cannot be empty or whitespace only.")
+        return v.strip()
 
     @field_validator("version")
     @classmethod
@@ -185,6 +187,7 @@ class PermissionEvaluationRequest(BaseModel):
     autonomy_mode: AutonomyMode = Field(AutonomyMode.MANUAL, description="Current system autonomy mode")
     arguments: dict[str, Any] = Field(default_factory=dict, description="Sanitized argument summary")
     context: dict[str, Any] = Field(default_factory=dict, description="Additional evaluation context")
+    approval_context: Any = Field(None, description="Server-side approval verification token if executing approved request")
 
     @field_validator("tool_id")
     @classmethod

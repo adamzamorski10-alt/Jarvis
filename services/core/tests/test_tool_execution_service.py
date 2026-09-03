@@ -42,6 +42,7 @@ def _make_registry() -> ToolRegistry:
     reg = ToolRegistry()
     reg.register(
         ToolDefinition(
+            action="get_time",
             tool_id="system.get_time",
             name="Get Time",
             description="Returns current system timestamp.",
@@ -92,6 +93,7 @@ class BrokenTool(BaseTool):
     @property
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
+            action="tool",
             tool_id="broken.tool",
             name="Broken",
             description="Always raises.",
@@ -113,6 +115,7 @@ class SlowTool(BaseTool):
     @property
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
+            action="tool",
             tool_id="slow.tool",
             name="Slow",
             description="Sleeps forever.",
@@ -135,6 +138,7 @@ class OversizedResultTool(BaseTool):
     @property
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
+            action="tool",
             tool_id="oversized.tool",
             name="Oversized",
             description="Returns huge result.",
@@ -230,6 +234,7 @@ async def test_deny_never_executes():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="critical.tool",
             name="Critical",
             description="Critical tool.",
@@ -264,6 +269,7 @@ async def test_ask_user_never_executes():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="medium.tool",
             name="Medium",
             description="Medium risk.",
@@ -363,6 +369,7 @@ async def test_execution_exception_is_caught():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="broken.tool",
             name="Broken",
             description="Always raises.",
@@ -398,6 +405,7 @@ async def test_execution_timeout():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="slow.tool",
             name="Slow",
             description="Sleeps.",
@@ -437,6 +445,7 @@ async def test_oversized_result_logs_warning_but_succeeds():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="oversized.tool",
             name="Oversized",
             description="Huge result.",
@@ -472,6 +481,7 @@ async def test_result_validation_failure_logs_warning():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="bad_result.tool",
             name="BadResult",
             description="Returns wrong type.",
@@ -626,6 +636,7 @@ async def test_deny_never_calls_executor():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="critical.tool",
             name="Critical",
             description="Critical.",
@@ -669,6 +680,7 @@ async def test_ask_user_never_calls_executor():
     reg = _make_registry()
     reg.register(
         ToolDefinition(
+            action="tool",
             tool_id="medium.tool",
             name="Medium",
             description="Medium.",

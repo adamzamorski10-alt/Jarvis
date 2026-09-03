@@ -1,7 +1,8 @@
 """
 Repository — Pending Approvals
-Data access layer for ASK_USER approval requests in SQLite.
+Data access layer for ASK_USER approval requests awaiting user decision.
 """
+import json
 from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,8 +21,12 @@ class ApprovalRepository:
             conversation_id=approval.conversation_id,
             request_id=approval.request_id,
             tool_id=approval.tool_id,
-            arguments=_serialize_arguments(approval.arguments),
+            action=approval.action,
             tool_call_id=approval.tool_call_id,
+            arguments=_serialize_arguments(approval.arguments),
+            arguments_hash=approval.arguments_hash,
+            tool_definition_version=approval.tool_definition_version,
+            tool_definition_fingerprint=approval.tool_definition_fingerprint,
             status=approval.status.value,
             created_at=approval.created_at,
             expires_at=approval.expires_at,
@@ -50,15 +55,90 @@ class ApprovalRepository:
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
+    async def get_for_approval(self, approval_id: str) -> PendingApproval | None:
+        result = await self._session.execute(
+            select(PendingApprovalModel)
+            .where(
+                PendingApprovalModel.approval_id == approval_id,
+                PendingApprovalModel.status.in_(
+                    [
+                        ApprovalStatus.PENDING.value,
+                        ApprovalStatus.APPROVED.value,
+                        ApprovalStatus.EXECUTING.value,
+                    ]
+                ),
+            )
+        )
+        model = result.scalar_one_or_none()
+        return self._to_domain(model) if model else None
+
+    async def mark_approved(self, approval_id: str) -> PendingApproval | None:
+        """
+        Atomically transition PENDING → APPROVED.
+        The WHERE clause includes expires_at > now to prevent TOCTOU races:
+        expiration is verified in the same SQL UPDATE that changes status.
+        """
+        now = datetime.now(timezone.utc)
+        stmt = (
+            update(PendingApprovalModel)
+            .where(
+                PendingApprovalModel.approval_id == approval_id,
+                PendingApprovalModel.status == ApprovalStatus.PENDING.value,
+                PendingApprovalModel.expires_at > now,
+            )
+            .values(status=ApprovalStatus.APPROVED.value)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get(approval_id)
+
+    async def mark_executing(self, approval_id: str) -> PendingApproval | None:
+        stmt = (
+            update(PendingApprovalModel)
+            .where(
+                PendingApprovalModel.approval_id == approval_id,
+                PendingApprovalModel.status == ApprovalStatus.APPROVED.value,
+            )
+            .values(status=ApprovalStatus.EXECUTING.value)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get(approval_id)
+
     async def mark_executed(self, approval_id: str, executed_at: datetime | None = None) -> PendingApproval | None:
         now = executed_at or datetime.now(timezone.utc)
         stmt = (
             update(PendingApprovalModel)
             .where(
                 PendingApprovalModel.approval_id == approval_id,
-                PendingApprovalModel.status == ApprovalStatus.PENDING.value,
+                PendingApprovalModel.status == ApprovalStatus.EXECUTING.value,
             )
             .values(status=ApprovalStatus.EXECUTED.value, executed_at=now)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get(approval_id)
+
+    async def mark_failed(self, approval_id: str, error: str | None = None) -> PendingApproval | None:
+        stmt = (
+            update(PendingApprovalModel)
+            .where(
+                PendingApprovalModel.approval_id == approval_id,
+                PendingApprovalModel.status.in_(
+                    [
+                        ApprovalStatus.PENDING.value,
+                        ApprovalStatus.APPROVED.value,
+                        ApprovalStatus.EXECUTING.value,
+                    ]
+                ),
+            )
+            .values(status=ApprovalStatus.FAILED.value, decision_reason=error)
         )
         res = await self._session.execute(stmt)
         await self._session.flush()
@@ -115,8 +195,12 @@ class ApprovalRepository:
             conversation_id=model.conversation_id,
             request_id=model.request_id,
             tool_id=model.tool_id,
-            arguments=_deserialize_arguments(model.arguments),
+            action=model.action,
             tool_call_id=model.tool_call_id,
+            arguments=_deserialize_arguments(model.arguments),
+            arguments_hash=model.arguments_hash,
+            tool_definition_version=model.tool_definition_version,
+            tool_definition_fingerprint=model.tool_definition_fingerprint,
             status=ApprovalStatus(model.status),
             created_at=model.created_at,
             expires_at=model.expires_at,
@@ -128,15 +212,16 @@ class ApprovalRepository:
 def _serialize_arguments(arguments: dict[str, Any]) -> str | None:
     if not arguments:
         return None
-    import json
-    return json.dumps(arguments, ensure_ascii=False, default=str)
+    return json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
 
 
 def _deserialize_arguments(raw: str | None) -> dict[str, Any]:
-    if not raw:
+    if raw is None:
         return {}
-    import json
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
+        result = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Corrupted arguments JSON in database for approval: {exc}") from exc
+    if not isinstance(result, dict):
+        raise ValueError(f"Arguments in database for approval is not a dict (got {type(result).__name__})")
+    return result

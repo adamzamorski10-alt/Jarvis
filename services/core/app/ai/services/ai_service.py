@@ -152,7 +152,6 @@ class AIService:
         for call in tool_calls:
             result = await self._tool_execution_service.execute_tool_call(
                 call,
-                action=call.tool_id.split(".")[0] if "." in call.tool_id else call.tool_id,
                 autonomy_mode=autonomy_mode,
                 request_id=request_id,
             )
@@ -226,11 +225,15 @@ class AIService:
 
             for call, result in zip(response.tool_calls, execution_results):
                 if result.status.value == "CANCELLED" and result.error_code == "ask_user":
+                    tool_definition = self._tool_execution_service.get_tool_definition(call.tool_id)
+                    action = tool_definition.action if tool_definition else None
                     approval = await self._approval_service.create_pending_approval(
                         conversation_id=request_id or "",
                         tool_call=call,
                         arguments=call.arguments,
+                        action=action,
                         request_id=request_id,
+                        tool_definition=tool_definition,
                         tool_call_result=result,
                     )
                     return AgentLoopResult(

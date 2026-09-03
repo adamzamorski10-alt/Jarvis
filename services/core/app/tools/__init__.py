@@ -12,20 +12,15 @@ from app.tools.exceptions import (
     ToolRegistryError,
 )
 from app.tools.models import (
-    ApprovalRequest,
-    ApprovalStatus,
-    AutonomyMode,
-    GrantType,
-    PermissionDecision,
-    PermissionDecisionType,
-    PermissionEvaluationRequest,
-    PermissionGrant,
-    RiskLevel,
     ToolCall,
     ToolCategory,
     ToolDefinition,
     ToolExecutionResult,
     ToolExecutionStatus,
+)
+from app.tools.approval_models import (
+    ApprovalStatus,
+    ApprovalVerificationToken,
 )
 from app.tools.audit_models import (
     AuditEvent,
@@ -38,8 +33,6 @@ from app.tools.base import BaseTool
 from app.tools.executor import ToolExecutor
 from app.tools.implementation_registry import ToolImplementationRegistry, tool_implementation_registry
 from app.tools.models import (
-    ApprovalRequest,
-    ApprovalStatus,
     AutonomyMode,
     GrantType,
     PermissionDecision,
@@ -47,11 +40,6 @@ from app.tools.models import (
     PermissionEvaluationRequest,
     PermissionGrant,
     RiskLevel,
-    ToolCall,
-    ToolCategory,
-    ToolDefinition,
-    ToolExecutionResult,
-    ToolExecutionStatus,
 )
 from app.tools.permission_engine import PermissionEngine
 from app.tools.registry import ToolRegistry, tool_registry
@@ -96,4 +84,6 @@ __all__ = [
     "sanitize_payload",
     "make_audit_event",
     "AuditLogService",
+    "ApprovalStatus",
+    "ApprovalVerificationToken",
 ]

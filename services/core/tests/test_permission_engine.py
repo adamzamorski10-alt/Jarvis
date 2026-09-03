@@ -12,7 +12,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.database import Base
 from app.db.models.permission_grant import PermissionGrantModel
+from app.repositories.approval_repository import ApprovalRepository
 from app.repositories.grant_repository import GrantRepository, match_action, match_tool_id
+from app.tools.approval_models import (
+    ApprovalStatus,
+    ApprovalVerificationToken,
+    PendingApproval,
+    compute_arguments_hash,
+    compute_tool_definition_fingerprint,
+)
 from app.tools.models import (
     AutonomyMode,
     GrantType,
@@ -30,6 +38,7 @@ def _create_test_registry() -> ToolRegistry:
     reg = ToolRegistry()
     reg.register(
         ToolDefinition(
+            action="get_time",
             tool_id="system.get_time",
             name="Get Time",
             description="Returns current system timestamp.",
@@ -39,6 +48,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="read_file",
             tool_id="files.read_file",
             name="Read File",
             description="Reads contents of a file.",
@@ -48,6 +58,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="write_file",
             tool_id="files.write_file",
             name="Write File",
             description="Writes data to a file.",
@@ -57,6 +68,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="restart_service",
             tool_id="system.restart_service",
             name="Restart Service",
             description="Restarts a background service.",
@@ -66,6 +78,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="format_drive",
             tool_id="system.format_drive",
             name="Format Drive",
             description="Formats a disk drive.",
@@ -75,6 +88,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="confirm_required",
             tool_id="files.confirm_required",
             name="Confirm Required Tool",
             description="Tool requiring explicit confirmation.",
@@ -85,6 +99,7 @@ def _create_test_registry() -> ToolRegistry:
     )
     reg.register(
         ToolDefinition(
+            action="static_disabled",
             tool_id="files.static_disabled",
             name="Static Disabled Tool",
             description="Disabled in definition.",
@@ -228,7 +243,7 @@ async def test_permission_semi_autonomous_mode():
     )
     dec_crit = await engine.evaluate(req_crit)
     assert dec_crit.decision == PermissionDecisionType.DENY
-    assert dec_crit.rule_id == "RULE_08_SEMI_AUTONOMOUS_CRITICAL_DENY"
+    assert dec_crit.rule_id == "RULE_05_CRITICAL_RISK_ABSOLUTE_DENY"
 
 
 @pytest.mark.asyncio
@@ -522,3 +537,154 @@ async def test_permission_engine_does_not_mutate_registry_or_definitions():
     assert tool_after.enabled == tool_before.enabled
     assert tool_after.risk_level == tool_before.risk_level
     assert reg.is_enabled("files.read_file") is True
+
+
+# --- 6. CRITICAL ABSOLUTE DENY GUARANTEES ---
+# CRITICAL risk must ALWAYS result in DENY, regardless of grants, approvals,
+# autonomy mode, or any other override mechanism.
+
+@pytest.mark.asyncio
+async def test_critical_manual_mode_denied(session):
+    """CRITICAL + MANUAL → DENY (not ASK_USER)."""
+    reg = _create_test_registry()
+    engine = PermissionEngine(registry=reg)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.MANUAL,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+    assert "CRITICAL" in decision.reason
+
+
+@pytest.mark.asyncio
+async def test_critical_semi_autonomous_denied(session):
+    """CRITICAL + SEMI_AUTONOMOUS → DENY."""
+    reg = _create_test_registry()
+    engine = PermissionEngine(registry=reg)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.SEMI_AUTONOMOUS,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+    assert "CRITICAL" in decision.reason
+
+
+@pytest.mark.asyncio
+async def test_critical_autonomous_denied(session):
+    """CRITICAL + AUTONOMOUS → DENY."""
+    reg = _create_test_registry()
+    engine = PermissionEngine(registry=reg)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.AUTONOMOUS,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+    assert "CRITICAL" in decision.reason
+
+
+@pytest.mark.asyncio
+async def test_critical_with_persistent_grant_denied(session):
+    """CRITICAL + matching persistent grant → DENY (persistent grants cannot bypass CRITICAL)."""
+    reg = _create_test_registry()
+    repo = GrantRepository(session)
+    await repo.create_grant(
+        tool_id="system.format_drive",
+        action_pattern="format",
+        grant_type=GrantType.PERSISTENT,
+    )
+    engine = PermissionEngine(registry=reg, grant_repo=repo)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.AUTONOMOUS,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+    assert "CRITICAL" in decision.reason
+
+
+@pytest.mark.asyncio
+async def test_critical_with_one_time_grant_denied(session):
+    """CRITICAL + matching one-time grant → DENY."""
+    reg = _create_test_registry()
+    repo = GrantRepository(session)
+    await repo.create_grant(
+        tool_id="system.format_drive",
+        action_pattern="format",
+        grant_type=GrantType.ONE_TIME,
+    )
+    engine = PermissionEngine(registry=reg, grant_repo=repo)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.AUTONOMOUS,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+
+
+@pytest.mark.asyncio
+async def test_critical_with_valid_approval_context_denied(session):
+    """CRITICAL + ASK_USER + valid approval context → DENY (approval cannot override CRITICAL)."""
+    from datetime import timedelta
+
+    reg = _create_test_registry()
+    approval_repo = ApprovalRepository(session)
+    now = datetime.now(timezone.utc)
+
+    approval = await approval_repo.create(
+        PendingApproval(
+            approval_id="approval_crit_test",
+            conversation_id="conv-1",
+            tool_id="system.format_drive",
+            action="format",
+            tool_call_id="call-1",
+            arguments={"path": "/dev/sda"},
+            arguments_hash=compute_arguments_hash({"path": "/dev/sda"}),
+            tool_definition_version="1.0.0",
+            tool_definition_fingerprint=compute_tool_definition_fingerprint(
+                reg.require("system.format_drive")
+            ),
+            status=ApprovalStatus.PENDING,
+            created_at=now,
+            expires_at=now + timedelta(hours=1),
+        )
+    )
+    await approval_repo.mark_approved("approval_crit_test")
+
+    token = ApprovalVerificationToken(
+        approval_id="approval_crit_test",
+        tool_id="system.format_drive",
+        action="format",
+        tool_call_id="call-1",
+        arguments_hash=approval.arguments_hash,
+        request_id="conv-1",
+        tool_definition_version="1.0.0",
+        tool_definition_fingerprint=approval.tool_definition_fingerprint,
+        expires_at=approval.expires_at,
+    )
+
+    engine = PermissionEngine(registry=reg, approval_repo=approval_repo)
+    req = PermissionEvaluationRequest(
+        tool_id="system.format_drive",
+        risk_level=RiskLevel.CRITICAL,
+        action="format",
+        autonomy_mode=AutonomyMode.MANUAL,
+        arguments={"path": "/dev/sda"},
+        context={"tool_call_id": "call-1", "request_id": "conv-1"},
+        approval_context=token,
+    )
+    decision = await engine.evaluate(req)
+    assert decision.decision == PermissionDecisionType.DENY
+    assert "CRITICAL" in decision.reason

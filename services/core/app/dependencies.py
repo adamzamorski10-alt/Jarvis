@@ -88,12 +88,14 @@ async def get_permission_engine(
     registry: ToolRegistry = Depends(get_tool_registry),
     grant_repo: GrantRepository = Depends(get_grant_repository),
     audit_service: AuditLogService = Depends(get_audit_log_service),
+    approval_repo: ApprovalRepository = Depends(get_approval_repository),
 ) -> AsyncGenerator[PermissionEngine, None]:
     from app.tools.permission_engine import PermissionEngine
     yield PermissionEngine(
         registry=registry,
         grant_repo=grant_repo,
         audit_service=audit_service,
+        approval_repo=approval_repo,
     )
 
 
@@ -125,9 +127,16 @@ def get_tool_execution_service(
 def get_approval_service(
     repo: ApprovalRepository = Depends(get_approval_repository),
     tool_execution_service: ToolExecutionService = Depends(get_tool_execution_service),
+    settings_svc: SettingsService = Depends(get_settings_service),
+    audit_service: AuditLogService = Depends(get_audit_log_service),
 ) -> ApprovalService:
     from app.tools.approval_service import ApprovalService
-    return ApprovalService(repo=repo, tool_execution_service=tool_execution_service)
+    return ApprovalService(
+        repo=repo,
+        tool_execution_service=tool_execution_service,
+        settings=settings_svc,
+        audit_service=audit_service,
+    )
 
 
 async def get_ai_service(

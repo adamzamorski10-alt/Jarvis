@@ -15,7 +15,7 @@ from app.services.settings_service import SettingsService
 from app.tools.models import AutonomyMode, ToolCall, ToolExecutionResult, ToolExecutionStatus
 from app.tools.tool_execution_service import ToolExecutionService
 from app.tools.approval_service import ApprovalService
-from app.tools.approval_models import ApprovalStatus, PendingApproval
+from app.tools.approval_models import ApprovalStatus, PendingApproval, compute_arguments_hash
 
 
 def _make_ai_service(
@@ -37,8 +37,10 @@ def _make_ai_service(
             conversation_id="conv-1",
             request_id=None,
             tool_id="system.exec",
-            arguments={"command": "ls"},
+            action="system",
             tool_call_id="call-1",
+            arguments={"command": "ls"},
+            arguments_hash=compute_arguments_hash({"command": "ls"}),
             status=ApprovalStatus.PENDING,
             created_at=datetime.now(timezone.utc),
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),

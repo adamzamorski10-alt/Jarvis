@@ -80,10 +80,12 @@ async def system_status(session: AsyncSession = Depends(get_db)) -> SystemStatus
         grant_repo = GrantRepository(session)
         audit_repo = AuditLogRepository(session)
         audit_service = AuditLogService(audit_repo)
+        approval_repo = ApprovalRepository(session)
         permission_engine = PermissionEngine(
             registry=tool_registry,
             grant_repo=grant_repo,
             audit_service=audit_service,
+            approval_repo=approval_repo,
         )
         executor = ToolExecutor(registry=tool_registry, impl_registry=tool_implementation_registry)
         tool_execution_service = ToolExecutionService(
@@ -94,7 +96,12 @@ async def system_status(session: AsyncSession = Depends(get_db)) -> SystemStatus
             executor=executor,
         )
         approval_repo = ApprovalRepository(session)
-        approval_service = ApprovalService(repo=approval_repo, tool_execution_service=tool_execution_service)
+        approval_service = ApprovalService(
+            repo=approval_repo,
+            tool_execution_service=tool_execution_service,
+            settings=settings,
+            audit_service=audit_service,
+        )
         ai = AIService(provider_manager, conversation_service, activity_service, settings, tool_execution_service, approval_service)
         ai_status = await ai.get_status()
         ai_status_str = "ready" if ai_status["ai_ready"] else ai_status["provider_status"]

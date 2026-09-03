@@ -18,12 +18,12 @@ class SystemGetTime(BaseTool):
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
             tool_id="system.get_time",
+            action="get_time",
             name="Get System Time",
             description="Returns the current UTC time in ISO 8601 format.",
             version="1.0.0",
             category=ToolCategory.SYSTEM,
             risk_level=RiskLevel.SAFE,
-            enabled=True,
             parameters_schema={
                 "type": "object",
                 "properties": {},

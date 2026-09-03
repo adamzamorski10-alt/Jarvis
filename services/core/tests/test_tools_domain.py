@@ -29,6 +29,7 @@ from app.tools.models import (
 def test_tool_definition_valid():
     """Test creating a valid ToolDefinition."""
     tool = ToolDefinition(
+        action="read_file",
         tool_id="files.read_file",
         name="Read File",
         description="Reads contents of a local file safely.",
@@ -51,6 +52,7 @@ def test_tool_definition_valid():
 def test_tool_definition_immutability():
     """Test that ToolDefinition is strictly immutable (frozen)."""
     tool = ToolDefinition(
+        action="get_status",
         tool_id="system.get_status",
         name="Get System Status",
         description="Returns system metrics.",
@@ -88,6 +90,7 @@ def test_tool_definition_invalid_version():
     for version in invalid_versions:
         with pytest.raises(ValidationError) as exc_info:
             ToolDefinition(
+                action="read_file",
                 tool_id="files.read_file",
                 name="Read File",
                 description="Test Description",
@@ -102,6 +105,7 @@ def test_tool_definition_invalid_category_or_risk():
     """Test invalid category or risk level enum values."""
     with pytest.raises(ValidationError):
         ToolDefinition(
+            action="read_file",
             tool_id="files.read_file",
             name="Read File",
             description="Test Description",
@@ -111,6 +115,7 @@ def test_tool_definition_invalid_category_or_risk():
 
     with pytest.raises(ValidationError):
         ToolDefinition(
+            action="read_file",
             tool_id="files.read_file",
             name="Read File",
             description="Test Description",
@@ -123,6 +128,7 @@ def test_tool_definition_empty_name_or_description():
     """Test that empty or whitespace-only name/description are rejected."""
     with pytest.raises(ValidationError):
         ToolDefinition(
+            action="read_file",
             tool_id="files.read_file",
             name="   ",
             description="Valid Description",
@@ -132,6 +138,7 @@ def test_tool_definition_empty_name_or_description():
 
     with pytest.raises(ValidationError):
         ToolDefinition(
+            action="read_file",
             tool_id="files.read_file",
             name="Valid Name",
             description="",

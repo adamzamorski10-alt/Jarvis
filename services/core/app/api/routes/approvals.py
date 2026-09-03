@@ -13,13 +13,16 @@ router = APIRouter(prefix="/ai/approvals", tags=["Approvals"])
 def _approval_to_response(approval: PendingApproval, execution_result: Any = None) -> ApprovalResponse:
     return ApprovalResponse(
         approval_id=approval.approval_id,
-        status=approval.status,
+        status=approval.status.value,
         tool_id=approval.tool_id,
-        arguments=approval.arguments,
+        action=approval.action,
         tool_call_id=approval.tool_call_id,
+        arguments=approval.arguments,
         conversation_id=approval.conversation_id,
+        request_id=approval.request_id,
         created_at=approval.created_at,
         expires_at=approval.expires_at,
+        executed_at=approval.executed_at,
         decision_reason=approval.decision_reason,
         execution_result=execution_result,
     )

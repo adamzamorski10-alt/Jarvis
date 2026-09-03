@@ -53,6 +53,7 @@ class DummyTool(BaseTool):
     @property
     def definition(self) -> ToolDefinition:
         return ToolDefinition(
+            action="tool",
             tool_id="dummy.tool",
             name="Dummy",
             description="Dummy tool for testing.",
@@ -196,6 +197,7 @@ async def test_execute_missing_implementation():
     """Test that registered definition without implementation returns ERROR."""
     reg = _make_registry()
     reg.register(ToolDefinition(
+        action="tool",
         tool_id="empty.tool",
         name="Empty",
         description="No implementation.",
@@ -223,6 +225,7 @@ async def test_execute_implementation_raises():
         @property
         def definition(self) -> ToolDefinition:
             return ToolDefinition(
+                action="tool",
                 tool_id="broken.tool",
                 name="Broken",
                 description="Always raises.",

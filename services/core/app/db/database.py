@@ -55,8 +55,7 @@ def AsyncSessionLocal() -> AsyncSession:
 
 async def init_db() -> None:
     """Create all tables if they don't exist and run lightweight migrations."""
-    # Import models so SQLAlchemy knows about them
-    from app.db.models import settings, activity, conversation, permission_grant, audit_event  # noqa: F401
+    from app.db.models import settings, activity, conversation, permission_grant, audit_event, pending_approval  # noqa: F401
 
     engine = get_engine()
     async with engine.begin() as conn:
@@ -77,6 +76,16 @@ async def init_db() -> None:
                     connection.execute(text("ALTER TABLE audit_events RENAME COLUMN result_json TO result"))
                 if "reason" not in columns:
                     connection.execute(text("ALTER TABLE audit_events ADD COLUMN reason VARCHAR(500) DEFAULT 'unknown'"))
+            if "pending_approvals" in inspector.get_table_names():
+                columns = {col["name"] for col in inspector.get_columns("pending_approvals")}
+                if "action" not in columns:
+                    connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN action VARCHAR(100) NOT NULL DEFAULT 'unknown'"))
+                if "arguments_hash" not in columns:
+                    connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN arguments_hash VARCHAR(64)"))
+                if "tool_definition_version" not in columns:
+                    connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_version VARCHAR(50)"))
+                if "tool_definition_fingerprint" not in columns:
+                    connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_fingerprint VARCHAR(64)"))
 
         await conn.run_sync(migrate_sqlite)
 

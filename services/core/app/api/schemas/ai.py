@@ -145,11 +145,14 @@ class ApprovalResponse(BaseModel):
     approval_id: str
     status: str
     tool_id: str
-    arguments: dict
+    action: str
     tool_call_id: str
+    arguments: dict
     conversation_id: str
+    request_id: str | None = None
     created_at: datetime
     expires_at: datetime
+    executed_at: datetime | None = None
     decision_reason: str | None = None
     execution_result: dict | None = None
 

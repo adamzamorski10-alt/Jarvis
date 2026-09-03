@@ -12,6 +12,7 @@ from app.tools.models import ToolCall, ToolDefinition, ToolCategory, RiskLevel
 
 def test_normalize_tool_definitions_from_tool_definition():
     tool = ToolDefinition(
+        action="read_file",
         tool_id="files.read_file",
         name="Read File",
         description="Read a file from disk",

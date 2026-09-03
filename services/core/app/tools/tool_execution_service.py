@@ -29,6 +29,7 @@ from app.tools.models import (
     PermissionDecisionType,
     PermissionEvaluationRequest,
     ToolCall,
+    ToolDefinition,
     ToolExecutionResult,
     ToolExecutionStatus,
 )
@@ -77,14 +78,19 @@ class ToolExecutionService:
         self._max_result_size_bytes = max_result_size_bytes
         self._max_tool_calls_per_request = max_tool_calls_per_request
 
+    def get_tool_definition(self, tool_id: str) -> ToolDefinition | None:
+        """Return the canonical ToolDefinition for a tool_id, or None if not registered."""
+        return self._registry.get(tool_id)
+
     async def execute_tool_call(
         self,
         tool_call: ToolCall,
         *,
-        action: str,
+        action: str | None = None,
         autonomy_mode: AutonomyMode,
         request_id: str | None = None,
         context: dict[str, Any] | None = None,
+        approval_context: Any = None,
     ) -> ToolExecutionResult:
         """
         Execute a single tool call through the full security pipeline.
@@ -96,17 +102,22 @@ class ToolExecutionService:
           4. ONLY if ALLOW → ToolExecutor.execute()
           5. result validation
           6. audit
+
+        When ``action`` is not supplied, it is resolved from the canonical
+        ``ToolDefinition.action`` field looked up in the registry — never
+        from the caller or from ``tool_id.split('.')``.
         """
         tool_id = tool_call.tool_id
         definition = self._registry.get(tool_id)
 
         # 1. Tool existence
         if definition is None:
+            resolved_action = action or "unknown"
             await self._safe_audit(
                 AuditEventType.TOOL_CALL_REQUESTED,
                 request_id=request_id,
                 tool_id=tool_id,
-                action=action,
+                action=resolved_action,
                 reason="Tool is not registered in ToolRegistry.",
                 arguments=tool_call.arguments,
             )
@@ -120,13 +131,16 @@ class ToolExecutionService:
                 error_message=f"Tool '{tool_id}' is not registered.",
             )
 
+        # Resolve canonical action from ToolDefinition
+        resolved_action = action if action is not None else definition.action
+
         # 2. Enabled check
         if not self._registry.is_enabled(tool_id):
             await self._safe_audit(
                 AuditEventType.TOOL_CALL_REQUESTED,
                 request_id=request_id,
                 tool_id=tool_id,
-                action=action,
+                action=resolved_action,
                 reason="Tool is currently disabled.",
                 arguments=tool_call.arguments,
             )
@@ -152,7 +166,7 @@ class ToolExecutionService:
                 AuditEventType.TOOL_CALL_REQUESTED,
                 request_id=request_id,
                 tool_id=tool_id,
-                action=action,
+                action=resolved_action,
                 reason=f"Invalid arguments: {exc}",
                 arguments=tool_call.arguments,
             )
@@ -170,22 +184,23 @@ class ToolExecutionService:
         permission_request = PermissionEvaluationRequest(
             tool_id=tool_id,
             risk_level=definition.risk_level,
-            action=action,
+            action=resolved_action,
             autonomy_mode=autonomy_mode,
             arguments=tool_call.arguments,
             context=context or {"request_id": request_id} if request_id else (context or {}),
+            approval_context=approval_context,
         )
 
         decision = await self._permission_engine.evaluate(permission_request)
 
         if decision.decision == PermissionDecisionType.DENY:
             return self._build_permission_denied_result(
-                tool_call, action, request_id, decision
+                tool_call, resolved_action, request_id, decision
             )
 
         if decision.decision == PermissionDecisionType.ASK_USER:
             return self._build_ask_user_result(
-                tool_call, action, request_id, decision
+                tool_call, resolved_action, request_id, decision
             )
 
         # 5. ALLOW → execution
@@ -193,7 +208,7 @@ class ToolExecutionService:
             AuditEventType.TOOL_EXECUTION_STARTED,
             request_id=request_id,
             tool_id=tool_id,
-            action=action,
+            action=resolved_action,
             reason="Execution started after permission grant.",
             arguments=tool_call.arguments,
         )
@@ -210,7 +225,7 @@ class ToolExecutionService:
                 AuditEventType.TOOL_EXECUTION_TIMEOUT,
                 request_id=request_id,
                 tool_id=tool_id,
-                action=action,
+                action=resolved_action,
                 reason=f"Tool execution exceeded {self._max_execution_time_ms}ms timeout.",
                 success=False,
                 error_code="timeout",
@@ -232,7 +247,7 @@ class ToolExecutionService:
                 AuditEventType.TOOL_EXECUTION_FAILED,
                 request_id=request_id,
                 tool_id=tool_id,
-                action=action,
+                action=resolved_action,
                 reason=str(exc),
                 success=False,
                 error_code=getattr(exc, "code", "execution_error") or "execution_error",
@@ -271,7 +286,7 @@ class ToolExecutionService:
             AuditEventType.TOOL_EXECUTION_SUCCEEDED if raw_result.success else AuditEventType.TOOL_EXECUTION_FAILED,
             request_id=request_id,
             tool_id=tool_id,
-            action=action,
+            action=resolved_action,
             reason="Tool execution completed." if raw_result.success else raw_result.error_message or "Tool execution failed.",
             success=raw_result.success,
             error_code=raw_result.error_code,
@@ -286,10 +301,11 @@ class ToolExecutionService:
         self,
         tool_calls: list[ToolCall],
         *,
-        action: str,
+        action: str | None = None,
         autonomy_mode: AutonomyMode,
         request_id: str | None = None,
         context: dict[str, Any] | None = None,
+        approval_context: Any = None,
     ) -> list[ToolExecutionResult]:
         """
         Execute multiple tool calls with a per-request limit.
@@ -321,6 +337,7 @@ class ToolExecutionService:
                 autonomy_mode=autonomy_mode,
                 request_id=request_id,
                 context=context,
+                approval_context=approval_context,
             )
             results.append(result)
 

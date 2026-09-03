@@ -23,9 +23,12 @@ def _create_sample_tool(
     category: ToolCategory = ToolCategory.FILES,
     risk_level: RiskLevel = RiskLevel.LOW,
     enabled: bool = True,
+    action: str | None = None,
 ) -> ToolDefinition:
+    derived_action = action or (tool_id.split('.')[-1] if '.' in tool_id else tool_id)
     return ToolDefinition(
         tool_id=tool_id,
+        action=derived_action,
         name=name,
         description=f"Sample tool {tool_id}",
         category=category,

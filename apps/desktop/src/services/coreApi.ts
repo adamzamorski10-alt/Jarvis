@@ -238,11 +238,14 @@ export const coreApi = {
       approval_id: string;
       status: string;
       tool_id: string;
-      arguments: Record<string, unknown>;
+      action: string;
       tool_call_id: string;
+      arguments: Record<string, unknown>;
       conversation_id: string;
+      request_id?: string | null;
       created_at: string;
       expires_at: string;
+      executed_at?: string | null;
       decision_reason?: string | null;
       execution_result?: Record<string, unknown> | null;
     }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/approve`, { decision_reason: reason }),
@@ -251,11 +254,14 @@ export const coreApi = {
       approval_id: string;
       status: string;
       tool_id: string;
-      arguments: Record<string, unknown>;
+      action: string;
       tool_call_id: string;
+      arguments: Record<string, unknown>;
       conversation_id: string;
+      request_id?: string | null;
       created_at: string;
       expires_at: string;
+      executed_at?: string | null;
       decision_reason?: string | null;
     }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/reject`, { decision_reason: reason }),
 };
