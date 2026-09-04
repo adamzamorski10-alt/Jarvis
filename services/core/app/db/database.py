@@ -55,7 +55,8 @@ def AsyncSessionLocal() -> AsyncSession:
 
 async def init_db() -> None:
     """Create all tables if they don't exist and run lightweight migrations."""
-    from app.db.models import settings, activity, conversation, permission_grant, audit_event, pending_approval  # noqa: F401
+    from app.db.models import settings, activity, conversation, permission_grant, audit_event, pending_approval, development_task  # noqa: F401
+
 
     engine = get_engine()
     async with engine.begin() as conn:
