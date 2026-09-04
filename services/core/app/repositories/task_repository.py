@@ -118,6 +118,49 @@ class TaskRepository:
             return None
         return await self.get_task(task_id)
 
+    async def transition_status_atomically(
+        self,
+        task_id: str,
+        expected_status: TaskStatus | str,
+        new_status: TaskStatus | str,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+        failure_reason: str | None = None,
+    ) -> tuple[DevelopmentTask | None, bool]:
+        """
+        Atomically updates task status using Compare-And-Set (CAS) query:
+        UPDATE development_tasks SET status = :new_status WHERE task_id = :task_id AND status = :expected_status
+        Returns (updated_task, True) on success.
+        Returns (None, False) if expected_status does not match or task does not exist.
+        """
+        exp_str = expected_status.value if isinstance(expected_status, TaskStatus) else str(expected_status)
+        new_str = new_status.value if isinstance(new_status, TaskStatus) else str(new_status)
+
+        values: dict[str, Any] = {"status": new_str}
+        if started_at is not None:
+            values["started_at"] = started_at
+        if completed_at is not None:
+            values["completed_at"] = completed_at
+        if failure_reason is not None:
+            values["failure_reason"] = failure_reason.strip()
+
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(
+                DevelopmentTaskModel.task_id == task_id,
+                DevelopmentTaskModel.status == exp_str,
+            )
+            .values(**values)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None, False
+
+        task = await self.get_task(task_id)
+        return task, True
+
+
     async def update_task_metadata(
         self,
         task_id: str,

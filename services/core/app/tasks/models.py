@@ -43,3 +43,19 @@ class DevelopmentTask(BaseModel):
     completed_at: datetime | None = None
     failure_reason: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TaskTransitionResult(BaseModel):
+    """
+    Structured outcome of a state machine transition attempt.
+    """
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    success: bool
+    task_id: str
+    previous_status: TaskStatus
+    new_status: TaskStatus
+    transitioned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reason: str | None = None
+    task: DevelopmentTask | None = None
+
