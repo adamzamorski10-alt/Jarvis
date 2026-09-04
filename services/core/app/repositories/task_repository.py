@@ -161,6 +161,60 @@ class TaskRepository:
         return task, True
 
 
+    async def claim_task_attempt(
+        self,
+        task_id: str,
+        expected_status: TaskStatus | str,
+        max_attempts: int,
+        started_at: datetime | None = None,
+    ) -> tuple[DevelopmentTask | None, bool]:
+        """
+        Atomically claims a task execution attempt using a single SQL UPDATE statement.
+
+        The UPDATE succeeds only when ALL three conditions hold simultaneously:
+          • task_id matches
+          • current status == expected_status
+          • current attempt_count < max_attempts
+
+        On success it atomically writes:
+          • status = RUNNING
+          • attempt_count = attempt_count + 1
+          • started_at = now
+
+        Because status and attempt_count are written in one SQL statement there is no
+        crash window between them — a process crash before or after the statement
+        leaves the database in a consistent state.  A losing concurrent worker whose
+        UPDATE matches zero rows never touches either column.
+
+        Returns:
+            (updated_task, True)  — claim won; status is now RUNNING.
+            (None, False)         — claim lost (concurrent winner, attempt limit
+                                   already reached, or task not found).
+        """
+        exp_str = expected_status.value if isinstance(expected_status, TaskStatus) else str(expected_status)
+        now = started_at or datetime.now(timezone.utc)
+
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(
+                DevelopmentTaskModel.task_id == task_id,
+                DevelopmentTaskModel.status == exp_str,
+                DevelopmentTaskModel.attempt_count < max_attempts,
+            )
+            .values(
+                status=TaskStatus.RUNNING.value,
+                attempt_count=DevelopmentTaskModel.attempt_count + 1,
+                started_at=now,
+            )
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None, False
+
+        task = await self.get_task(task_id)
+        return task, True
+
     async def update_task_metadata(
         self,
         task_id: str,
