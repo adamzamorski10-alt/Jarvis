@@ -2,10 +2,11 @@
 Repository — Development Tasks
 Data access layer for autonomous development tasks in SQLite.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from typing import Any
-from sqlalchemy import select, update
+import uuid
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.development_task import DevelopmentTaskModel
@@ -51,6 +52,12 @@ class TaskRepository:
             completed_at=task.completed_at,
             failure_reason=task.failure_reason,
             task_metadata=_serialize_metadata(task.metadata),
+            last_heartbeat=task.last_heartbeat,
+            recovery_attempt_count=task.recovery_attempt_count,
+            max_recovery_attempts=task.max_recovery_attempts,
+            last_recovery_at=task.last_recovery_at,
+            recovery_owner=task.recovery_owner,
+            execution_token=task.execution_token,
         )
         self._session.add(model)
         await self._session.flush()
@@ -193,6 +200,7 @@ class TaskRepository:
         """
         exp_str = expected_status.value if isinstance(expected_status, TaskStatus) else str(expected_status)
         now = started_at or datetime.now(timezone.utc)
+        exec_token = f"exec_{uuid.uuid4().hex[:12]}"
 
         stmt = (
             update(DevelopmentTaskModel)
@@ -205,6 +213,9 @@ class TaskRepository:
                 status=TaskStatus.RUNNING.value,
                 attempt_count=DevelopmentTaskModel.attempt_count + 1,
                 started_at=now,
+                last_heartbeat=now,
+                execution_token=exec_token,
+                recovery_owner=None,
             )
         )
         res = await self._session.execute(stmt)
@@ -282,6 +293,186 @@ class TaskRepository:
             return None
         return await self.get_task(task_id)
 
+    async def update_heartbeat(
+        self,
+        task_id: str,
+        execution_token: str | None = None,
+        heartbeat_at: datetime | None = None,
+        recovery_lease_seconds: float = 60.0,
+    ) -> tuple[DevelopmentTask | None, bool]:
+        """
+        Atomically update last_heartbeat timestamp for a task ONLY if:
+          - status is RUNNING
+          - execution_token matches (if supplied)
+          - recovery_owner IS NULL OR last_recovery_at is older than recovery_lease_seconds (no active recovery claim)
+
+        Returns (updated_task, True) on success.
+        Returns (None, False) if heartbeat is rejected due to active recovery claim or status change.
+        """
+        now = heartbeat_at or datetime.now(timezone.utc)
+        lease_stale_before = now - timedelta(seconds=recovery_lease_seconds)
+
+        where_clauses = [
+            DevelopmentTaskModel.task_id == task_id,
+            DevelopmentTaskModel.status == TaskStatus.RUNNING.value,
+            DevelopmentTaskModel.recovery_owner.is_(None),
+        ]
+        if execution_token:
+            where_clauses.append(
+                DevelopmentTaskModel.execution_token == execution_token
+            )
+
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(*where_clauses)
+            .values(last_heartbeat=now)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None, False
+        task = await self.get_task(task_id)
+        return task, True
+
+    async def list_stale_running_tasks(
+        self,
+        stale_before: datetime,
+        limit: int = 50,
+    ) -> list[DevelopmentTask]:
+        """
+        Find RUNNING tasks whose last_heartbeat is either NULL or prior to stale_before.
+        """
+        stmt = (
+            select(DevelopmentTaskModel)
+            .where(
+                DevelopmentTaskModel.status == TaskStatus.RUNNING.value,
+                or_(
+                    DevelopmentTaskModel.last_heartbeat.is_(None),
+                    DevelopmentTaskModel.last_heartbeat < stale_before,
+                ),
+            )
+            .order_by(DevelopmentTaskModel.last_heartbeat.asc().nullsfirst())
+            .limit(limit)
+        )
+        res = await self._session.execute(stmt)
+        models = list(res.scalars().all())
+        return [self._to_domain(m) for m in models if m is not None]  # type: ignore[misc]
+
+    async def claim_task_recovery(
+        self,
+        task_id: str,
+        recovery_owner: str,
+        stale_before: datetime,
+        max_recovery_attempts: int,
+        recovery_lease_seconds: float = 60.0,
+        now: datetime | None = None,
+    ) -> tuple[DevelopmentTask | None, bool]:
+        """
+        Atomically claims recovery responsibility for an orphaned RUNNING task.
+
+        Single SQL UPDATE condition:
+            • task_id matches
+            • status == RUNNING
+            • (last_heartbeat IS NULL OR last_heartbeat < stale_before)
+            • (recovery_owner IS NULL OR last_recovery_at < lease_stale_before)
+            • recovery_attempt_count < max_recovery_attempts
+
+        Atomically sets:
+            • recovery_owner = recovery_owner
+            • recovery_attempt_count = recovery_attempt_count + 1
+            • last_recovery_at = now
+
+        Returns:
+            (updated_task, True)  — recovery claim won by this worker.
+            (None, False)         — recovery claim lost (another worker claimed, active lease exists, or limit reached).
+        """
+        claim_time = now or datetime.now(timezone.utc)
+        lease_stale_before = claim_time - timedelta(seconds=recovery_lease_seconds)
+
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(
+                DevelopmentTaskModel.task_id == task_id,
+                DevelopmentTaskModel.status == TaskStatus.RUNNING.value,
+                or_(
+                    DevelopmentTaskModel.last_heartbeat.is_(None),
+                    DevelopmentTaskModel.last_heartbeat < stale_before,
+                ),
+                or_(
+                    DevelopmentTaskModel.recovery_owner.is_(None),
+                    DevelopmentTaskModel.last_recovery_at < lease_stale_before,
+                ),
+                DevelopmentTaskModel.recovery_attempt_count < max_recovery_attempts,
+            )
+            .values(
+                recovery_owner=recovery_owner,
+                recovery_attempt_count=DevelopmentTaskModel.recovery_attempt_count + 1,
+                last_recovery_at=claim_time,
+                execution_token=None,
+            )
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None, False
+
+        task = await self.get_task(task_id)
+        return task, True
+
+    async def transition_recovery_status_atomically(
+        self,
+        task_id: str,
+        expected_recovery_owner: str,
+        expected_last_recovery_at: datetime,
+        new_status: TaskStatus | str,
+        failure_reason: str | None = None,
+    ) -> tuple[DevelopmentTask | None, bool]:
+        """
+        Atomically executes the final recovery state transition matching exact recovery ownership lease.
+
+        WHERE conditions:
+            • task_id matches
+            • status == RUNNING
+            • recovery_owner == expected_recovery_owner
+            • last_recovery_at == expected_last_recovery_at
+
+        If another recovery worker took over or task status changed, rowcount == 0 (returns (None, False)).
+        """
+        new_str = new_status.value if isinstance(new_status, TaskStatus) else str(new_status)
+        now = datetime.now(timezone.utc)
+
+        values: dict[str, Any] = {
+            "status": new_str,
+            "recovery_owner": None,
+        }
+        if new_str in (
+            TaskStatus.COMMITTED.value,
+            TaskStatus.CANCELLED.value,
+            TaskStatus.ABORTED.value,
+            TaskStatus.FAILED.value,
+        ):
+            values["completed_at"] = now
+        if failure_reason is not None:
+            values["failure_reason"] = failure_reason.strip()
+
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(
+                DevelopmentTaskModel.task_id == task_id,
+                DevelopmentTaskModel.status == TaskStatus.RUNNING.value,
+                DevelopmentTaskModel.recovery_owner == expected_recovery_owner,
+                DevelopmentTaskModel.last_recovery_at == expected_last_recovery_at,
+            )
+            .values(**values)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None, False
+
+        task = await self.get_task(task_id)
+        return task, True
+
     @staticmethod
     def _to_domain(model: DevelopmentTaskModel | None) -> DevelopmentTask | None:
         if model is None:
@@ -301,4 +492,10 @@ class TaskRepository:
             completed_at=model.completed_at,
             failure_reason=model.failure_reason,
             metadata=_deserialize_metadata(model.task_metadata),
+            last_heartbeat=model.last_heartbeat,
+            recovery_attempt_count=model.recovery_attempt_count,
+            max_recovery_attempts=model.max_recovery_attempts,
+            last_recovery_at=model.last_recovery_at,
+            recovery_owner=model.recovery_owner,
+            execution_token=model.execution_token,
         )

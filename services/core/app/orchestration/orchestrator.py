@@ -205,6 +205,7 @@ class AutonomousTaskOrchestrator:
             raise WorkspaceOrchestrationError(task_id=task_id, reason=err_msg)
 
         # 6. Execute DevelopmentAgent
+        await self._task_repo.update_heartbeat(task_id, execution_token=claimed_task.execution_token)
         agent_context = DevelopmentAgentContext(
             task_id=task_id,
             project_id=claimed_task.project_id,

@@ -44,6 +44,14 @@ class DevelopmentTask(BaseModel):
     failure_reason: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # Stage 6.7 — Heartbeat & Crash Recovery Tracking
+    last_heartbeat: datetime | None = None
+    recovery_attempt_count: int = Field(default=0, ge=0)
+    max_recovery_attempts: int = Field(default=3, ge=1)
+    last_recovery_at: datetime | None = None
+    recovery_owner: str | None = None
+    execution_token: str | None = None
+
 
 class TaskTransitionResult(BaseModel):
     """

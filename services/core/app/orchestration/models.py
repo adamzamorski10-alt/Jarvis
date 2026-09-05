@@ -93,3 +93,33 @@ class OrchestrationResult(BaseModel):
     error_message: str | None = None
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class RecoveryStatus(str, Enum):
+    """Result status for task recovery attempts."""
+    NOT_STALE = "NOT_STALE"
+    RECOVERY_CLAIMED = "RECOVERY_CLAIMED"
+    ALREADY_RECOVERED = "ALREADY_RECOVERED"
+    NOT_ELIGIBLE = "NOT_ELIGIBLE"
+    CANCELLED = "CANCELLED"
+    ABORTED = "ABORTED"
+    RECOVERY_COMPLETED = "RECOVERY_COMPLETED"
+    RECOVERY_FAILED = "RECOVERY_FAILED"
+    RECOVERY_LIMIT_REACHED = "RECOVERY_LIMIT_REACHED"
+
+
+class RecoveryResult(BaseModel):
+    """
+    Structured outcome of a Crash & Timeout Recovery Manager operation.
+    """
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    task_id: str
+    status: RecoveryStatus
+    previous_task_status: TaskStatus
+    new_task_status: TaskStatus | None = None
+    recovery_owner: str | None = None
+    recovery_attempt_count: int = 0
+    message: str = ""
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+

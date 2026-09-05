@@ -24,6 +24,7 @@ _ALLOWED_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     },
     TaskStatus.RUNNING: {
         TaskStatus.VERIFYING,
+        TaskStatus.REPAIR_REQUIRED,
         TaskStatus.PAUSED,
         TaskStatus.FAILED,
         TaskStatus.CANCELLED,
@@ -239,4 +240,56 @@ class TaskStateMachine:
             reason=f"Atomic claim: attempt {updated_task.attempt_count}/{max_attempts}",
             task=updated_task,
         )
+
+    async def transition_recovery(
+        self,
+        task_id: str,
+        expected_recovery_owner: str,
+        expected_last_recovery_at: datetime,
+        new_status: TaskStatus | str,
+        reason: str | None = None,
+    ) -> TaskTransitionResult:
+        """
+        Executes an atomic, lease-guarded recovery state transition for task_id.
+        Fails closed with StaleStateTransitionError if expected_recovery_owner or
+        expected_last_recovery_at no longer match (e.g. recovery lease expired or took over).
+        """
+        new_enum = new_status if isinstance(new_status, TaskStatus) else TaskStatus(new_status)
+
+        if not self.is_transition_allowed(TaskStatus.RUNNING, new_enum):
+            raise InvalidStateTransitionError(
+                task_id=task_id,
+                current_status=TaskStatus.RUNNING.value,
+                attempted_status=new_enum.value,
+            )
+
+        updated_task, success = await self._repo.transition_recovery_status_atomically(
+            task_id=task_id,
+            expected_recovery_owner=expected_recovery_owner,
+            expected_last_recovery_at=expected_last_recovery_at,
+            new_status=new_enum,
+            failure_reason=reason if new_enum in (TaskStatus.FAILED, TaskStatus.ABORTED, TaskStatus.CANCELLED, TaskStatus.REPAIR_REQUIRED) else None,
+        )
+
+        if not success:
+            current_task = await self._repo.get_task(task_id)
+            if current_task is None:
+                raise TaskNotFoundError(task_id=task_id)
+            raise StaleStateTransitionError(
+                task_id=task_id,
+                expected_status=TaskStatus.RUNNING.value,
+                actual_status=current_task.status.value,
+            )
+
+        now = datetime.now(timezone.utc)
+        return TaskTransitionResult(
+            success=True,
+            task_id=task_id,
+            previous_status=TaskStatus.RUNNING,
+            new_status=new_enum,
+            transitioned_at=now,
+            reason=reason,
+            task=updated_task,
+        )
+
 

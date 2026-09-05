@@ -40,8 +40,22 @@ class DevelopmentTaskModel(Base):
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     task_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Stage 6.7 — Heartbeat & Crash Recovery Tracking
+    last_heartbeat: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    recovery_attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_recovery_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    last_recovery_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    recovery_owner: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    execution_token: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     def __repr__(self) -> str:
         return (
             f"<DevelopmentTaskModel task_id={self.task_id!r} project_id={self.project_id!r} "
-            f"status={self.status} priority={self.priority} attempt_count={self.attempt_count}>"
+            f"status={self.status} priority={self.priority} attempt_count={self.attempt_count} "
+            f"recovery_attempt_count={self.recovery_attempt_count}>"
         )
+

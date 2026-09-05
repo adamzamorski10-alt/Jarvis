@@ -17,17 +17,23 @@ from app.orchestration.models import (
     DevelopmentResultStatus,
     OrchestrationOptions,
     OrchestrationResult,
+    RecoveryResult,
+    RecoveryStatus,
 )
 from app.orchestration.orchestrator import AutonomousTaskOrchestrator
+from app.orchestration.recovery_manager import RecoveryManager
 
 __all__ = [
     "AutonomousTaskOrchestrator",
+    "RecoveryManager",
     "DevelopmentAgent",
     "DevelopmentAgentContext",
     "DevelopmentResult",
     "DevelopmentResultStatus",
     "OrchestrationOptions",
     "OrchestrationResult",
+    "RecoveryResult",
+    "RecoveryStatus",
     "OrchestrationError",
     "TaskNotStartableError",
     "MaxAttemptsExceededError",
@@ -36,3 +42,4 @@ __all__ = [
     "CheckpointOrchestrationError",
     "StaleTaskStateError",
 ]
+
