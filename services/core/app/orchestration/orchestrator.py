@@ -15,6 +15,7 @@ Architectural Invariants Enforced:
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
@@ -77,6 +78,8 @@ class AutonomousTaskOrchestrator:
         self,
         task_id: str,
         options: OrchestrationOptions | None = None,
+        cancel_event: asyncio.Event | None = None,
+        abort_event: asyncio.Event | None = None,
     ) -> OrchestrationResult:
         """
         Execute the complete autonomous task lifecycle for task_id.
@@ -165,6 +168,13 @@ class AutonomousTaskOrchestrator:
         claimed_task = claim_result.task
         current_attempt = claimed_task.attempt_count
 
+        # Commit the claim so other sessions see the RUNNING state immediately.
+        try:
+            if hasattr(self._task_repo, "_session") and self._task_repo._session:
+                await self._task_repo._session.commit()
+        except Exception as exc:
+            logger.warning("Failed to commit claim for task %s: %s", task_id, exc)
+
         # 5. Autonomous workspace setup via WorkspaceManager
         base_commit_sha = (
             opts.base_commit_sha
@@ -177,6 +187,7 @@ class AutonomousTaskOrchestrator:
             workspace = self._workspace_manager.create_workspace(
                 task_id=task_id,
                 base_commit_sha=base_commit_sha,
+                execution_token=claimed_task.execution_token or task_id,
             )
         except Exception as exc:
             err_msg = f"Workspace creation failed: {exc}"
@@ -188,6 +199,15 @@ class AutonomousTaskOrchestrator:
                 reason=err_msg,
             )
             raise WorkspaceOrchestrationError(task_id=task_id, reason=str(exc))
+
+        await self._task_repo.update_workspace_path(task_id, workspace.autonomous_worktree_path)
+        try:
+            if hasattr(self._task_repo, "_session") and self._task_repo._session:
+                await self._task_repo._session.commit()
+        except Exception as exc:
+            logger.warning("Failed to commit workspace path for task %s: %s", task_id, exc)
+
+        execution_token = claimed_task.execution_token or task_id
 
         # Validate workspace safety
         primary_path = self._workspace_manager.get_primary_worktree_path().resolve()
@@ -201,11 +221,17 @@ class AutonomousTaskOrchestrator:
                 reason=err_msg,
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
             raise WorkspaceOrchestrationError(task_id=task_id, reason=err_msg)
 
         # 6. Execute DevelopmentAgent
         await self._task_repo.update_heartbeat(task_id, execution_token=claimed_task.execution_token)
+        try:
+            if hasattr(self._task_repo, "_session") and self._task_repo._session:
+                await self._task_repo._session.commit()
+        except Exception as exc:
+            logger.warning("Failed to commit heartbeat for task %s: %s", task_id, exc)
+
         agent_context = DevelopmentAgentContext(
             task_id=task_id,
             project_id=claimed_task.project_id,
@@ -216,6 +242,8 @@ class AutonomousTaskOrchestrator:
             attempt_count=current_attempt,
             expected_base_commit=workspace.base_commit_sha,
             metadata=claimed_task.metadata,
+            cancel_event=cancel_event,
+            abort_event=abort_event,
         )
 
         try:
@@ -225,6 +253,63 @@ class AutonomousTaskOrchestrator:
             agent_result = DevelopmentResult(
                 status=DevelopmentResultStatus.ERROR,
                 error_message=str(exc),
+            )
+
+        # Check for cancellation/abort requested during agent execution
+        if cancel_event is not None and cancel_event.is_set():
+            next_status = TaskStatus.CANCELLED
+            reason = "Cancellation requested during agent execution"
+            try:
+                await self._state_machine.transition(
+                    task_id=task_id,
+                    expected_status=TaskStatus.RUNNING,
+                    new_status=next_status,
+                    reason=reason,
+                )
+            except Exception:
+                pass
+            if opts.auto_cleanup_workspace:
+                try:
+                    self._safe_remove_workspace(task_id, workspace, execution_token)
+                except Exception:
+                    pass
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
+        if abort_event is not None and abort_event.is_set():
+            next_status = TaskStatus.ABORTED
+            reason = "Abort requested during agent execution"
+            try:
+                await self._state_machine.transition(
+                    task_id=task_id,
+                    expected_status=TaskStatus.RUNNING,
+                    new_status=next_status,
+                    reason=reason,
+                )
+            except Exception:
+                pass
+            if opts.auto_cleanup_workspace:
+                try:
+                    self._safe_remove_workspace(task_id, workspace, execution_token)
+                except Exception:
+                    pass
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
             )
 
         # 8. Handle non-successful agent result
@@ -242,7 +327,7 @@ class AutonomousTaskOrchestrator:
                 reason=reason,
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
 
             return OrchestrationResult(
                 task_id=task_id,
@@ -262,6 +347,51 @@ class AutonomousTaskOrchestrator:
             new_status=TaskStatus.VERIFYING,
             reason="Development complete; running verification gate",
         )
+
+        # Check for cancellation/abort before verification
+        if cancel_event is not None and cancel_event.is_set():
+            next_status = TaskStatus.CANCELLED
+            reason = "Cancellation requested before verification"
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.VERIFYING,
+                new_status=next_status,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
+        if abort_event is not None and abort_event.is_set():
+            next_status = TaskStatus.ABORTED
+            reason = "Abort requested before verification"
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.VERIFYING,
+                new_status=next_status,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
 
         # 10. Execute VerificationGate
         current_head = self._workspace_manager.get_current_head(Path(workspace.autonomous_worktree_path))
@@ -286,7 +416,7 @@ class AutonomousTaskOrchestrator:
                 reason=f"Verification gate runtime error: {exc}",
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
             raise VerificationOrchestrationError(task_id=task_id, reason=str(exc))
 
         # 11. Interpret Verification Report
@@ -299,7 +429,7 @@ class AutonomousTaskOrchestrator:
                 reason="Verification gate verdict: FAIL",
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
 
             return OrchestrationResult(
                 task_id=task_id,
@@ -321,6 +451,53 @@ class AutonomousTaskOrchestrator:
             reason="Verification gate verdict: PASS",
         )
 
+        # Check for cancellation/abort before committing
+        if cancel_event is not None and cancel_event.is_set():
+            next_status = TaskStatus.CANCELLED
+            reason = "Cancellation requested before commit"
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.PASSED,
+                new_status=next_status,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                verification_report=verification_report,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
+        if abort_event is not None and abort_event.is_set():
+            next_status = TaskStatus.ABORTED
+            reason = "Abort requested before commit"
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.PASSED,
+                new_status=next_status,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=next_status,
+                attempt_count=current_attempt,
+                committed=False,
+                verification_report=verification_report,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
         # 13. Create Git Checkpoint via WorkspaceManager
         intended_paths = list(agent_result.changed_files) if agent_result.changed_files else ["."]
         try:
@@ -339,7 +516,7 @@ class AutonomousTaskOrchestrator:
                 reason=f"Git checkpoint creation failed: {exc}",
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=TaskStatus.FAILED,
@@ -361,7 +538,7 @@ class AutonomousTaskOrchestrator:
                 reason=err_msg,
             )
             if opts.auto_cleanup_workspace:
-                self._safe_remove_workspace(task_id, workspace)
+                self._safe_remove_workspace(task_id, workspace, execution_token)
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=TaskStatus.FAILED,
@@ -384,7 +561,7 @@ class AutonomousTaskOrchestrator:
 
         # 15. Cleanup workspace & return success
         if opts.auto_cleanup_workspace:
-            self._safe_remove_workspace(task_id, workspace)
+            self._safe_remove_workspace(task_id, workspace, execution_token)
 
         return OrchestrationResult(
             task_id=task_id,
@@ -472,9 +649,13 @@ class AutonomousTaskOrchestrator:
             error_message=reason,
         )
 
-    def _safe_remove_workspace(self, task_id: str, workspace: Any) -> None:
+    def _safe_remove_workspace(self, task_id: str, workspace: Any, execution_token: str | None = None) -> None:
         """Safely remove autonomous workspace, swallowing cleanup errors so they do not alter task status."""
         try:
-            self._workspace_manager.remove_workspace(task_id, workspace)
+            self._workspace_manager.remove_workspace(
+                task_id,
+                workspace,
+                expected_execution_token=execution_token,
+            )
         except Exception as exc:
             logger.warning("Failed to clean up workspace for task %s: %s", task_id, exc)

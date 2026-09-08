@@ -190,7 +190,7 @@ def test_gate_pass_when_all_required_checks_pass(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-1", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-1", base_commit_sha=base_sha, execution_token='exec_task-1')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -221,7 +221,7 @@ def test_gate_fail_when_required_check_fails(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-2", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-2", base_commit_sha=base_sha, execution_token='exec_task-2')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -251,7 +251,7 @@ def test_gate_fail_when_required_check_errors(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-3", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-3", base_commit_sha=base_sha, execution_token='exec_task-3')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -279,7 +279,7 @@ def test_gate_fail_when_required_check_skipped(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-4", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-4", base_commit_sha=base_sha, execution_token='exec_task-4')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -307,7 +307,7 @@ def test_optional_check_fail_does_not_block_pass(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-5", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-5", base_commit_sha=base_sha, execution_token='exec_task-5')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -337,7 +337,7 @@ def test_optional_check_error_does_not_block_pass(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-6", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-6", base_commit_sha=base_sha, execution_token='exec_task-6')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -366,7 +366,7 @@ def test_optional_check_skipped_does_not_block_pass(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-7", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-7", base_commit_sha=base_sha, execution_token='exec_task-7')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -399,7 +399,7 @@ def test_checks_execute_in_deterministic_registration_order(tmp_path: Path) -> N
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-8", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-8", base_commit_sha=base_sha, execution_token='exec_task-8')
     worktree_path = Path(info.autonomous_worktree_path)
 
     execution_order: list[str] = []
@@ -441,7 +441,7 @@ def test_multiple_checks_recorded_with_exact_results(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-9", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-9", base_commit_sha=base_sha, execution_token='exec_task-9')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -516,7 +516,7 @@ def test_exception_inside_check_recorded_as_error(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-13", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-13", base_commit_sha=base_sha, execution_token='exec_task-13')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -546,7 +546,7 @@ def test_check_timeout_recorded_as_error(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-14", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-14", base_commit_sha=base_sha, execution_token='exec_task-14')
     worktree_path = Path(info.autonomous_worktree_path)
 
     class SlowCheck(BaseVerificationCheck):
@@ -658,7 +658,7 @@ def test_valid_autonomous_worktree_context_accepted(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("task-valid", base_commit_sha=base_sha)
+    info = mgr.create_workspace("task-valid", base_commit_sha=base_sha, execution_token='exec_task-valid')
     worktree_path = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()
@@ -688,7 +688,7 @@ def test_repository_identity_mismatch_rejected(tmp_path: Path) -> None:
     sha2 = _init_real_git_repo(repo2)
 
     mgr1 = WorkspaceManager(repo_root=repo1)
-    info1 = mgr1.create_workspace("t19", base_commit_sha=sha1)
+    info1 = mgr1.create_workspace("t19", base_commit_sha=sha1, execution_token='exec_t19')
     wt1 = Path(info1.autonomous_worktree_path)
 
     ctx = VerificationContext(
@@ -714,7 +714,7 @@ def test_base_commit_not_ancestor_rejected(tmp_path: Path) -> None:
     sha2 = _create_commit(repo_root, "Second commit")
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("t20", base_commit_sha=sha1)
+    info = mgr.create_workspace("t20", base_commit_sha=sha1, execution_token='exec_t20')
     wt = Path(info.autonomous_worktree_path)
 
     fake_sha = "f" * 40
@@ -740,7 +740,7 @@ def test_current_commit_mismatch_rejected(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("t21", base_commit_sha=base_sha)
+    info = mgr.create_workspace("t21", base_commit_sha=base_sha, execution_token='exec_t21')
     wt = Path(info.autonomous_worktree_path)
 
     mismatched_sha = "0" * 40
@@ -766,7 +766,7 @@ def test_fail_closed_on_empty_registry(tmp_path: Path) -> None:
     base_sha = _init_real_git_repo(repo_root)
 
     mgr = WorkspaceManager(repo_root=repo_root)
-    info = mgr.create_workspace("t31", base_commit_sha=base_sha)
+    info = mgr.create_workspace("t31", base_commit_sha=base_sha, execution_token='exec_t31')
     wt = Path(info.autonomous_worktree_path)
 
     registry = CheckRegistry()  # empty

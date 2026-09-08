@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import logging
 import math
+from pathlib import Path
 from typing import TYPE_CHECKING
 import uuid
 
@@ -281,7 +282,7 @@ class RecoveryManager:
 
         # 7. Safe Workspace Cleanup
         if self._workspace_manager is not None:
-            self._safe_cleanup_workspace(task_id)
+            await self._safe_cleanup_workspace(task_id)
 
         return RecoveryResult(
             task_id=task_id,
@@ -334,35 +335,41 @@ class RecoveryManager:
 
         return results
 
-    def _safe_cleanup_workspace(self, task_id: str) -> None:
+    async def _safe_cleanup_workspace(self, task_id: str) -> None:
         """
-        Best-effort workspace cleanup for an orphaned task.
+        Best-effort workspace isolation for an orphaned task.
 
         SAFETY INVARIANT:
           Does NOT modify or touch the primary worktree.
-          Fails silently on missing workspace or cleanup errors.
+          Refuses to remove a workspace that might still be owned by an active execution.
+          Recovery alone cannot prove execution termination, so it isolates rather than deletes.
         """
         if self._workspace_manager is None:
             return
 
         try:
-            # Derives autonomous worktree path for task_id
-            base_dir = self._workspace_manager.get_worktree_base_dir()
-            target_path = base_dir / task_id
-            if target_path.exists():
-                # Construct temporary WorkspaceInfo for safe removal via WorkspaceManager
-                from app.workspace.models import WorkspaceInfo, WorkspaceStatus
-                dummy_info = WorkspaceInfo(
-                    task_id=task_id,
-                    repository_root=str(self._workspace_manager.get_repository_root()),
-                    primary_worktree_path=str(self._workspace_manager.get_primary_worktree_path()),
-                    autonomous_worktree_path=str(target_path),
-                    branch_name=f"ai-operator/task/{task_id}",
-                    base_commit_sha="0000000000000000000000000000000000000000",
-                    created_at=_utc_now(),
-                    current_commit_sha="0000000000000000000000000000000000000000",
-                    status=WorkspaceStatus.DIRTY,
+            task = await self._task_repo.get_task(task_id)
+            if not task or not task.workspace_path:
+                logger.info(
+                    "RecoveryManager skipping workspace cleanup for task %s: no workspace_path recorded",
+                    task_id,
                 )
-                self._workspace_manager.remove_workspace(task_id, dummy_info, force=True)
+                return
+
+            workspace_path = Path(task.workspace_path)
+            if not workspace_path.exists():
+                logger.info(
+                    "RecoveryManager skipping workspace cleanup for task %s: workspace does not exist at %s",
+                    task_id,
+                    workspace_path,
+                )
+                return
+
+            logger.info(
+                "RecoveryManager retaining workspace for task %s at %s: "
+                "cannot prove execution is terminated; workspace isolated for future cleanup",
+                task_id,
+                workspace_path,
+            )
         except Exception as exc:
-            logger.warning("RecoveryManager safe workspace cleanup for task %s ignored exception: %s", task_id, exc)
+            logger.warning("RecoveryManager workspace retention check for task %s ignored exception: %s", task_id, exc)

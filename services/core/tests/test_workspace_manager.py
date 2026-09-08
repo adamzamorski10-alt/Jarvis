@@ -99,6 +99,10 @@ def _init_real_git_repo(path: Path, *, author: str = "Test User <test@example.co
     git("config", "user.name", "Test User")
     # Disable hooks for tests
     git("config", "core.hooksPath", "/dev/null")
+    # Ignore AI Operator ownership marker files (they make worktrees dirty)
+    gitignore = path / ".gitignore"
+    gitignore.write_text(".ai_operator_ownership\n", encoding="utf-8")
+    git("add", ".gitignore")
 
     readme = path / "README.md"
     readme.write_text("# Test repo\n")
@@ -184,7 +188,8 @@ def test_workspace_creation_succeeds(manager: WorkspaceManager, base_sha: str) -
     info = manager.create_workspace(
         task_id="task_abc123",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_abc123',
+        )
     assert info.task_id == "task_abc123"
     assert info.base_commit_sha == base_sha
     assert info.current_commit_sha == base_sha
@@ -197,15 +202,20 @@ def test_workspace_creation_succeeds(manager: WorkspaceManager, base_sha: str) -
 # ────────────────────────────────────────────────────────────────────────────
 
 def test_branch_name_is_task_specific(manager: WorkspaceManager, base_sha: str) -> None:
-    """Created branch name follows the ai-operator/task/<task_id> scheme."""
+    """Created branch name follows the ai-operator/task/<workspace_suffix> scheme."""
+    execution_token = "exec_task_br001"
     info = manager.create_workspace(
         task_id="task_br001",
         base_commit_sha=base_sha,
+        execution_token=execution_token,
     )
-    assert info.branch_name == "ai-operator/task/task_br001"
+    token_suffix = execution_token.split("_")[-1] if "_" in execution_token else execution_token
+    workspace_suffix = f"task_br001_{token_suffix}"
+    expected_branch = f"ai-operator/task/{workspace_suffix}"
+    assert info.branch_name == expected_branch
 
     # Verify the branch actually exists in Git
-    runner = GitRunner(cwd=Path(info.repository_root))
+    runner = GitRunner(cwd=manager.get_repository_root())
     result = runner.run(["branch", "--list", info.branch_name], check=False)
     assert info.branch_name in result.stdout
 
@@ -219,7 +229,8 @@ def test_base_commit_sha_exact(manager: WorkspaceManager, base_sha: str) -> None
     info = manager.create_workspace(
         task_id="task_sha001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_sha001',
+        )
     assert len(info.base_commit_sha) == 40
     assert info.base_commit_sha == base_sha
 
@@ -241,7 +252,8 @@ def test_primary_worktree_head_unchanged(manager: WorkspaceManager, repo: tuple[
     manager.create_workspace(
         task_id="task_primary001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_primary001',
+        )
 
     primary_head_after = manager.get_current_head()
     assert primary_head_before == primary_head_after
@@ -260,7 +272,8 @@ def test_primary_worktree_files_untouched(manager: WorkspaceManager, repo: tuple
     info = manager.create_workspace(
         task_id="task_files001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_files001',
+        )
 
     assert readme.read_text() == original_content
 
@@ -280,7 +293,8 @@ def test_autonomous_worktree_is_real_git_worktree(manager: WorkspaceManager, bas
     info = manager.create_workspace(
         task_id="task_real001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_real001',
+        )
     registered = manager.list_registered_worktrees()
     paths = [wt.get("path", "") for wt in registered]
     # Normalise separators for comparison
@@ -300,7 +314,8 @@ def test_status_clean_on_fresh_workspace(manager: WorkspaceManager, base_sha: st
     info = manager.create_workspace(
         task_id="task_status001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_status001',
+        )
     status = manager.inspect_workspace_status(info)
     assert status == WorkspaceStatus.CLEAN
 
@@ -310,7 +325,8 @@ def test_status_dirty_after_modification(manager: WorkspaceManager, base_sha: st
     info = manager.create_workspace(
         task_id="task_status002",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_status002',
+        )
     # Write a new file in the autonomous worktree
     new_file = Path(info.autonomous_worktree_path) / "new_feature.py"
     new_file.write_text("# new feature\n")
@@ -328,7 +344,8 @@ def test_checkpoint_creation(manager: WorkspaceManager, base_sha: str) -> None:
     info = manager.create_workspace(
         task_id="task_cp001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_cp001',
+        )
     target_file = Path(info.autonomous_worktree_path) / "feature.py"
     target_file.write_text("def hello(): pass\n")
 
@@ -353,7 +370,8 @@ def test_checkpoint_contains_only_intended_files(manager: WorkspaceManager, base
     info = manager.create_workspace(
         task_id="task_cp002",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_cp002',
+        )
     wt = Path(info.autonomous_worktree_path)
 
     # Create two files — only stage one
@@ -390,7 +408,8 @@ def test_checkpoint_sha_is_verified_40char(manager: WorkspaceManager, base_sha: 
     info = manager.create_workspace(
         task_id="task_cp003",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_cp003',
+        )
     target = Path(info.autonomous_worktree_path) / "file.txt"
     target.write_text("content\n")
 
@@ -419,11 +438,13 @@ def test_multiple_tasks_isolated_worktrees(manager: WorkspaceManager, base_sha: 
     info_a = manager.create_workspace(
         task_id="task_iso_a",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_iso_a',
+        )
     info_b = manager.create_workspace(
         task_id="task_iso_b",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_iso_b',
+        )
 
     assert info_a.autonomous_worktree_path != info_b.autonomous_worktree_path
     assert info_a.branch_name != info_b.branch_name
@@ -444,11 +465,13 @@ def test_duplicate_workspace_raises(manager: WorkspaceManager, base_sha: str) ->
     manager.create_workspace(
         task_id="task_dup001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_dup001',
+        )
     with pytest.raises(WorktreeAlreadyExistsError):
         manager.create_workspace(
             task_id="task_dup001",
             base_commit_sha=base_sha,
+            execution_token='exec_task_dup001',
         )
 
 
@@ -529,7 +552,8 @@ def test_checkpoint_path_traversal_rejected(manager: WorkspaceManager, base_sha:
     info = manager.create_workspace(
         task_id="task_trav001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_trav001',
+        )
     with pytest.raises(UnsafePathError):
         manager.create_checkpoint(
             task_id="task_trav001",
@@ -545,7 +569,8 @@ def test_checkpoint_absolute_path_outside_worktree_rejected(manager: WorkspaceMa
     info = manager.create_workspace(
         task_id="task_trav002",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_trav002',
+        )
     outside_path = str(repo_root / "README.md")
     with pytest.raises(UnsafePathError):
         manager.create_checkpoint(
@@ -572,7 +597,8 @@ def test_dirty_primary_worktree_refuses_by_default(repo: tuple[Path, str]) -> No
         wm.create_workspace(
             task_id="task_dirty001",
             base_commit_sha=sha,
-            # allow_dirty_primary defaults to False
+            # allow_dirty_primary defaults to False,
+            execution_token='exec_task_dirty001',
         )
     assert len(exc_info.value.dirty_files) >= 1
 
@@ -588,6 +614,7 @@ def test_dirty_primary_worktree_always_refuses(repo: tuple[Path, str]) -> None:
         wm.create_workspace(
             task_id="task_dirty002",
             base_commit_sha=sha,
+            execution_token='exec_task_dirty002',
         )
 
 
@@ -600,7 +627,8 @@ def test_rollback_to_checkpoint(manager: WorkspaceManager, base_sha: str) -> Non
     info = manager.create_workspace(
         task_id="task_roll001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_roll001',
+        )
     wt = Path(info.autonomous_worktree_path)
 
     # Create a checkpoint
@@ -656,11 +684,12 @@ def test_remove_workspace(manager: WorkspaceManager, base_sha: str) -> None:
     info = manager.create_workspace(
         task_id="task_rm001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_rm001',
+        )
     wt_path = Path(info.autonomous_worktree_path)
     assert wt_path.exists()
 
-    manager.remove_workspace(task_id="task_rm001", workspace=info)
+    manager.remove_workspace(task_id="task_rm001", workspace=info, expected_execution_token='exec_task_rm001')
 
     assert not wt_path.exists()
 
@@ -679,7 +708,8 @@ def test_workspace_nonexistent_raises_worktreetnotfound(manager: WorkspaceManage
     info = manager.create_workspace(
         task_id="task_clean001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_clean001',
+        )
     # Simulate partial failure: delete directory without going through manager
     import shutil
     shutil.rmtree(info.autonomous_worktree_path, ignore_errors=True)
@@ -694,6 +724,7 @@ def test_invalid_base_sha_raises(manager: WorkspaceManager) -> None:
         manager.create_workspace(
             task_id="task_badsha",
             base_commit_sha="0" * 40,
+            execution_token='exec_task_badsha',
         )
 
 
@@ -819,7 +850,8 @@ def test_checkpoint_empty_intended_paths_raises(manager: WorkspaceManager, base_
     info = manager.create_workspace(
         task_id="task_empty001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_empty001',
+        )
     with pytest.raises(CheckpointError):
         manager.create_checkpoint(
             task_id="task_empty001",
@@ -834,7 +866,8 @@ def test_checkpoint_task_id_mismatch_raises(manager: WorkspaceManager, base_sha:
     info = manager.create_workspace(
         task_id="task_mm001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_mm001',
+        )
     with pytest.raises(CheckpointError):
         manager.create_checkpoint(
             task_id="task_WRONG",
@@ -849,7 +882,8 @@ def test_rollback_invalid_sha_format_raises(manager: WorkspaceManager, base_sha:
     info = manager.create_workspace(
         task_id="task_roll_bad",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_roll_bad',
+        )
     with pytest.raises(RollbackViolationError, match="40-character"):
         manager.rollback_to_checkpoint(
             task_id="task_roll_bad",
@@ -863,9 +897,10 @@ def test_remove_workspace_task_id_mismatch_raises(manager: WorkspaceManager, bas
     info = manager.create_workspace(
         task_id="task_rmmm001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_rmmm001',
+        )
     with pytest.raises(PrimaryWorktreeViolationError):
-        manager.remove_workspace(task_id="WRONG_ID", workspace=info)
+        manager.remove_workspace(task_id="WRONG_ID", workspace=info, expected_execution_token='exec_WRONG_ID')
 
 
 def test_workspace_info_is_immutable(manager: WorkspaceManager, base_sha: str) -> None:
@@ -873,7 +908,8 @@ def test_workspace_info_is_immutable(manager: WorkspaceManager, base_sha: str) -
     info = manager.create_workspace(
         task_id="task_frozen001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_frozen001',
+        )
     with pytest.raises(Exception):  # ValidationError or TypeError
         info.task_id = "mutated"  # type: ignore[misc]
 
@@ -901,7 +937,8 @@ def test_checkpoint_fails_if_index_already_dirty(manager: WorkspaceManager, base
     info = manager.create_workspace(
         task_id="task_dirty_idx001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_dirty_idx001',
+        )
     wt = Path(info.autonomous_worktree_path)
     # Manually stage a file behind the manager's back
     (wt / "dirty_staged.py").write_text("# pre-staged\n")
@@ -952,7 +989,8 @@ def test_rollback_refuses_branch_mismatch(manager: WorkspaceManager, base_sha: s
     info = manager.create_workspace(
         task_id="task_bm001",
         base_commit_sha=base_sha,
-    )
+            execution_token='exec_task_bm001',
+        )
     from app.workspace.models import WorkspaceInfo
     fake_info = WorkspaceInfo(
         task_id=info.task_id,

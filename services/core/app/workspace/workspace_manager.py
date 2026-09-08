@@ -57,6 +57,7 @@ from app.workspace.exceptions import (
     UnsafePathError,
     WorktreeAlreadyExistsError,
     WorktreeNotFoundError,
+    WorkspaceOwnershipError,
 )
 from app.workspace.git_runner import GitRunner
 from app.workspace.models import CheckpointInfo, WorkspaceInfo, WorkspaceStatus
@@ -282,23 +283,29 @@ class WorkspaceManager:
         self,
         task_id: str,
         base_commit_sha: str,
+        execution_token: str,
     ) -> WorkspaceInfo:
         """
-        Create an isolated Git worktree for an autonomous task.
+        Create an isolated Git worktree for an autonomous task execution attempt.
 
         Safety guarantees:
           - Primary worktree is never modified.
           - Autonomous worktree is placed outside the primary worktree directory.
-          - The branch is task-specific and collision-safe.
+          - The workspace path is unique per execution attempt (task_id + execution_token).
+          - The branch is execution-specific and collision-safe.
           - base_commit_sha is verified as a valid, existing commit.
           - Creation is ALWAYS refused if the primary worktree is dirty.
           - Partial-creation failures are cleaned up before re-raising.
+          - An ownership marker is written to the workspace for later verification.
 
         Args:
             task_id: Identifier for the DevelopmentTask.  Must match
                      [A-Za-z0-9_-]{1..128}.
             base_commit_sha: The exact Git commit SHA to base the worktree on.
                              Must exist in the repository.
+            execution_token: Unique execution identity from claim_task_attempt().
+                             Used to derive a unique workspace path and write
+                             an ownership marker.
 
         Returns:
             WorkspaceInfo describing the created workspace.
@@ -325,11 +332,11 @@ class WorkspaceManager:
         if dirty:
             raise DirtyPrimaryWorktreeError(dirty)
 
-        # 4. Compute autonomous worktree path
-        #    The base directory was already validated to be outside primary_wt
-        #    during __init__, so any subdirectory of it is also outside primary_wt.
+        # 4. Compute unique workspace identity per execution attempt
+        token_suffix = execution_token.split("_")[-1] if "_" in execution_token else execution_token
+        workspace_suffix = f"{task_id}_{token_suffix}"
         autonomous_path_resolved = _resolve_safe_nonexistent(
-            self._worktree_base / task_id
+            self._worktree_base / workspace_suffix
         )
 
         # 5. Final path safety assertion (defence-in-depth)
@@ -339,8 +346,8 @@ class WorkspaceManager:
         if autonomous_path_resolved.exists():
             raise WorktreeAlreadyExistsError(task_id, str(autonomous_path_resolved))
 
-        # 7. Compute task-specific branch name
-        branch_name = f"{_BRANCH_PREFIX}{task_id}"
+        # 7. Compute execution-specific branch name
+        branch_name = f"{_BRANCH_PREFIX}{workspace_suffix}"
         self._check_branch_does_not_exist(runner, branch_name, task_id)
 
         # 8. Create parent directory (if needed) — before calling git
@@ -364,15 +371,40 @@ class WorkspaceManager:
                 cmd=["worktree", "add", "..."],
             ) from exc
 
-        # 9. Verify the worktree is actually registered and at the right commit
+        # 10. Verify the worktree is actually registered and at the right commit
         actual_sha = self._get_worktree_head(autonomous_path_resolved)
         if actual_sha != base_sha:
-            # Something unexpected happened — clean up and fail
             self._try_remove_worktree(runner, autonomous_path_resolved)
             raise GitCommandError(
                 f"Worktree HEAD {actual_sha!r} does not match expected base "
                 f"{base_sha!r} — creation aborted and cleaned up.",
             )
+
+        # 11. Write durable ownership marker inside the worktree
+        try:
+            marker = autonomous_path_resolved / ".ai_operator_ownership"
+            marker.write_text(execution_token, encoding="utf-8")
+        except Exception as exc:
+            self._try_remove_worktree(runner, autonomous_path_resolved)
+            self._try_cleanup_path(autonomous_path_resolved)
+            raise WorkspaceOwnershipError(
+                str(autonomous_path_resolved),
+                f"Failed to write ownership marker: {exc}",
+            ) from exc
+
+        # 12. Write execution identity into Git config for verification
+        try:
+            wt_runner = GitRunner(cwd=autonomous_path_resolved, timeout=self._git_timeout)
+            wt_runner.run([
+                "config", "ai-operator.execution-token", execution_token,
+            ])
+        except (GitCommandError, Exception) as exc:
+            self._try_remove_worktree(runner, autonomous_path_resolved)
+            self._try_cleanup_path(autonomous_path_resolved)
+            raise WorkspaceOwnershipError(
+                str(autonomous_path_resolved),
+                f"Failed to write ownership config: {exc}",
+            ) from exc
 
         return WorkspaceInfo(
             task_id=task_id,
@@ -605,55 +637,6 @@ class WorkspaceManager:
         # Safe hard reset — ONLY inside the autonomous worktree
         runner.run(["reset", "--hard", checkpoint_sha])
 
-    def remove_workspace(
-        self,
-        task_id: str,
-        workspace: WorkspaceInfo,
-        *,
-        force: bool = False,
-    ) -> None:
-        """
-        Safely remove the autonomous worktree and its task-specific branch.
-
-        This never touches the primary worktree.
-
-        Args:
-            task_id: Must match workspace.task_id.
-            workspace: The workspace to remove.
-            force: If True, remove even if the worktree has uncommitted changes.
-
-        Raises:
-            PrimaryWorktreeViolationError: if workspace targets primary wt.
-            GitCommandError: underlying git failure.
-        """
-        if task_id != workspace.task_id:
-            raise PrimaryWorktreeViolationError(
-                f"task_id mismatch: {task_id!r} != {workspace.task_id!r}"
-            )
-
-        wt_path = self._validated_autonomous_path(workspace)
-        runner = GitRunner(cwd=self._repo_root, timeout=self._git_timeout)
-
-        # Remove the worktree via git (which also prunes the ref)
-        wt_remove_args = ["worktree", "remove"]
-        if force:
-            wt_remove_args.append("--force")
-        wt_remove_args.append(str(wt_path))
-
-        try:
-            runner.run(wt_remove_args)
-        except GitCommandError:
-            # If git worktree remove fails, try force-remove the directory
-            # as a last resort, then prune
-            self._try_cleanup_path(wt_path)
-            runner.run(["worktree", "prune"], check=False)
-
-        # Delete the task-specific branch (best-effort)
-        runner.run(
-            ["branch", "-D", workspace.branch_name],
-            check=False,
-        )
-
     def list_registered_worktrees(self) -> list[dict[str, str]]:
         """
         Return a list of Git-registered worktrees for this repository.
@@ -810,6 +793,125 @@ class WorkspaceManager:
             raise WorktreeNotFoundError(workspace.task_id) from exc
 
         return autonomous_path
+
+    def verify_workspace_ownership(
+        self,
+        workspace: WorkspaceInfo,
+        expected_execution_token: str,
+    ) -> bool:
+        """
+        Verify that the workspace is still owned by the expected execution.
+
+        Checks:
+          1. Git config key `ai-operator.execution-token` matches expected_execution_token.
+          2. Ownership marker file `.ai_operator_ownership` exists and matches.
+
+        Returns True if ownership is verified. Raises WorkspaceOwnershipError otherwise.
+        """
+        _validate_task_id(workspace.task_id)
+        autonomous_path = self._validated_autonomous_path(workspace)
+
+        marker_path = autonomous_path / ".ai_operator_ownership"
+        token_from_marker = None
+        try:
+            if marker_path.exists():
+                token_from_marker = marker_path.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
+        if token_from_marker is not None:
+            if token_from_marker == expected_execution_token:
+                return True
+            raise WorkspaceOwnershipError(
+                str(autonomous_path),
+                f"Expected execution token {expected_execution_token!r}, "
+                f"but ownership marker contains {token_from_marker!r}",
+            )
+
+        token_from_config = None
+        try:
+            runner = GitRunner(cwd=autonomous_path, timeout=self._git_timeout)
+            res = runner.run(["config", "ai-operator.execution-token"], check=False)
+            if res.returncode == 0:
+                token_from_config = res.stdout.strip()
+        except Exception:
+            pass
+
+        if token_from_config == expected_execution_token:
+            return True
+
+        raise WorkspaceOwnershipError(
+            str(autonomous_path),
+            f"Expected execution token {expected_execution_token!r}, "
+            f"but config={token_from_config!r} and no ownership marker found",
+        )
+
+    def remove_workspace(
+        self,
+        task_id: str,
+        workspace: WorkspaceInfo,
+        *,
+        force: bool = False,
+        expected_execution_token: str,
+    ) -> None:
+        """
+        Safely remove the autonomous worktree and its task-specific branch.
+
+        This never touches the primary worktree.
+
+        Args:
+            task_id: Must match workspace.task_id.
+            workspace: The workspace to remove.
+            force: If True, remove even if the worktree has uncommitted changes.
+            expected_execution_token: REQUIRED. The execution token that created
+                this workspace. The manager verifies the token against Git config
+                / ownership marker before allowing removal. FAIL-CLOSED: if
+                verification fails or evidence is missing, WorkspaceOwnershipError
+                is raised.
+
+        Raises:
+            PrimaryWorktreeViolationError: if workspace targets primary wt.
+            WorkspaceOwnershipError: if ownership verification fails.
+            GitCommandError: underlying git failure.
+        """
+        if task_id != workspace.task_id:
+            raise PrimaryWorktreeViolationError(
+                f"task_id mismatch: {task_id!r} != {workspace.task_id!r}"
+            )
+
+        # FAIL-CLOSED ownership check before any destructive operation
+        try:
+            self.verify_workspace_ownership(workspace, expected_execution_token)
+        except WorkspaceOwnershipError:
+            raise
+        except Exception as exc:
+            raise WorkspaceOwnershipError(
+                workspace.autonomous_worktree_path,
+                f"Ownership verification raised unexpected exception: {exc}",
+            ) from exc
+
+        wt_path = self._validated_autonomous_path(workspace)
+        runner = GitRunner(cwd=self._repo_root, timeout=self._git_timeout)
+
+        # Remove the worktree via git (which also prunes the ref)
+        wt_remove_args = ["worktree", "remove"]
+        if force:
+            wt_remove_args.append("--force")
+        wt_remove_args.append(str(wt_path))
+
+        try:
+            runner.run(wt_remove_args)
+        except GitCommandError:
+            # If git worktree remove fails, try force-remove the directory
+            # as a last resort, then prune
+            self._try_cleanup_path(wt_path)
+            runner.run(["worktree", "prune"], check=False)
+
+        # Delete the task-specific branch (best-effort)
+        runner.run(
+            ["branch", "-D", workspace.branch_name],
+            check=False,
+        )
 
     @staticmethod
     def _try_cleanup_path(path: Path) -> None:

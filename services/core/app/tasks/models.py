@@ -52,6 +52,13 @@ class DevelopmentTask(BaseModel):
     recovery_owner: str | None = None
     execution_token: str | None = None
 
+    # Stage 6.8 — Workspace path for execution-bound cleanup
+    workspace_path: str | None = None
+
+    # Stage 6.8 — Execution termination & cleanup safety
+    execution_terminated_at: datetime | None = None
+    workspace_cleanup_pending: bool = False
+
 
 class TaskTransitionResult(BaseModel):
     """

@@ -9,6 +9,7 @@ ApprovalService, secrets, or raw credentials.
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -36,7 +37,7 @@ class DevelopmentAgentContext(BaseModel):
       Must NOT contain ToolExecutor, BaseTool, PermissionEngine,
       ApprovalService, grants, secrets, or raw credentials.
     """
-    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=False)
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     task_id: str
     project_id: str
@@ -47,6 +48,8 @@ class DevelopmentAgentContext(BaseModel):
     attempt_count: int
     expected_base_commit: str
     metadata: dict[str, Any] = Field(default_factory=dict)
+    cancel_event: asyncio.Event | None = None
+    abort_event: asyncio.Event | None = None
 
 
 class DevelopmentResult(BaseModel):

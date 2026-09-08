@@ -81,6 +81,7 @@ class GitRunner:
         "merge-base",
         "checkout",
         "reset",
+        "config",
     })
 
     def __init__(

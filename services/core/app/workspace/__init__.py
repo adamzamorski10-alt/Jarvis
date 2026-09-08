@@ -16,6 +16,7 @@ from app.workspace.exceptions import (
     DirtyPrimaryWorktreeError,
     CheckpointError,
     RollbackViolationError,
+    WorkspaceOwnershipError,
 )
 from app.workspace.git_runner import GitRunner, GitResult
 from app.workspace.workspace_manager import WorkspaceManager
@@ -37,6 +38,7 @@ __all__ = [
     "DirtyPrimaryWorktreeError",
     "CheckpointError",
     "RollbackViolationError",
+    "WorkspaceOwnershipError",
     # Git runner (internal but exported for testing)
     "GitRunner",
     "GitResult",

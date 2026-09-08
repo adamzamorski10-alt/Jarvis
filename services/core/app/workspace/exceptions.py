@@ -129,3 +129,17 @@ class RollbackViolationError(WorkspaceError):
     def __init__(self, reason: str) -> None:
         self.reason = reason
         super().__init__(f"Rollback refused: {reason}")
+
+
+class WorkspaceOwnershipError(WorkspaceError):
+    """
+    Refused: workspace removal blocked because ownership cannot be verified
+    or the workspace is still owned by an active execution.
+    """
+
+    def __init__(self, workspace_path: str, reason: str) -> None:
+        self.workspace_path = workspace_path
+        self.reason = reason
+        super().__init__(
+            f"Workspace ownership verification failed for {workspace_path!r}: {reason}"
+        )

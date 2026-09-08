@@ -7,6 +7,7 @@ import json
 from typing import Any
 import uuid
 from sqlalchemy import or_, select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.development_task import DevelopmentTaskModel
@@ -27,6 +28,25 @@ def _deserialize_metadata(raw: str | None) -> dict[str, Any]:
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+
+async def _retry_on_locked(fn, *args, _attempts=3, _delay=0.05, **kwargs):
+    """
+    Retry an async repository call when SQLite reports database is locked.
+    """
+    last_exc = None
+    for attempt in range(_attempts):
+        try:
+            return await fn(*args, **kwargs)
+        except OperationalError as exc:
+            msg = str(exc).lower()
+            if "database is locked" in msg or "no such table" in msg:
+                last_exc = exc
+                import asyncio
+                await asyncio.sleep(_delay * (attempt + 1))
+                continue
+            raise
+    raise last_exc
 
 
 class TaskRepository:
@@ -58,6 +78,9 @@ class TaskRepository:
             last_recovery_at=task.last_recovery_at,
             recovery_owner=task.recovery_owner,
             execution_token=task.execution_token,
+            workspace_path=task.workspace_path,
+            execution_terminated_at=task.execution_terminated_at,
+            workspace_cleanup_pending=1 if task.workspace_cleanup_pending else 0,
         )
         self._session.add(model)
         await self._session.flush()
@@ -473,6 +496,94 @@ class TaskRepository:
         task = await self.get_task(task_id)
         return task, True
 
+    async def update_workspace_path(
+        self,
+        task_id: str,
+        workspace_path: str,
+    ) -> DevelopmentTask | None:
+        """
+        Atomically set the workspace path for a task execution attempt.
+        """
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.task_id == task_id)
+            .values(workspace_path=workspace_path)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get_task(task_id)
+
+    async def update_execution_terminated_at(
+        self,
+        task_id: str,
+        terminated_at: datetime | None = None,
+    ) -> DevelopmentTask | None:
+        """
+        Atomically record execution termination timestamp.
+        """
+        now = terminated_at or datetime.now(timezone.utc)
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.task_id == task_id)
+            .values(execution_terminated_at=now)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get_task(task_id)
+
+    async def confirm_execution_terminated(
+        self,
+        task_id: str,
+        terminated_at: datetime | None = None,
+    ) -> DevelopmentTask | None:
+        """
+        Atomically record execution termination AND clear the execution token.
+
+        This is the durable proof that the execution is definitively gone.
+        After this call, the workspace may be safely cleaned up because:
+          - execution_terminated_at is set (proves termination)
+          - execution_token is cleared (no active execution owns this task)
+
+        Returns the updated task, or None if task_id not found.
+        """
+        now = terminated_at or datetime.now(timezone.utc)
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.task_id == task_id)
+            .values(
+                execution_terminated_at=now,
+                execution_token=None,
+            )
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get_task(task_id)
+
+    async def update_workspace_cleanup_pending(
+        self,
+        task_id: str,
+        cleanup_pending: bool,
+    ) -> DevelopmentTask | None:
+        """
+        Atomically set workspace cleanup pending flag.
+        """
+        stmt = (
+            update(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.task_id == task_id)
+            .values(workspace_cleanup_pending=1 if cleanup_pending else 0)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        if res.rowcount == 0:
+            return None
+        return await self.get_task(task_id)
+
     @staticmethod
     def _to_domain(model: DevelopmentTaskModel | None) -> DevelopmentTask | None:
         if model is None:
@@ -498,4 +609,7 @@ class TaskRepository:
             last_recovery_at=model.last_recovery_at,
             recovery_owner=model.recovery_owner,
             execution_token=model.execution_token,
+            workspace_path=model.workspace_path,
+            execution_terminated_at=model.execution_terminated_at,
+            workspace_cleanup_pending=bool(model.workspace_cleanup_pending),
         )

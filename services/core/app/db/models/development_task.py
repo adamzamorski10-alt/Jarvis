@@ -51,6 +51,11 @@ class DevelopmentTaskModel(Base):
     )
     recovery_owner: Mapped[str | None] = mapped_column(String(100), nullable=True)
     execution_token: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    workspace_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Stage 6.8 — Execution termination & cleanup safety
+    execution_terminated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    workspace_cleanup_pending: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
 
     def __repr__(self) -> str:
         return (

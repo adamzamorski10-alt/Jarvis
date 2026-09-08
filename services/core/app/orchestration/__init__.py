@@ -22,10 +22,18 @@ from app.orchestration.models import (
 )
 from app.orchestration.orchestrator import AutonomousTaskOrchestrator
 from app.orchestration.recovery_manager import RecoveryManager
+from app.orchestration.run_controller import (
+    AutonomousRunController,
+    AutonomousRunResult,
+    RunControllerError,
+    RunStatus,
+    RunTimeoutError,
+)
 
 __all__ = [
     "AutonomousTaskOrchestrator",
     "RecoveryManager",
+    "AutonomousRunController",
     "DevelopmentAgent",
     "DevelopmentAgentContext",
     "DevelopmentResult",
@@ -34,7 +42,11 @@ __all__ = [
     "OrchestrationResult",
     "RecoveryResult",
     "RecoveryStatus",
+    "RunStatus",
+    "AutonomousRunResult",
     "OrchestrationError",
+    "RunControllerError",
+    "RunTimeoutError",
     "TaskNotStartableError",
     "MaxAttemptsExceededError",
     "WorkspaceOrchestrationError",
@@ -42,4 +54,5 @@ __all__ = [
     "CheckpointOrchestrationError",
     "StaleTaskStateError",
 ]
+
 
