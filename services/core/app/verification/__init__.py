@@ -23,6 +23,7 @@ from app.verification.exceptions import (
 )
 from app.verification.gate import VerificationGate
 from app.verification.models import (
+    CheckCategory,
     CheckResult,
     CheckStatus,
     GateDecision,
@@ -30,8 +31,15 @@ from app.verification.models import (
     VerificationReport,
 )
 
+from app.verification.reporting import (
+    build_verification_report,
+    render_json,
+    render_markdown,
+)
+
 __all__ = [
     # Enums & Decision models
+    "CheckCategory",
     "CheckStatus",
     "GateDecision",
     "VerificationContext",
@@ -53,4 +61,15 @@ __all__ = [
     "BaseVerificationCheck",
     "CheckRegistry",
     "VerificationGate",
+    # Checks
+    "BaseWorkspaceCheck",
+    "CheckSuite",
+    "PytestCheck",
+    "TypeScriptCheck",
+    "FrontendBuildCheck",
+    "LintCheck",
+    # Reporting
+    "build_verification_report",
+    "render_json",
+    "render_markdown",
 ]

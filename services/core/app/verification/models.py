@@ -41,6 +41,16 @@ class CheckStatus(str, Enum):
     SKIPPED = "SKIPPED"
 
 
+class CheckCategory(str, Enum):
+    """Category of a verification check for grouping and reporting."""
+
+    UNIT_TESTS = "UNIT_TESTS"
+    TYPE_CHECK = "TYPE_CHECK"
+    BUILD = "BUILD"
+    LINT = "LINT"
+    SECURITY = "SECURITY"
+
+
 class GateDecision(str, Enum):
     """
     Overall gate verdict for a complete verification run.
@@ -171,6 +181,9 @@ class CheckResult(BaseModel):
     Optional structured metadata from the check for debugging/audit.
     Must NOT contain secrets.
     """
+
+    category: "CheckCategory | None" = None
+    """Category of the check, if applicable."""
 
     @property
     def passed(self) -> bool:

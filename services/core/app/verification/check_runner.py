@@ -370,4 +370,5 @@ class BaseVerificationCheck:
             stderr="",
             error_message=error_message,
             details=details,
+            category=getattr(self, 'category', None),
         )

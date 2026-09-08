@@ -425,6 +425,7 @@ class VerificationGate:
                         f"Check {check.check_id!r} returned {type(result).__name__!r} "
                         "instead of CheckResult — treated as ERROR."
                     ),
+                    category=getattr(check, 'category', None),
                 )
 
             # Defensive: ensure check cannot manufacture a PASS with wrong check_id
@@ -442,6 +443,7 @@ class VerificationGate:
                         f"Check {check.check_id!r} returned result with "
                         f"mismatched check_id {result.check_id!r} — treated as ERROR."
                     ),
+                    category=getattr(check, 'category', None),
                 )
 
             # Defensive: SKIPPED must not come from execute() — it is gate infra
@@ -458,6 +460,7 @@ class VerificationGate:
                 finished_at=finished_at,
                 duration_seconds=(finished_at - started_at).total_seconds(),
                 error_message=f"{type(exc).__name__}: {exc}",
+                category=getattr(check, 'category', None),
             )
 
     @staticmethod
@@ -473,6 +476,7 @@ class VerificationGate:
             finished_at=now,
             duration_seconds=0.0,
             error_message="Check was not executed (SKIPPED by gate infrastructure).",
+            category=getattr(check, 'category', None),
         )
 
     # ── Gate decision ─────────────────────────────────────────────────────────
@@ -520,6 +524,7 @@ class VerificationGate:
             finished_at=now,
             duration_seconds=(now - gate_started).total_seconds(),
             error_message=error_message,
+            category=None,
         )
         all_results = [preflight_result, *partial_results]
         duration = (now - gate_started).total_seconds()
