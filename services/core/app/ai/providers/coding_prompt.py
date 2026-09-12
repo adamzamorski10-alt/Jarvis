@@ -49,7 +49,8 @@ Allowed operation types:
   1. read: Read a file inside the workspace (requires 'path')
   2. write: Create or overwrite a file inside the workspace (requires 'path' and 'content')
   3. edit: Edit a file by replacing an exact string match (requires 'path', 'old_string', and 'new_string')
-  4. finish: Signal that the coding task is complete (requires no path/content/strings)
+  4. tool_request: Request execution of a registered development tool (requires 'tool_id' and 'arguments')
+  5. finish: Signal that the coding task is complete (requires no path/content/strings)
 
 Rules & Boundaries:
   - All file paths MUST be relative to the workspace root.
@@ -217,7 +218,7 @@ class CodingPromptBuilder:
                                 "properties": {
                                     "type": {
                                         "type": "string",
-                                        "enum": ["read", "write", "edit", "finish"],
+                                        "enum": ["read", "write", "edit", "tool_request", "finish"],
                                         "description": "The type of operation.",
                                     },
                                     "path": {
@@ -239,6 +240,15 @@ class CodingPromptBuilder:
                                         "type": "string",
                                         "description": "Replacement text for edit operations.",
                                         "maxLength": 65536,
+                                    },
+                                    "tool_id": {
+                                        "type": "string",
+                                        "description": "Registered tool_id for tool_request operations.",
+                                        "maxLength": 256,
+                                    },
+                                    "arguments": {
+                                        "type": "object",
+                                        "description": "Arguments dictionary for tool_request operations.",
                                     },
                                 },
                                 "required": ["type"],

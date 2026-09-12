@@ -36,12 +36,17 @@ class ToolExecutor:
         self._registry = registry
         self._impl_registry = impl_registry
 
-    async def execute(self, tool_call: ToolCall) -> ToolExecutionResult:
+    async def execute(
+        self,
+        tool_call: ToolCall,
+        context: dict[str, Any] | None = None,
+    ) -> ToolExecutionResult:
         """
         Execute a tool call safely.
 
         Args:
             tool_call: Validated ToolCall from the AI model.
+            context: Optional execution context payload.
 
         Returns:
             ToolExecutionResult describing the outcome.
@@ -86,9 +91,13 @@ class ToolExecutor:
 
         # 4. Execute
         try:
+            exec_context = {"request_id": tool_call.request_id}
+            if context:
+                exec_context.update(context)
+
             raw_result = await impl.execute(
                 arguments=tool_call.arguments,
-                context={"request_id": tool_call.request_id},
+                context=exec_context,
             )
             elapsed_ms = (time.perf_counter() - start) * 1000.0
 

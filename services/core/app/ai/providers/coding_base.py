@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -34,6 +34,7 @@ class CodingOperationType(str, Enum):
     READ = "read"
     WRITE = "write"
     EDIT = "edit"
+    TOOL_REQUEST = "tool_request"
     FINISH = "finish"
 
 
@@ -54,6 +55,8 @@ class CodingOperation(BaseModel):
     content: str | None = Field(default=None, max_length=_MAX_CONTENT_BYTES)
     old_string: str | None = Field(default=None, max_length=_MAX_EDIT_STRING_BYTES)
     new_string: str | None = Field(default=None, max_length=_MAX_EDIT_STRING_BYTES)
+    tool_id: str | None = Field(default=None, max_length=256)
+    arguments: dict[str, Any] | None = Field(default=None)
 
     @field_validator("path")
     @classmethod
@@ -71,28 +74,36 @@ class CodingOperation(BaseModel):
         if self.type == CodingOperationType.READ:
             if not self.path:
                 raise ValueError("read requires a non-empty path")
-            if self.content is not None or self.old_string is not None or self.new_string is not None:
-                raise ValueError("read does not accept content, old_string, or new_string")
+            if self.content is not None or self.old_string is not None or self.new_string is not None or self.tool_id is not None or self.arguments is not None:
+                raise ValueError("read does not accept content, old_string, new_string, tool_id, or arguments")
 
         elif self.type == CodingOperationType.WRITE:
             if not self.path:
                 raise ValueError("write requires a non-empty path")
             if self.content is None:
                 raise ValueError("write requires content")
-            if self.old_string is not None or self.new_string is not None:
-                raise ValueError("write does not accept old_string or new_string")
+            if self.old_string is not None or self.new_string is not None or self.tool_id is not None or self.arguments is not None:
+                raise ValueError("write does not accept old_string, new_string, tool_id, or arguments")
 
         elif self.type == CodingOperationType.EDIT:
             if not self.path:
                 raise ValueError("edit requires a non-empty path")
             if self.old_string is None or self.new_string is None:
                 raise ValueError("edit requires old_string and new_string")
-            if self.content is not None:
-                raise ValueError("edit does not accept content")
+            if self.content is not None or self.tool_id is not None or self.arguments is not None:
+                raise ValueError("edit does not accept content, tool_id, or arguments")
+
+        elif self.type == CodingOperationType.TOOL_REQUEST:
+            if not self.tool_id:
+                raise ValueError("tool_request requires a non-empty tool_id")
+            if self.arguments is None:
+                raise ValueError("tool_request requires arguments dict")
+            if self.path or self.content is not None or self.old_string is not None or self.new_string is not None:
+                raise ValueError("tool_request does not accept path, content, old_string, or new_string")
 
         elif self.type == CodingOperationType.FINISH:
-            if self.path or self.content is not None or self.old_string is not None or self.new_string is not None:
-                raise ValueError("finish does not accept path, content, old_string, or new_string")
+            if self.path or self.content is not None or self.old_string is not None or self.new_string is not None or self.tool_id is not None or self.arguments is not None:
+                raise ValueError("finish does not accept path, content, old_string, new_string, tool_id, or arguments")
 
         return self
 

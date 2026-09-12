@@ -9,9 +9,10 @@ permissions, or orchestration. It is a pure code-generation loop.
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from app.ai.providers.coding_base import (
     CodingConstraints,
@@ -23,6 +24,10 @@ from app.ai.providers.coding_base import (
 from app.orchestration.agent_interface import DevelopmentAgent
 from app.orchestration.agents.workspace_writer import WorkspaceWriter
 from app.orchestration.models import DevelopmentAgentContext, DevelopmentResult, DevelopmentResultStatus
+from app.tools.models import AutonomyMode, ToolCall, ToolExecutionStatus
+
+if TYPE_CHECKING:
+    from app.tools.tool_execution_service import ToolExecutionService
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +41,7 @@ class BaseDevelopmentAgent(DevelopmentAgent):
     Minimal concrete DevelopmentAgent.
 
     Executes a coding loop:
-      CodingProvider.plan_next_step() → validate → WorkspaceWriter → repeat
+      CodingProvider.plan_next_step() → validate → WorkspaceWriter / ToolExecutionService → repeat
     """
 
     def __init__(
@@ -44,10 +49,14 @@ class BaseDevelopmentAgent(DevelopmentAgent):
         provider: CodingProvider,
         model: str,
         constraints: CodingConstraints | None = None,
+        tool_execution_service: ToolExecutionService | None = None,
+        autonomy_mode: AutonomyMode = AutonomyMode.AUTONOMOUS,
     ) -> None:
         self._provider = provider
         self._model = model
         self._constraints = constraints or CodingConstraints()
+        self._tool_execution_service = tool_execution_service
+        self._autonomy_mode = autonomy_mode
 
     async def execute(self, context: DevelopmentAgentContext) -> DevelopmentResult:
         writer = WorkspaceWriter(
@@ -137,6 +146,53 @@ class BaseDevelopmentAgent(DevelopmentAgent):
                         # Read updated file through WorkspaceWriter to ensure accurate in-memory snapshot
                         snapshot[op.path] = await writer.read_file(op.path, max_content_bytes=max_bytes)
                         history.append(op)
+                        continue
+
+                    if op.type == CodingOperationType.TOOL_REQUEST:
+                        if self._tool_execution_service is None:
+                            return DevelopmentResult(
+                                status=DevelopmentResultStatus.FAILURE,
+                                error_message="Tool execution service is not configured for this agent",
+                                changed_files=writer.take_changed_files(),
+                            )
+
+                        tool_call = ToolCall(
+                            tool_id=op.tool_id or "",
+                            arguments=op.arguments or {},
+                            request_id=context.task_id,
+                        )
+
+                        tool_context = {
+                            "workspace_path": str(context.workspace_path),
+                            "task_id": context.task_id,
+                            "project_id": context.project_id,
+                        }
+
+                        res = await self._tool_execution_service.execute_tool_call(
+                            tool_call,
+                            autonomy_mode=self._autonomy_mode,
+                            request_id=context.task_id,
+                            context=tool_context,
+                        )
+
+                        tool_result_key = f"tool_result:{op.tool_id}:{len(history)}"
+                        snapshot[tool_result_key] = json.dumps({
+                            "tool_id": res.tool_id,
+                            "success": res.success,
+                            "status": res.status.value,
+                            "result": res.result,
+                            "error_code": res.error_code,
+                            "error_message": res.error_message,
+                        })
+                        history.append(op)
+
+                        if not res.success:
+                            logger.warning(
+                                "Tool execution '%s' returned failure: status=%s, error=%s",
+                                op.tool_id,
+                                res.status.value,
+                                res.error_message,
+                            )
                         continue
 
                     raise _UnsupportedOperationError(f"Unknown operation type: {op.type}")

@@ -16,6 +16,9 @@ from app.orchestration.agents.base_agent import BaseDevelopmentAgent
 
 if TYPE_CHECKING:
     from app.ai.services.provider_manager import ProviderManager
+    from app.tools.tool_execution_service import ToolExecutionService
+
+from app.tools.models import AutonomyMode
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +39,13 @@ class DevelopmentAgentFactory:
         self,
         provider_manager: ProviderManager,
         default_constraints: CodingConstraints | None = None,
+        tool_execution_service: ToolExecutionService | None = None,
+        autonomy_mode: AutonomyMode = AutonomyMode.AUTONOMOUS,
     ) -> None:
         self._provider_manager = provider_manager
         self._default_constraints = default_constraints
+        self._tool_execution_service = tool_execution_service
+        self._autonomy_mode = autonomy_mode
 
     async def create_agent(
         self,
@@ -80,4 +87,6 @@ class DevelopmentAgentFactory:
             provider=coding_provider,
             model=model,
             constraints=effective_constraints,
+            tool_execution_service=self._tool_execution_service,
+            autonomy_mode=self._autonomy_mode,
         )

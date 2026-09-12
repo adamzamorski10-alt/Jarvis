@@ -194,11 +194,27 @@ class ToolExecutionService:
         decision = await self._permission_engine.evaluate(permission_request)
 
         if decision.decision == PermissionDecisionType.DENY:
+            await self._safe_audit(
+                AuditEventType.TOOL_CALL_DENIED,
+                request_id=request_id,
+                tool_id=tool_id,
+                action=resolved_action,
+                reason=decision.reason,
+                arguments=tool_call.arguments,
+            )
             return self._build_permission_denied_result(
                 tool_call, resolved_action, request_id, decision
             )
 
         if decision.decision == PermissionDecisionType.ASK_USER:
+            await self._safe_audit(
+                AuditEventType.APPROVAL_REQUESTED,
+                request_id=request_id,
+                tool_id=tool_id,
+                action=resolved_action,
+                reason=decision.reason,
+                arguments=tool_call.arguments,
+            )
             return self._build_ask_user_result(
                 tool_call, resolved_action, request_id, decision
             )
@@ -216,7 +232,7 @@ class ToolExecutionService:
         execution_start = time.perf_counter()
         try:
             raw_result = await asyncio.wait_for(
-                self._executor.execute(tool_call),
+                self._executor.execute(tool_call, context=context),
                 timeout=self._max_execution_time_ms / 1000.0,
             )
         except asyncio.TimeoutError:
