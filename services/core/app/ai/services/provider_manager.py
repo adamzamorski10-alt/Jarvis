@@ -2,6 +2,7 @@
 from pydantic import AnyHttpUrl, ValidationError
 
 from app.ai.providers.base import AIProvider
+from app.ai.providers.coding_base import CodingProvider
 from app.ai.providers.future import FutureProvider
 from app.ai.providers.kimi import KimiProvider
 from app.ai.providers.ollama import OllamaProvider
@@ -95,6 +96,27 @@ class ProviderManager:
         if provider == "kimi":
             return KimiProvider(str(config["kimi_base_url"]), await self.get_kimi_api_key())
         return FutureProvider(str(provider))
+
+    async def get_coding_provider(self) -> CodingProvider:
+        """
+        Construct a CodingProvider from a single atomic config snapshot.
+
+        SECURITY: provider_type and the underlying AIProvider instance are both
+        derived from the same get_config() call, eliminating any TOCTOU window
+        where the two could become inconsistent if settings change between calls.
+        """
+        config = await self.get_config()
+        provider_type = config["provider"]
+        if provider_type == "ollama":
+            ai_provider = OllamaProvider(str(config["ollama_url"]))
+            from app.ai.providers.coding_ollama import OllamaCodingAdapter
+            return OllamaCodingAdapter(ai_provider)
+        if provider_type == "openrouter":
+            api_key = await self.get_openrouter_api_key()
+            ai_provider = OpenRouterProvider(str(config["openrouter_base_url"]), api_key)
+            from app.ai.providers.coding_openrouter import OpenRouterCodingAdapter
+            return OpenRouterCodingAdapter(ai_provider)
+        raise AIConfigError(f"Coding provider is not supported for provider type: '{provider_type}'")
 
     async def list_supported_providers(self) -> list[dict[str, str | bool]]:
         return [

@@ -19,7 +19,7 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.orchestration.agent_interface import DevelopmentAgent
 from app.orchestration.exceptions import (
@@ -43,6 +43,7 @@ from app.tasks.models import TaskStatus
 from app.verification.models import VerificationContext
 
 if TYPE_CHECKING:
+    from app.orchestration.agent_factory import DevelopmentAgentFactory
     from app.repositories.task_repository import TaskRepository
     from app.tasks.state_machine import TaskStateMachine
     from app.verification.gate import VerificationGate
@@ -66,13 +67,18 @@ class AutonomousTaskOrchestrator:
         state_machine: TaskStateMachine,
         workspace_manager: WorkspaceManager,
         verification_gate: VerificationGate,
-        agent: DevelopmentAgent,
+        agent: DevelopmentAgent | None = None,
+        agent_factory: DevelopmentAgentFactory | None = None,
     ) -> None:
+        if agent is None and agent_factory is None:
+            raise ValueError("Either agent or agent_factory must be provided to AutonomousTaskOrchestrator")
+
         self._task_repo = task_repo
         self._state_machine = state_machine
         self._workspace_manager = workspace_manager
         self._verification_gate = verification_gate
         self._agent = agent
+        self._agent_factory = agent_factory
 
     async def start_task(
         self,
@@ -247,7 +253,13 @@ class AutonomousTaskOrchestrator:
         )
 
         try:
-            agent_result = await self._agent.execute(agent_context)
+            if self._agent is not None:
+                agent = self._agent
+            elif self._agent_factory is not None:
+                agent = await self._agent_factory.create_agent()
+            else:
+                raise OrchestrationError("No DevelopmentAgent or DevelopmentAgentFactory available")
+            agent_result = await agent.execute(agent_context)
         except Exception as exc:
             logger.error("DevelopmentAgent raised exception for task %s: %s", task_id, exc)
             agent_result = DevelopmentResult(
