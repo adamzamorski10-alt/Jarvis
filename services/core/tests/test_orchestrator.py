@@ -1072,7 +1072,7 @@ async def test_concurrent_claim_consumes_exactly_one_attempt(tmp_path: Path):
 
     assert len(successes) == 1, f"Expected 1 winner, got {len(successes)}"
     assert len(exceptions) == 1, f"Expected 1 failure, got {len(exceptions)}"
-    assert isinstance(exceptions[0], (StaleStateTransitionError, MaxAttemptsExceededError))
+    assert isinstance(exceptions[0], (StaleStateTransitionError, MaxAttemptsExceededError, TaskNotStartableError))
 
     total_agent_execs = len(agent1.captured_contexts) + len(agent2.captured_contexts)
     assert total_agent_execs == 1, f"Expected exactly 1 agent execution, got {total_agent_execs}"

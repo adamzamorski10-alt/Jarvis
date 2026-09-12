@@ -6,6 +6,19 @@ from app.db.models.permission_grant import PermissionGrantModel
 from app.db.models.audit_event import AuditEventModel
 from app.db.models.pending_approval import PendingApprovalModel
 from app.db.models.development_task import DevelopmentTaskModel
+from app.db.models.task_dependency import TaskDependencyModel
+from app.db.models.plan_fingerprint import PlanFingerprintModel
 
-__all__ = ["AppSetting", "ActivityEvent", "Conversation", "Message", "PermissionGrantModel", "AuditEventModel", "PendingApprovalModel", "DevelopmentTaskModel"]
+__all__ = [
+    "AppSetting",
+    "ActivityEvent",
+    "Conversation",
+    "Message",
+    "PermissionGrantModel",
+    "AuditEventModel",
+    "PendingApprovalModel",
+    "DevelopmentTaskModel",
+    "TaskDependencyModel",
+    "PlanFingerprintModel",
+]
 

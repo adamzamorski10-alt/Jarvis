@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.db.database import Base
+from app.manager.models import compute_task_id
 from app.repositories.task_repository import TaskRepository
 from app.tasks.models import DevelopmentTask, TaskStatus
 
@@ -61,6 +62,7 @@ async def test_create_duplicate_task_id_fails(db_session: AsyncSession):
     repo = TaskRepository(db_session)
     task1 = DevelopmentTask(
         task_id="task_fixed_123",
+        task_key="fixed_123",
         project_id="proj_alpha",
         title="Task 1",
         description="First task",
@@ -70,6 +72,7 @@ async def test_create_duplicate_task_id_fails(db_session: AsyncSession):
 
     task2 = DevelopmentTask(
         task_id="task_fixed_123",
+        task_key="fixed_123_dup",
         project_id="proj_beta",
         title="Task 2",
         description="Second task with duplicate ID",
@@ -225,7 +228,64 @@ async def test_transaction_rollback_on_failure(db_session: AsyncSession):
 
 
 # ===========================================================================
-# 5. Concurrency & Lost Update Prevention
+# 5. Task Identity / task_key consistency
+# ===========================================================================
+
+@pytest.mark.asyncio
+async def test_task_key_persisted_correctly(db_session: AsyncSession):
+    repo = TaskRepository(db_session)
+    task = DevelopmentTask(
+        task_id="task_abc123",
+        task_key="my_feature",
+        project_id="proj",
+        title="My Feature",
+        description="d",
+    )
+    created = await repo.create_task(task)
+    await db_session.commit()
+
+    fetched = await repo.get_task(created.task_id)
+    assert fetched is not None
+    assert fetched.task_key == "my_feature"
+
+
+@pytest.mark.asyncio
+async def test_task_id_uses_full_sha256(db_session: AsyncSession):
+    repo = TaskRepository(db_session)
+    task = DevelopmentTask(
+        task_id="task_" + "a" * 64,
+        task_key="full_sha",
+        project_id="proj",
+        title="Full SHA",
+        description="d",
+    )
+    created = await repo.create_task(task)
+    await db_session.commit()
+
+    assert len(created.task_id) == 5 + 64
+    assert created.task_id.startswith("task_")
+
+
+@pytest.mark.asyncio
+async def test_task_key_matches_proposal_key_in_metadata(db_session: AsyncSession):
+    repo = TaskRepository(db_session)
+    task = DevelopmentTask(
+        task_id="task_def456",
+        task_key="auth_service",
+        project_id="proj",
+        title="Auth Service",
+        description="d",
+        metadata={"proposal_key": "auth_service"},
+    )
+    created = await repo.create_task(task)
+    await db_session.commit()
+
+    fetched = await repo.get_task(created.task_id)
+    assert fetched.task_key == fetched.metadata.get("proposal_key")
+
+
+# ===========================================================================
+# 6. Concurrency & Lost Update Prevention
 # ===========================================================================
 
 @pytest.mark.asyncio

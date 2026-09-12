@@ -3,7 +3,7 @@ ORM Model — Development Tasks
 Persistent storage for AI Operator autonomous development tasks in SQLite.
 """
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -15,7 +15,7 @@ class DevelopmentTaskModel(Base):
     """
     __tablename__ = "development_tasks"
 
-    task_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(74), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     parent_task_id: Mapped[str | None] = mapped_column(
         String(64),
@@ -56,6 +56,13 @@ class DevelopmentTaskModel(Base):
     # Stage 6.8 — Execution termination & cleanup safety
     execution_terminated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     workspace_cleanup_pending: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
+
+    plan_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    task_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+    __table_args__ = (
+        Index("uq_development_tasks_plan_task_key", "plan_id", "task_key", unique=True),
+    )
 
     def __repr__(self) -> str:
         return (

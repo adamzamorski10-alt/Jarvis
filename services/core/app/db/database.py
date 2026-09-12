@@ -55,13 +55,20 @@ def AsyncSessionLocal() -> AsyncSession:
 
 async def init_db() -> None:
     """Create all tables if they don't exist and run lightweight migrations."""
-    from app.db.models import settings, activity, conversation, permission_grant, audit_event, pending_approval, development_task  # noqa: F401
-
+    from app.db.models import (  # noqa: F401
+        settings,
+        activity,
+        conversation,
+        permission_grant,
+        audit_event,
+        pending_approval,
+        development_task,
+        task_dependency,
+        plan_fingerprint,
+    )
 
     engine = get_engine()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
         def migrate_sqlite(connection):
             from sqlalchemy import inspect, text
             inspector = inspect(connection)
@@ -87,8 +94,18 @@ async def init_db() -> None:
                     connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_version VARCHAR(50)"))
                 if "tool_definition_fingerprint" not in columns:
                     connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_fingerprint VARCHAR(64)"))
+            if "development_tasks" in inspector.get_table_names():
+                columns = {col["name"] for col in inspector.get_columns("development_tasks")}
+                if "plan_id" not in columns:
+                    connection.execute(text("ALTER TABLE development_tasks ADD COLUMN plan_id VARCHAR(64)"))
+                if "task_key" not in columns:
+                    connection.execute(text("ALTER TABLE development_tasks ADD COLUMN task_key VARCHAR(64)"))
+                connection.execute(
+                    text("CREATE UNIQUE INDEX IF NOT EXISTS uq_development_tasks_plan_task_key ON development_tasks(plan_id, task_key)")
+                )
 
         await conn.run_sync(migrate_sqlite)
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

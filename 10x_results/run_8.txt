@@ -1,0 +1,50 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: F:\Projects\AI-Operator\services\core
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 36 items
+
+tests/test_run_controller.py::test_successful_run_lifecycle PASSED       [  2%]
+tests/test_run_controller.py::test_agent_failure_run_lifecycle PASSED    [  5%]
+tests/test_run_controller.py::test_verification_failure_prevents_commit PASSED [  8%]
+tests/test_run_controller.py::test_run_timeout_handling PASSED           [ 11%]
+tests/test_run_controller.py::test_concurrent_start_runs_single_winner PASSED [ 13%]
+tests/test_run_controller.py::test_cancel_run_idempotency PASSED         [ 16%]
+tests/test_run_controller.py::test_abort_run_idempotency PASSED          [ 19%]
+tests/test_run_controller.py::test_terminal_task_cannot_be_restarted PASSED [ 22%]
+tests/test_run_controller.py::test_get_run_status PASSED                 [ 25%]
+tests/test_run_controller.py::test_run_controller_invalid_parameters PASSED [ 27%]
+tests/test_run_controller.py::test_run_controller_security_boundary_imports PASSED [ 30%]
+tests/test_run_controller.py::test_stale_running_task_returns_recovery_required PASSED [ 33%]
+tests/test_run_controller.py::test_abort_on_running_task PASSED          [ 36%]
+tests/test_run_controller.py::test_unexpected_agent_exception_returns_failed PASSED [ 38%]
+tests/test_run_controller.py::test_concurrent_start_and_cancel PASSED    [ 41%]
+tests/test_run_controller.py::test_durable_state_survives_db_reopen PASSED [ 44%]
+tests/test_run_controller.py::test_verification_exception_returns_failed PASSED [ 47%]
+tests/test_run_controller.py::test_commit_failure_prevents_committed PASSED [ 50%]
+tests/test_run_controller.py::test_active_cancellation_stops_execution PASSED [ 52%]
+tests/test_run_controller.py::test_active_abort_stops_execution PASSED   [ 55%]
+tests/test_run_controller.py::test_timeout_vs_recovery_no_duplicate PASSED [ 58%]
+tests/test_run_controller.py::test_timeout_after_durable_committed_reconciles PASSED [ 61%]
+tests/test_run_controller.py::test_crash_like_interruption_authoritative_state PASSED [ 63%]
+tests/test_run_controller.py::test_late_success_fenced_after_cancel PASSED [ 66%]
+tests/test_run_controller.py::test_late_success_fenced_after_abort PASSED [ 69%]
+tests/test_run_controller.py::test_non_cooperative_agent_cancel PASSED   [ 72%]
+tests/test_run_controller.py::test_non_cooperative_agent_abort PASSED    [ 75%]
+tests/test_run_controller.py::test_non_cooperative_agent_timeout PASSED  [ 77%]
+tests/test_run_controller.py::test_cancel_waits_for_agent_termination_before_cleanup PASSED [ 80%]
+tests/test_run_controller.py::test_abort_waits_for_agent_termination_before_cleanup PASSED [ 83%]
+tests/test_run_controller.py::test_timeout_does_not_delete_active_workspace PASSED [ 86%]
+tests/test_run_controller.py::test_workspace_isolation_across_execution_attempts PASSED [ 88%]
+tests/test_run_controller.py::test_recovery_does_not_delete_active_workspace PASSED [ 91%]
+tests/test_run_controller.py::test_recovery_after_process_loss_allows_cleanup PASSED [ 94%]
+tests/test_run_controller.py::test_old_execution_token_cannot_reclaim_workspace PASSED [ 97%]
+tests/test_run_controller.py::test_late_execution_cannot_touch_new_workspace PASSED [100%]
+
+============================= 36 passed in 50.89s =============================
+
+EXIT_CODE: 0
+DURATION: 52.563155s

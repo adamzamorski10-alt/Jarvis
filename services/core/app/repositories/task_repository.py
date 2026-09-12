@@ -7,10 +7,14 @@ import json
 from typing import Any
 import uuid
 from sqlalchemy import or_, select, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.development_task import DevelopmentTaskModel
+from app.db.models.plan_fingerprint import PlanFingerprintModel
+from app.db.models.task_dependency import TaskDependencyModel
+from app.manager.models import PlanConflictError, compute_plan_fingerprint
 from app.tasks.models import DevelopmentTask, TaskStatus
 
 
@@ -59,6 +63,7 @@ class TaskRepository:
     async def create_task(self, task: DevelopmentTask) -> DevelopmentTask:
         model = DevelopmentTaskModel(
             task_id=task.task_id,
+            task_key=task.task_key,
             project_id=task.project_id.strip(),
             parent_task_id=task.parent_task_id.strip() if task.parent_task_id else None,
             title=task.title.strip(),
@@ -588,8 +593,10 @@ class TaskRepository:
     def _to_domain(model: DevelopmentTaskModel | None) -> DevelopmentTask | None:
         if model is None:
             return None
-        return DevelopmentTask.model_construct(
+        meta = _deserialize_metadata(model.task_metadata)
+        return DevelopmentTask(
             task_id=model.task_id,
+            task_key=model.task_key or "",
             project_id=model.project_id,
             parent_task_id=model.parent_task_id,
             title=model.title,
@@ -602,7 +609,7 @@ class TaskRepository:
             started_at=model.started_at,
             completed_at=model.completed_at,
             failure_reason=model.failure_reason,
-            metadata=_deserialize_metadata(model.task_metadata),
+            metadata=meta,
             last_heartbeat=model.last_heartbeat,
             recovery_attempt_count=model.recovery_attempt_count,
             max_recovery_attempts=model.max_recovery_attempts,
@@ -613,3 +620,153 @@ class TaskRepository:
             execution_terminated_at=model.execution_terminated_at,
             workspace_cleanup_pending=bool(model.workspace_cleanup_pending),
         )
+
+    async def create_tasks_idempotent(
+        self,
+        plan_id: str,
+        tasks: list[DevelopmentTask],
+        dependencies: list[tuple[str, str]] | None = None,
+        plan_fingerprint: str | None = None,
+    ) -> list[DevelopmentTask]:
+        """
+        Atomically persist a full plan.
+
+        Semantics:
+          1. plan_fingerprint must be provided (pre-computed by normalize_plan).
+          2. Atomically check for an existing plan fingerprint.
+          3. If the fingerprint matches an existing plan, return the already-persisted tasks (idempotent replay).
+          4. If the plan_id exists with a different fingerprint, raise PlanConflictError.
+          5. If the plan_id does not exist, insert the fingerprint, all tasks, and all dependency edges
+             in one transaction.
+
+        Concurrency control:
+          - Fingerprint insert uses ON CONFLICT DO NOTHING; rowcount distinguishes
+            "we won the insert" from "someone else inserted first".
+          - When rowcount == 0, the canonical fingerprint is re-read to distinguish
+            idempotent replay from conflict.
+          - Tasks and dependencies are only inserted after the fingerprint is confirmed.
+
+        On any failure the entire transaction is rolled back: no partial tasks,
+        no partial dependency rows, no orphan plan record.
+
+        Args:
+            plan_id: Stable plan identifier.
+            tasks: List of normalized DevelopmentTask objects.
+            dependencies: List of (task_id, depends_on_task_id) edge tuples.
+            plan_fingerprint: REQUIRED. Pre-computed fingerprint from normalize_plan.
+        """
+        if plan_fingerprint is None:
+            raise ValueError(
+                "plan_fingerprint is required. "
+                "Call normalize_plan() first to compute the fingerprint."
+            )
+
+        deps = dependencies or []
+
+        seen_task_ids: set[str] = set()
+        normalized_tasks: list[DevelopmentTask] = []
+        for task in tasks:
+            if task.task_id in seen_task_ids:
+                continue
+            seen_task_ids.add(task.task_id)
+            normalized_tasks.append(task)
+
+        seen_edges: set[tuple[str, str]] = set()
+        normalized_deps: list[tuple[str, str]] = []
+        for edge in deps:
+            if edge not in seen_edges:
+                seen_edges.add(edge)
+                normalized_deps.append(edge)
+
+        async with self._session.begin():
+            existing = await self._session.execute(
+                select(PlanFingerprintModel)
+                .where(PlanFingerprintModel.plan_id == plan_id)
+            )
+            existing_row = existing.scalar_one_or_none()
+
+            if existing_row is not None:
+                if existing_row.fingerprint != plan_fingerprint:
+                    raise PlanConflictError(plan_id)
+                result = await self._session.execute(
+                    select(DevelopmentTaskModel)
+                    .where(DevelopmentTaskModel.plan_id == plan_id)
+                )
+                models = list(result.scalars().all())
+                return [self._to_domain(m) for m in models]
+
+            stmt = (
+                sqlite_insert(PlanFingerprintModel)
+                .values(plan_id=plan_id, fingerprint=plan_fingerprint)
+                .on_conflict_do_nothing(index_elements=["plan_id"])
+            )
+            insert_result = await self._session.execute(stmt)
+
+            if insert_result.rowcount == 0:
+                existing = await self._session.execute(
+                    select(PlanFingerprintModel).where(
+                        PlanFingerprintModel.plan_id == plan_id
+                    )
+                )
+                existing_row = existing.scalar_one_or_none()
+
+                if existing_row is not None:
+                    if existing_row.fingerprint != plan_fingerprint:
+                        raise PlanConflictError(plan_id)
+                    result = await self._session.execute(
+                        select(DevelopmentTaskModel).where(
+                            DevelopmentTaskModel.plan_id == plan_id
+                        )
+                    )
+                    models = list(result.scalars().all())
+                    return [self._to_domain(m) for m in models]
+
+            for task in normalized_tasks:
+                stmt = (
+                    sqlite_insert(DevelopmentTaskModel)
+                    .values(
+                        task_id=task.task_id,
+                        task_key=task.task_key,
+                        project_id=task.project_id.strip(),
+                        parent_task_id=task.parent_task_id.strip() if task.parent_task_id else None,
+                        title=task.title.strip(),
+                        description=task.description.strip(),
+                        status=task.status.value if isinstance(task.status, TaskStatus) else str(task.status),
+                        priority=task.priority,
+                        attempt_count=task.attempt_count,
+                        max_attempts=task.max_attempts,
+                        created_at=task.created_at,
+                        started_at=task.started_at,
+                        completed_at=task.completed_at,
+                        failure_reason=task.failure_reason,
+                        task_metadata=_serialize_metadata(task.metadata),
+                        last_heartbeat=task.last_heartbeat,
+                        recovery_attempt_count=task.recovery_attempt_count,
+                        max_recovery_attempts=task.max_recovery_attempts,
+                        last_recovery_at=task.last_recovery_at,
+                        recovery_owner=task.recovery_owner,
+                        execution_token=task.execution_token,
+                        workspace_path=task.workspace_path,
+                        execution_terminated_at=task.execution_terminated_at,
+                        workspace_cleanup_pending=1 if task.workspace_cleanup_pending else 0,
+                        plan_id=plan_id,
+                    )
+                    .on_conflict_do_nothing(index_elements=["task_id"])
+                )
+                await self._session.execute(stmt)
+
+            for task_id, depends_on in normalized_deps:
+                dep_stmt = (
+                    sqlite_insert(TaskDependencyModel)
+                    .values(task_id=task_id, depends_on_task_id=depends_on)
+                    .on_conflict_do_nothing()
+                )
+                await self._session.execute(dep_stmt)
+
+        result = await self._session.execute(
+            select(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.plan_id == plan_id)
+            .order_by(DevelopmentTaskModel.task_key.asc())
+        )
+        models = list(result.scalars().all())
+        return [self._to_domain(m) for m in models]
