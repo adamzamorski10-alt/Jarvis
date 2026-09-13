@@ -42,6 +42,10 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+_active_yield_counts: dict[str, int] = {}
+_active_yield_budget: int = 2
+
+
 class PlanExecutionState(str, Enum):
     """Terminal & lifecycle status for autonomous multi-task plan execution."""
     RUNNING = "RUNNING"
@@ -110,8 +114,7 @@ class AutonomousPlanExecutor:
         executed_task_ids: list[str] = []
         # Tracks consecutive yield iterations per task_id while waiting for an active worker.
         # After _MAX_ACTIVE_YIELDS consecutive yields with zero progress, we stop waiting.
-        _MAX_ACTIVE_YIELDS = 2
-        _active_yield_counts: dict[str, int] = {}
+        active_yield_counts: dict[str, int] = {}
 
         await self._safe_audit(
             AuditEventType.PLAN_EXECUTION_STARTED,
@@ -195,28 +198,23 @@ class AutonomousPlanExecutor:
             if not runnable_tasks:
                 uncommitted = [t for t in all_tasks if t.status != TaskStatus.COMMITTED]
                 if uncommitted:
-                    # If tasks are actively executing (RUNNING/VERIFYING/PASSED), they may be
-                    # owned by a concurrent worker in the same event loop.  Yield control a
-                    # bounded number of times to let the owning coroutine finish.  Once the
-                    # yield budget is exhausted with no visible progress (no new COMMITs),
-                    # declare the plan BLOCKED so the caller is not stuck forever.
                     active_states = (TaskStatus.RUNNING, TaskStatus.VERIFYING, TaskStatus.PASSED)
                     actively_executing = [t for t in uncommitted if t.status in active_states]
                     if actively_executing:
                         active_key = frozenset(t.task_id for t in actively_executing)
-                        yield_count = _active_yield_counts.get(str(active_key), 0)
-                        if yield_count < _MAX_ACTIVE_YIELDS:
-                            _active_yield_counts[str(active_key)] = yield_count + 1
+                        yield_count = active_yield_counts.get(str(active_key), 0)
+                        max_active_yields = _active_yield_budget
+                        if yield_count < max_active_yields:
+                            active_yield_counts[str(active_key)] = yield_count + 1
                             logger.debug(
                                 "Plan %s: tasks %s actively executing; yielding (%d/%d)",
                                 plan_id_str,
                                 [t.task_id for t in actively_executing],
                                 yield_count + 1,
-                                _MAX_ACTIVE_YIELDS,
+                                max_active_yields,
                             )
                             await asyncio.sleep(0)  # yield to concurrent coroutines
                             continue
-                        # Budget exhausted with no progress — fall through to BLOCKED.
                         logger.warning(
                             "Plan %s: active-yield budget exhausted for tasks %s; declaring BLOCKED",
                             plan_id_str,
@@ -296,8 +294,7 @@ class AutonomousPlanExecutor:
                         task_id=next_task.task_id,
                         commit_sha=run_result.commit_sha,
                     )
-                    # Progress was made — clear the active-yield budget for all tasks.
-                    _active_yield_counts.clear()
+                    active_yield_counts.clear()
                 elif run_result.status == RunStatus.CANCELLED or run_result.task_status == TaskStatus.CANCELLED:
                     logger.info("Task %s run was CANCELLED", next_task.task_id)
                     return await self._finalize_result(

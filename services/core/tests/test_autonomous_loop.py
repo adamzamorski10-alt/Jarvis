@@ -700,7 +700,19 @@ async def test_loop_17_18_concurrent_claim_and_loop_invocation(db_engine: Any, t
             await session.commit()
             return res
 
-    res1, res2 = await asyncio.gather(_worker(), _worker())
+    from app.services.autonomous_loop import _active_yield_budget, _active_yield_counts
+
+    _active_yield_counts.clear()
+    original_budget = _active_yield_budget
+
+    try:
+        import app.services.autonomous_loop as loop_module
+        loop_module._active_yield_budget = 20
+        res1, res2 = await asyncio.gather(_worker(), _worker())
+    finally:
+        loop_module._active_yield_budget = original_budget
+        _active_yield_counts.clear()
+
     assert {res1.terminal_state, res2.terminal_state}.issubset({PlanExecutionState.COMPLETED, PlanExecutionState.BLOCKED})
     assert res1.terminal_state == PlanExecutionState.COMPLETED or res2.terminal_state == PlanExecutionState.COMPLETED
 

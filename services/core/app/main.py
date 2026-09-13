@@ -13,6 +13,7 @@ from app.api.routes import settings as settings_routes
 from app.api.routes import activity as activity_routes
 from app.api.routes import ai as ai_routes
 from app.api.routes import approvals as approvals_routes
+from app.api.routes import plans as plans_routes
 
 
 def create_app() -> FastAPI:
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(activity_routes.router, prefix=prefix, tags=["Activity"])
     app.include_router(ai_routes.router, prefix=prefix, tags=["AI"])
     app.include_router(approvals_routes.router, prefix=prefix, tags=["Approvals"])
+    app.include_router(plans_routes.router, prefix=prefix, tags=["Plans Execution"])
 
     return app
 

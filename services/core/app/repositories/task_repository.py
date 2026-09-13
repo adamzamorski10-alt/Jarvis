@@ -616,6 +616,7 @@ class TaskRepository:
         return DevelopmentTask(
             task_id=model.task_id,
             task_key=model.task_key or "",
+            plan_id=model.plan_id or "",
             project_id=model.project_id,
             parent_task_id=model.parent_task_id,
             title=model.title,

@@ -123,6 +123,13 @@ async def lifespan(app: FastAPI):
     # --- shutdown ---
     logger.info("Shutting down AI Operator Core")
 
+    # Clean up background executions safely
+    try:
+        from app.services.background_execution_manager import background_execution_manager
+        await background_execution_manager.shutdown(timeout_seconds=10.0)
+    except Exception as exc:
+        logger.warning("Error during BackgroundExecutionManager shutdown", error=str(exc))
+
     # Clean up managed Ollama process if one was started by AI Operator
     try:
         from app.ai.services.ollama_process_manager import process_manager

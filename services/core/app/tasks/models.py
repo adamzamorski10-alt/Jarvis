@@ -31,12 +31,13 @@ class DevelopmentTask(BaseModel):
                  Derived from the model's proposal_key at normalization time.
                  Empty string for tasks not created through plan normalization.
       task_id  — primary key.  Deterministic SHA-256("plan_id:task_key") prefixed with "task_".
-                 69 characters total (5 prefix + 64 hex chars).
+                  69 characters total (5 prefix + 64 hex chars).
     """
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     task_id: str = Field(default_factory=lambda: f"task_{uuid.uuid4().hex[:12]}")
     task_key: str = Field(default="")
+    plan_id: str = Field(default="")
     project_id: str
     parent_task_id: str | None = None
     title: str

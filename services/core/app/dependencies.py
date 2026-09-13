@@ -148,3 +148,16 @@ async def get_ai_service(
     approval_service: ApprovalService = Depends(get_approval_service),
 ) -> AsyncGenerator[AIService, None]:
     yield AIService(providers, conversations, activity, settings_svc, tool_execution_service, approval_service)
+
+
+async def get_task_repository(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[TaskRepository, None]:
+    from app.repositories.task_repository import TaskRepository
+    yield TaskRepository(session)
+
+
+def get_background_execution_manager():
+    from app.services.background_execution_manager import background_execution_manager
+    return background_execution_manager
+
