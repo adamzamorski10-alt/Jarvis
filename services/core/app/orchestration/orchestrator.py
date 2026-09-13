@@ -86,6 +86,8 @@ class AutonomousTaskOrchestrator:
         options: OrchestrationOptions | None = None,
         cancel_event: asyncio.Event | None = None,
         abort_event: asyncio.Event | None = None,
+        previous_verification_result: VerificationReport | None = None,
+        repair_reason: str | None = None,
     ) -> OrchestrationResult:
         """
         Execute the complete autonomous task lifecycle for task_id.
@@ -96,6 +98,7 @@ class AutonomousTaskOrchestrator:
         """
         started_at = _utc_now()
         opts = options or OrchestrationOptions()
+
 
         # 1. Fetch task
         task = await self._task_repo.get_task(task_id)
@@ -250,6 +253,8 @@ class AutonomousTaskOrchestrator:
             metadata=claimed_task.metadata,
             cancel_event=cancel_event,
             abort_event=abort_event,
+            previous_verification_result=previous_verification_result,
+            repair_reason=repair_reason,
         )
 
         try:

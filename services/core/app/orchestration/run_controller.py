@@ -224,171 +224,186 @@ class AutonomousRunController:
         self._active_cancel_events[task_id] = cancel_event
         self._active_abort_events[task_id] = abort_event
 
-        orch_task = asyncio.create_task(
-            self._orchestrator.start_task(
-                task_id,
-                options=options,
-                cancel_event=cancel_event,
-                abort_event=abort_event,
-            )
-        )
-        self._active_executions[task_id] = orch_task
         orch_result = None
-        sleep_task: asyncio.Task | None = None
-        termination_grace_period = min(15.0, max(2.0, effective_timeout * 0.5))
+        prev_report = None
+        repair_reason = None
+
         try:
-            sleep_task = asyncio.create_task(asyncio.sleep(effective_timeout))
-            try:
-                done, pending = await asyncio.wait(
-                    [orch_task, sleep_task],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-            except asyncio.CancelledError:
-                if sleep_task is not None and not sleep_task.done():
-                    sleep_task.cancel()
-                    try:
-                        await sleep_task
-                    except asyncio.CancelledError:
-                        pass
-                raise
-
-            if orch_task in done:
-                orch_result = orch_task.result()
-                logger.info("start_run: orch_task completed first with status %s", orch_result.final_status if orch_result else "None")
-            else:
-                sleep_task.cancel()
-                try:
-                    await sleep_task
-                except asyncio.CancelledError:
-                    pass
-                logger.warning("Autonomous run %s for task %s timed out after %ss", run_id, task_id, effective_timeout)
-                orch_task.cancel()
-                completed_at = _utc_now()
-                logger.info("start_run: timeout branch, cancelling orch_task")
-
-                terminated = await self._terminate_execution(orch_task, task_id, termination_grace_period)
-                logger.info("start_run: termination result=%s", terminated)
-
-                try:
-                    await self._task_repo._session.rollback()
-                except Exception:
-                    pass
-
-                current_task_status = TaskStatus.RUNNING
-                current_attempts = task.attempt_count
-                max_attempts = task.max_attempts
-                fresh_task = None
-                try:
-                    async with self._create_fresh_session() as timeout_session:
-                        timeout_repo = TaskRepository(timeout_session)
-                        fresh_task = await timeout_repo.get_task(task_id)
-                        if fresh_task:
-                            current_task_status = fresh_task.status
-                            current_attempts = fresh_task.attempt_count
-                            max_attempts = fresh_task.max_attempts
-                except Exception as exc:
-                    logger.warning("Failed to re-fetch task %s after timeout: %s", task_id, exc)
-
-                if terminated and current_task_status == TaskStatus.RUNNING:
-                    target_status = (
-                        TaskStatus.REPAIR_REQUIRED if current_attempts < max_attempts else TaskStatus.FAILED
+            while True:
+                orch_task = asyncio.create_task(
+                    self._orchestrator.start_task(
+                        task_id,
+                        options=options,
+                        cancel_event=cancel_event,
+                        abort_event=abort_event,
+                        previous_verification_result=prev_report,
+                        repair_reason=repair_reason,
                     )
-                    if self._state_machine.is_transition_allowed(TaskStatus.RUNNING, target_status):
+                )
+                self._active_executions[task_id] = orch_task
+                sleep_task: asyncio.Task | None = None
+                termination_grace_period = min(15.0, max(2.0, effective_timeout * 0.5))
+
+                try:
+                    sleep_task = asyncio.create_task(asyncio.sleep(effective_timeout))
+                    done, pending = await asyncio.wait(
+                        [orch_task, sleep_task],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+
+                    if orch_task in done:
+                        if sleep_task and not sleep_task.done():
+                            sleep_task.cancel()
+                            try:
+                                await sleep_task
+                            except asyncio.CancelledError:
+                                pass
+
+                        orch_result = orch_task.result()
+                        logger.info("start_run: orch_task completed with status %s", orch_result.final_status if orch_result else "None")
+
+                        if orch_result.final_status == TaskStatus.REPAIR_REQUIRED:
+                            if cancel_event.is_set() or abort_event.is_set():
+                                break
+                            prev_report = orch_result.verification_report
+                            repair_reason = orch_result.error_message or "Verification failed"
+                            logger.info("start_run: task %s verification failed; continuing repair loop", task_id)
+                            continue
+                        else:
+                            break
+                    else:
+                        if sleep_task and not sleep_task.done():
+                            sleep_task.cancel()
+                            try:
+                                await sleep_task
+                            except asyncio.CancelledError:
+                                pass
+
+                        logger.warning("Autonomous run %s for task %s timed out after %ss", run_id, task_id, effective_timeout)
+                        orch_task.cancel()
+                        completed_at = _utc_now()
+
+                        terminated = await self._terminate_execution(orch_task, task_id, termination_grace_period)
+
+                        try:
+                            await self._task_repo._session.rollback()
+                        except Exception:
+                            pass
+
+                        current_task_status = TaskStatus.RUNNING
+                        current_attempts = task.attempt_count
+                        max_attempts = task.max_attempts
+                        fresh_task = None
                         try:
                             async with self._create_fresh_session() as timeout_session:
                                 timeout_repo = TaskRepository(timeout_session)
-                                timeout_sm = TaskStateMachine(timeout_repo)
-                                await timeout_sm.transition(
-                                    task_id=task_id,
-                                    expected_status=TaskStatus.RUNNING,
-                                    new_status=target_status,
-                                    reason=f"Autonomous run timed out after {effective_timeout}s",
-                                )
-                                await timeout_session.commit()
-                            current_task_status = target_status
+                                fresh_task = await timeout_repo.get_task(task_id)
+                                if fresh_task:
+                                    current_task_status = fresh_task.status
+                                    current_attempts = fresh_task.attempt_count
+                                    max_attempts = fresh_task.max_attempts
                         except Exception as exc:
-                            logger.warning("Failed to transition timed-out task %s: %s", task_id, exc)
+                            logger.warning("Failed to re-fetch task %s after timeout: %s", task_id, exc)
 
-                if current_task_status == TaskStatus.COMMITTED:
-                    return AutonomousRunResult(
-                        run_id=run_id,
-                        task_id=task_id,
-                        status=RunStatus.SUCCEEDED,
-                        task_status=TaskStatus.COMMITTED,
-                        attempt_count=current_attempts,
-                        verification_passed=True,
-                        commit_sha=fresh_task.metadata.get("commit_sha") if fresh_task else None,
-                        failure_reason=None,
-                        started_at=started_at,
-                        completed_at=completed_at,
-                        recovery_required=False,
-                    )
+                        if terminated and current_task_status == TaskStatus.RUNNING:
+                            target_status = (
+                                TaskStatus.REPAIR_REQUIRED if current_attempts < max_attempts else TaskStatus.FAILED
+                            )
+                            if self._state_machine.is_transition_allowed(TaskStatus.RUNNING, target_status):
+                                try:
+                                    async with self._create_fresh_session() as timeout_session:
+                                        timeout_repo = TaskRepository(timeout_session)
+                                        timeout_sm = TaskStateMachine(timeout_repo)
+                                        await timeout_sm.transition(
+                                            task_id=task_id,
+                                            expected_status=TaskStatus.RUNNING,
+                                            new_status=target_status,
+                                            reason=f"Autonomous run timed out after {effective_timeout}s",
+                                        )
+                                        await timeout_session.commit()
+                                    current_task_status = target_status
+                                except Exception as exc:
+                                    logger.warning("Failed to transition timed-out task %s: %s", task_id, exc)
 
-                if current_task_status in (TaskStatus.CANCELLED, TaskStatus.ABORTED):
-                    run_stat = RunStatus.CANCELLED if current_task_status == TaskStatus.CANCELLED else RunStatus.ABORTED
-                    return AutonomousRunResult(
-                        run_id=run_id,
-                        task_id=task_id,
-                        status=run_stat,
-                        task_status=current_task_status,
-                        attempt_count=current_attempts,
-                        verification_passed=False,
-                        failure_reason=f"Autonomous run timed out after {effective_timeout}s",
-                        started_at=started_at,
-                        completed_at=completed_at,
-                        recovery_required=True,
-                    )
+                        if current_task_status == TaskStatus.COMMITTED:
+                            return AutonomousRunResult(
+                                run_id=run_id,
+                                task_id=task_id,
+                                status=RunStatus.SUCCEEDED,
+                                task_status=TaskStatus.COMMITTED,
+                                attempt_count=current_attempts,
+                                verification_passed=True,
+                                commit_sha=fresh_task.metadata.get("commit_sha") if fresh_task else None,
+                                failure_reason=None,
+                                started_at=started_at,
+                                completed_at=completed_at,
+                                recovery_required=False,
+                            )
 
-                if not terminated:
-                    try:
-                        async with self._create_fresh_session() as cleanup_session:
-                            cleanup_repo = TaskRepository(cleanup_session)
-                            await cleanup_repo.update_workspace_cleanup_pending(task_id, True)
-                            await cleanup_session.commit()
-                    except Exception as exc:
-                        logger.warning("Failed to set cleanup_pending for timed-out task %s: %s", task_id, exc)
+                        if current_task_status in (TaskStatus.CANCELLED, TaskStatus.ABORTED):
+                            run_stat = RunStatus.CANCELLED if current_task_status == TaskStatus.CANCELLED else RunStatus.ABORTED
+                            return AutonomousRunResult(
+                                run_id=run_id,
+                                task_id=task_id,
+                                status=run_stat,
+                                task_status=current_task_status,
+                                attempt_count=current_attempts,
+                                verification_passed=False,
+                                failure_reason=f"Autonomous run timed out after {effective_timeout}s",
+                                started_at=started_at,
+                                completed_at=completed_at,
+                                recovery_required=True,
+                            )
 
-                if opts.auto_cleanup_workspace and terminated and current_task_status not in (TaskStatus.COMMITTED, TaskStatus.CANCELLED, TaskStatus.ABORTED):
-                    await self._confirm_execution_terminated(task_id)
-                    await self._safe_remove_workspace(task_id, execution_task=orch_task)
+                        if not terminated:
+                            try:
+                                async with self._create_fresh_session() as cleanup_session:
+                                    cleanup_repo = TaskRepository(cleanup_session)
+                                    await cleanup_repo.update_workspace_cleanup_pending(task_id, True)
+                                    await cleanup_session.commit()
+                            except Exception as exc:
+                                logger.warning("Failed to set cleanup_pending for timed-out task %s: %s", task_id, exc)
 
-                logger.info("start_run: timeout branch returning TIMED_OUT, terminated=%s, current_task_status=%s", terminated, current_task_status)
-                return AutonomousRunResult(
-                    run_id=run_id,
-                    task_id=task_id,
-                    status=RunStatus.TIMED_OUT,
-                    task_status=current_task_status,
-                    attempt_count=current_attempts,
-                    verification_passed=False,
-                    failure_reason=f"Autonomous run timed out after {effective_timeout}s",
-                    started_at=started_at,
-                    completed_at=completed_at,
-                    recovery_required=not terminated,
-                )
-        except asyncio.CancelledError:
-            if orch_task.cancelled():
-                completed_at = _utc_now()
-                try:
-                    await self._task_repo._session.rollback()
-                except Exception:
-                    pass
-                fresh_task = await self._task_repo.get_task(task_id)
-                current_task_status = fresh_task.status if fresh_task else TaskStatus.RUNNING
-                current_attempts = fresh_task.attempt_count if fresh_task else task.attempt_count
-                run_stat = RunStatus.CANCELLED if current_task_status == TaskStatus.CANCELLED else RunStatus.ABORTED if current_task_status == TaskStatus.ABORTED else RunStatus.FAILED
-                return AutonomousRunResult(
-                    run_id=run_id,
-                    task_id=task_id,
-                    status=run_stat,
-                    task_status=current_task_status,
-                    attempt_count=current_attempts,
-                    verification_passed=False,
-                    failure_reason="Run was cancelled",
-                    started_at=started_at,
-                    completed_at=completed_at,
-                    recovery_required=True,
-                )
-            raise
+                        if opts.auto_cleanup_workspace and terminated and current_task_status not in (TaskStatus.COMMITTED, TaskStatus.CANCELLED, TaskStatus.ABORTED):
+                            await self._confirm_execution_terminated(task_id)
+                            await self._safe_remove_workspace(task_id, execution_task=orch_task)
+
+                        return AutonomousRunResult(
+                            run_id=run_id,
+                            task_id=task_id,
+                            status=RunStatus.TIMED_OUT,
+                            task_status=current_task_status,
+                            attempt_count=current_attempts,
+                            verification_passed=False,
+                            failure_reason=f"Autonomous run timed out after {effective_timeout}s",
+                            started_at=started_at,
+                            completed_at=completed_at,
+                            recovery_required=not terminated,
+                        )
+                except asyncio.CancelledError:
+                    if orch_task.cancelled():
+                        completed_at = _utc_now()
+                        try:
+                            await self._task_repo._session.rollback()
+                        except Exception:
+                            pass
+                        fresh_task = await self._task_repo.get_task(task_id)
+                        current_task_status = fresh_task.status if fresh_task else TaskStatus.RUNNING
+                        current_attempts = fresh_task.attempt_count if fresh_task else task.attempt_count
+                        run_stat = RunStatus.CANCELLED if current_task_status == TaskStatus.CANCELLED else RunStatus.ABORTED if current_task_status == TaskStatus.ABORTED else RunStatus.FAILED
+                        return AutonomousRunResult(
+                            run_id=run_id,
+                            task_id=task_id,
+                            status=run_stat,
+                            task_status=current_task_status,
+                            attempt_count=current_attempts,
+                            verification_passed=False,
+                            failure_reason="Run was cancelled",
+                            started_at=started_at,
+                            completed_at=completed_at,
+                            recovery_required=True,
+                        )
+                    raise
         except (TaskNotStartableError, MaxAttemptsExceededError, StaleTaskStateError, StaleStateTransitionError) as exc:
             curr_status = task.status
             curr_attempts = task.attempt_count
@@ -450,6 +465,7 @@ class AutonomousRunController:
             self._active_executions.pop(task_id, None)
             self._active_cancel_events.pop(task_id, None)
             self._active_abort_events.pop(task_id, None)
+
 
         # 4. Process OrchestrationResult & verify mandatory success conditions
         completed_at = _utc_now()

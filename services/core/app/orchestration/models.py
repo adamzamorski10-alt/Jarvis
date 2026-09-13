@@ -50,6 +50,9 @@ class DevelopmentAgentContext(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     cancel_event: asyncio.Event | None = None
     abort_event: asyncio.Event | None = None
+    previous_verification_result: VerificationReport | None = None
+    repair_reason: str | None = None
+
 
 
 class DevelopmentResult(BaseModel):
