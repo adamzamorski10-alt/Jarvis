@@ -92,12 +92,13 @@ class PlanExecutionService:
                 reason=f"Task is in terminal status '{task.status.value}' and cannot be executed",
             )
 
-        if task.status == TaskStatus.RUNNING:
+        if task.status in (TaskStatus.RUNNING, TaskStatus.VERIFYING, TaskStatus.PASSED):
             raise TaskNotStartableError(
                 task_id=task_id,
                 status=task.status.value,
-                reason="Task is already RUNNING",
+                reason=f"Task is currently in status '{task.status.value}' and cannot be started",
             )
+
 
         # 3. Check attempt count
         if task.attempt_count >= task.max_attempts:

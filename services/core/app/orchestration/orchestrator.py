@@ -112,11 +112,11 @@ class AutonomousTaskOrchestrator:
                 status=task.status.value,
                 reason=f"Task is in terminal state '{task.status.value}'",
             )
-        if task.status == TaskStatus.RUNNING:
+        if task.status in (TaskStatus.RUNNING, TaskStatus.VERIFYING, TaskStatus.PASSED):
             raise TaskNotStartableError(
                 task_id=task_id,
                 status=task.status.value,
-                reason="Task is already RUNNING",
+                reason=f"Task is currently in status '{task.status.value}' and cannot be started",
             )
 
         max_attempts = task.max_attempts or opts.max_attempts

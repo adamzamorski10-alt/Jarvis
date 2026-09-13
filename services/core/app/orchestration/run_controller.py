@@ -190,32 +190,34 @@ class AutonomousRunController:
                 reason=f"Task is in terminal status '{task.status.value}' and cannot be run",
             )
 
-        if task.status == TaskStatus.RUNNING:
-            # Check staleness if recovery manager is available
-            stale_timeout = (
-                self._recovery_manager.timeout_seconds if self._recovery_manager else effective_timeout
-            )
-            stale_before = started_at - timedelta(seconds=stale_timeout)
-            last_hb = _ensure_utc(task.last_heartbeat)
-            is_stale = last_hb is not None and last_hb < stale_before
-            if is_stale:
-                return AutonomousRunResult(
-                    run_id=run_id,
-                    task_id=task_id,
-                    status=RunStatus.RECOVERY_REQUIRED,
-                    task_status=TaskStatus.RUNNING,
-                    attempt_count=task.attempt_count,
-                    verification_passed=False,
-                    failure_reason="Task heartbeat is stale; recovery is required before execution",
-                    started_at=started_at,
-                    completed_at=_utc_now(),
-                    recovery_required=True,
+        if task.status in (TaskStatus.RUNNING, TaskStatus.VERIFYING, TaskStatus.PASSED):
+            if task.status == TaskStatus.RUNNING:
+                # Check staleness if recovery manager is available
+                stale_timeout = (
+                    self._recovery_manager.timeout_seconds if self._recovery_manager else effective_timeout
                 )
+                stale_before = started_at - timedelta(seconds=stale_timeout)
+                last_hb = _ensure_utc(task.last_heartbeat)
+                is_stale = last_hb is not None and last_hb < stale_before
+                if is_stale:
+                    return AutonomousRunResult(
+                        run_id=run_id,
+                        task_id=task_id,
+                        status=RunStatus.RECOVERY_REQUIRED,
+                        task_status=TaskStatus.RUNNING,
+                        attempt_count=task.attempt_count,
+                        verification_passed=False,
+                        failure_reason="Task heartbeat is stale; recovery is required before execution",
+                        started_at=started_at,
+                        completed_at=_utc_now(),
+                        recovery_required=True,
+                    )
             raise TaskNotStartableError(
                 task_id=task_id,
                 status=task.status.value,
-                reason="Task is already RUNNING",
+                reason=f"Task is currently in status '{task.status.value}'",
             )
+
 
         # 3. Delegate task execution to TaskOrchestrator under bounded execution timeout
         opts = options or OrchestrationOptions()

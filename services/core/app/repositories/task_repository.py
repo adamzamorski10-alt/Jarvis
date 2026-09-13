@@ -125,6 +125,25 @@ class TaskRepository:
         models = list(result.scalars().all())
         return [self._to_domain(m) for m in models]
 
+    async def get_tasks_by_plan(self, plan_id: str) -> list[DevelopmentTask]:
+        """
+        Retrieve all development tasks belonging to a plan_id.
+        Ordered deterministically by priority DESC, task_key ASC, task_id ASC.
+        """
+        query = (
+            select(DevelopmentTaskModel)
+            .where(DevelopmentTaskModel.plan_id == plan_id.strip())
+            .order_by(
+                DevelopmentTaskModel.priority.desc(),
+                DevelopmentTaskModel.task_key.asc(),
+                DevelopmentTaskModel.task_id.asc(),
+            )
+        )
+        result = await self._session.execute(query)
+        models = list(result.scalars().all())
+        return [self._to_domain(m) for m in models]
+
+
     async def update_task_status(
         self,
         task_id: str,
