@@ -770,3 +770,42 @@ class TaskRepository:
         )
         models = list(result.scalars().all())
         return [self._to_domain(m) for m in models]
+
+    async def get_task_dependencies(self, task_id: str) -> list[str]:
+        """
+        Retrieve all prerequisite task_ids that task_id depends on.
+        """
+        stmt = (
+            select(TaskDependencyModel.depends_on_task_id)
+            .where(TaskDependencyModel.task_id == task_id)
+        )
+        res = await self._session.execute(stmt)
+        return list(res.scalars().all())
+
+    async def are_dependencies_satisfied(self, task_id: str) -> tuple[bool, list[str]]:
+        """
+        Check whether all prerequisite tasks for task_id have completed execution (status COMMITTED).
+
+        Returns:
+            (True, []) if task_id has no dependencies or all dependencies are COMMITTED.
+            (False, unmet_dep_ids) if any prerequisite task is not COMMITTED (or missing).
+        """
+        dep_ids = await self.get_task_dependencies(task_id)
+        if not dep_ids:
+            return True, []
+
+        stmt = (
+            select(DevelopmentTaskModel.task_id, DevelopmentTaskModel.status)
+            .where(DevelopmentTaskModel.task_id.in_(dep_ids))
+        )
+        res = await self._session.execute(stmt)
+        rows = dict(res.all())
+
+        unmet: list[str] = []
+        for dep_id in dep_ids:
+            st = rows.get(dep_id)
+            if st != TaskStatus.COMMITTED.value:
+                unmet.append(dep_id)
+
+        return len(unmet) == 0, unmet
+
