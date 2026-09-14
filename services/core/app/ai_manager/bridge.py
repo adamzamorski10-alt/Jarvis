@@ -29,6 +29,7 @@ from app.ai_manager.models import (
     ManagerResult,
     RiskLevel,
 )
+from app.ai_manager.gate import PolicyCapabilityGate, PolicyDecision
 from app.manager.models import (
     ManagerInvalidPlanError,
     ManagerPlanResult,
@@ -61,6 +62,14 @@ class ManagerPlanningPolicyError(ManagerPlanningError):
     def __init__(self, reason: str) -> None:
         self.reason = reason
         super().__init__(f"Planning policy rejection: {reason}")
+
+
+class ManagerPlanningAuthorizationError(ManagerPlanningError):
+    """Capability authorization denied by application policy gate."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Authorization rejection: {reason}")
 
 
 # ── Planning result ───────────────────────────────────────────────────────────
@@ -114,6 +123,7 @@ class ManagerPlanningService:
         plan_manager: PlanManager,
         default_project_id: str = "default",
         default_planning_constraints: PlanningConstraints | None = None,
+        policy_gate: PolicyCapabilityGate | None = None,
     ) -> None:
         self._plan_manager = plan_manager
         self._default_project_id = default_project_id
@@ -121,6 +131,7 @@ class ManagerPlanningService:
             max_tasks=20,
             default_max_attempts=3,
         )
+        self._policy_gate = policy_gate
 
     async def plan_decision(
         self,
@@ -155,10 +166,27 @@ class ManagerPlanningService:
 
         decision = result.decision
 
-        # 2. Outcome eligibility gate
+        # 2. Application capability/policy authorization gate
+        if self._policy_gate is not None:
+            auth_decision = self._policy_gate.authorize(decision)
+            if auth_decision.outcome == PolicyDecision.DISABLED:
+                raise ManagerPlanningPolicyError(
+                    f"Policy gate reports policy disabled: {auth_decision.reason}"
+                )
+            if auth_decision.outcome == PolicyDecision.DENIED:
+                raise ManagerPlanningAuthorizationError(
+                    f"Capability authorization denied: {auth_decision.reason}"
+                )
+            if auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL:
+                raise ManagerPlanningNotEligibleError(
+                    DecisionOutcome.NEEDS_APPROVAL,
+                    f"Capabilities require application approval: {auth_decision.reason}",
+                )
+
+        # 3. Outcome eligibility gate
         self._check_eligibility(result.outcome)
 
-        # 3. Application policy enforcement
+        # 4. Application policy enforcement
         self._enforce_policy(decision)
 
         # 4. Convert to UserPlan (application-controlled fields only)
