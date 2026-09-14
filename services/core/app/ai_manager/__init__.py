@@ -33,6 +33,10 @@ from app.ai_manager.models import (
 )
 from app.ai_manager.normalizer import normalize_raw_decision
 from app.ai_manager.providers.base import AIManagerProvider
+from app.ai_manager.providers.ollama import OllamaAIManagerAdapter
+from app.ai_manager.providers.openrouter import OpenRouterAIManagerAdapter
+from app.ai_manager.prompt_builder import ManagerPromptBuilder
+from app.ai_manager.output_parser import ManagerOutputParser
 
 __all__ = [
     "AIManager",
@@ -52,7 +56,11 @@ __all__ = [
     "CapabilityIdentifier",
     "DecisionOutcome",
     "ManagerDecision",
+    "ManagerPromptBuilder",
     "ManagerResult",
+    "ManagerOutputParser",
+    "OpenRouterAIManagerAdapter",
+    "OllamaAIManagerAdapter",
     "RawActionProposal",
     "RawManagerDecision",
     "RiskLevel",

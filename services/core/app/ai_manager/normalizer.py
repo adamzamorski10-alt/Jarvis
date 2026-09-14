@@ -221,7 +221,20 @@ def normalize_raw_decision(
     # 6. Application policy enforcement (model proposes, application decides)
     # The model cannot lower application risk policy
     _RISK_ORDER = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
-    max_allowed_risk = application_policy.get("max_allowed_risk", RiskLevel.MEDIUM)
+    max_allowed_risk_raw = application_policy.get("max_allowed_risk", RiskLevel.MEDIUM)
+    if isinstance(max_allowed_risk_raw, str):
+        try:
+            max_allowed_risk = RiskLevel(max_allowed_risk_raw)
+        except ValueError:
+            raise AIManagerMalformedDecisionError(
+                f"application_policy['max_allowed_risk'] must be a RiskLevel, got {max_allowed_risk_raw!r}"
+            )
+    elif isinstance(max_allowed_risk_raw, RiskLevel):
+        max_allowed_risk = max_allowed_risk_raw
+    else:
+        raise AIManagerMalformedDecisionError(
+            f"application_policy['max_allowed_risk'] must be a RiskLevel or str, got {type(max_allowed_risk_raw).__name__}"
+        )
     if _RISK_ORDER.get(raw.risk_level, 0) > _RISK_ORDER.get(max_allowed_risk, 1):
         raise AIManagerPolicyRejectionError(
             f"Proposed risk level {raw.risk_level.value} exceeds policy maximum {max_allowed_risk.value}"
