@@ -62,6 +62,7 @@ async def init_db() -> None:
         permission_grant,
         audit_event,
         pending_approval,
+        capability_approval,
         development_task,
         task_dependency,
         plan_fingerprint,
@@ -94,6 +95,28 @@ async def init_db() -> None:
                     connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_version VARCHAR(50)"))
                 if "tool_definition_fingerprint" not in columns:
                     connection.execute(text("ALTER TABLE pending_approvals ADD COLUMN tool_definition_fingerprint VARCHAR(64)"))
+            if "capability_approvals" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS capability_approvals (
+                        approval_id VARCHAR(64) PRIMARY KEY,
+                        intent_id VARCHAR(64) NOT NULL,
+                        operation_type VARCHAR(50) NOT NULL,
+                        scope_fingerprint VARCHAR(64) NOT NULL,
+                        effective_risk VARCHAR(20) NOT NULL,
+                        requested_by VARCHAR(64),
+                        approved_by VARCHAR(64),
+                        denied_by VARCHAR(64),
+                        request_reason VARCHAR(1024),
+                        decision_reason VARCHAR(1024),
+                        status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        consumed_at TIMESTAMP WITH TIME ZONE
+                    )
+                """))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_capability_approvals_status ON capability_approvals(status)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_capability_approvals_intent_id ON capability_approvals(intent_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_capability_approvals_scope_fingerprint ON capability_approvals(scope_fingerprint)"))
             if "development_tasks" in inspector.get_table_names():
                 columns = {col["name"] for col in inspector.get_columns("development_tasks")}
                 if "plan_id" not in columns:

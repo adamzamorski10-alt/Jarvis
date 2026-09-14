@@ -39,6 +39,14 @@ from app.ai_manager.bridge import ManagerPlanningError, ManagerPlanningNotEligib
 from app.ai_manager.gate import PolicyCapabilityGate
 from app.ai_manager.policy import ApplicationPolicy, AuthorizationDecision, PolicyDecision
 from app.ai_manager.capabilities import CapabilityDefinition, CapabilityRegistry, create_default_registry
+from app.ai_manager.approval_models import CapabilityApproval, CapabilityApprovalRequest, ApprovalStatus
+from app.ai_manager.approval_service import (
+    CapabilityApprovalError,
+    CapabilityApprovalExpiredError,
+    CapabilityApprovalNotFoundError,
+    CapabilityApprovalService,
+    CapabilityApprovalStateError,
+)
 from app.ai_manager.prompt_builder import ManagerPromptBuilder
 from app.ai_manager.output_parser import ManagerOutputParser
 
@@ -77,6 +85,14 @@ __all__ = [
     "CapabilityDefinition",
     "CapabilityRegistry",
     "create_default_registry",
+    "CapabilityApproval",
+    "CapabilityApprovalRequest",
+    "ApprovalStatus",
+    "CapabilityApprovalError",
+    "CapabilityApprovalExpiredError",
+    "CapabilityApprovalNotFoundError",
+    "CapabilityApprovalService",
+    "CapabilityApprovalStateError",
     "RawActionProposal",
     "RawManagerDecision",
     "RiskLevel",
