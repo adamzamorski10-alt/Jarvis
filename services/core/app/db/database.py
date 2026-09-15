@@ -66,6 +66,7 @@ async def init_db() -> None:
         development_task,
         task_dependency,
         plan_fingerprint,
+        kilo_session,
     )
 
     engine = get_engine()
@@ -126,6 +127,33 @@ async def init_db() -> None:
                 connection.execute(
                     text("CREATE UNIQUE INDEX IF NOT EXISTS uq_development_tasks_plan_task_key ON development_tasks(plan_id, task_key)")
                 )
+            if "kilo_sessions" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS kilo_sessions (
+                        app_session_id VARCHAR(64) PRIMARY KEY,
+                        task_id VARCHAR(74) NOT NULL,
+                        project_id VARCHAR(100) NOT NULL,
+                        workspace_path VARCHAR(500) NOT NULL,
+                        execution_id VARCHAR(64) NOT NULL,
+                        kilo_session_id VARCHAR(128),
+                        kilo_session_state VARCHAR(32),
+                        state VARCHAR(20) NOT NULL DEFAULT 'NEW',
+                        recovery_eligible INTEGER NOT NULL DEFAULT 1,
+                        pid INTEGER,
+                        process_started_at TIMESTAMP WITH TIME ZONE,
+                        process_terminated_at TIMESTAMP WITH TIME ZONE,
+                        authorization_version VARCHAR(64),
+                        approval_scope_hash VARCHAR(64),
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        last_observed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        completed_at TIMESTAMP WITH TIME ZONE,
+                        error_message TEXT,
+                        raw_event_snapshot TEXT
+                    )
+                """))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_task_id ON kilo_sessions(task_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_state ON kilo_sessions(state)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_kilo_session_id ON kilo_sessions(kilo_session_id)"))
 
         await conn.run_sync(migrate_sqlite)
         await conn.run_sync(Base.metadata.create_all)
