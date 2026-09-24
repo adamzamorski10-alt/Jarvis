@@ -18,7 +18,7 @@ import asyncio
 from datetime import datetime, timezone
 from enum import Enum
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,6 +34,9 @@ from app.services.plan_execution_service import DependencyUnmetError, PlanExecut
 from app.tasks.exceptions import StaleStateTransitionError, TaskNotFoundError
 from app.tasks.models import DevelopmentTask, TaskStatus
 from app.tools.audit_models import AuditEventType
+
+if TYPE_CHECKING:
+    from app.events.schemas import EventType
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +97,13 @@ class AutonomousPlanExecutor:
         plan_execution_service: PlanExecutionService,
         audit_service: Any | None = None,
         max_loop_iterations: int = 1000,
+        event_emitter: Any | None = None,
     ) -> None:
         self._repo = task_repository
         self._execution_service = plan_execution_service
         self._audit_service = audit_service
         self._max_loop_iterations = max_loop_iterations
+        self._event_emitter = event_emitter
 
     async def execute_plan(
         self,
@@ -121,6 +126,17 @@ class AutonomousPlanExecutor:
             plan_id=plan_id_str,
             started_at=started_at.isoformat(),
         )
+
+        if self._event_emitter is not None:
+            try:
+                await self._event_emitter.emit(
+                    event_type=EventType.PLAN_STARTED,
+                    source="autonomous_plan_executor",
+                    plan_id=plan_id_str,
+                    actor="system",
+                )
+            except Exception as exc:
+                logger.warning("Event emission failed for plan %s: %s", plan_id_str, exc)
 
         iteration_count = 0
         while True:
@@ -353,6 +369,27 @@ class AutonomousPlanExecutor:
             completed_tasks_count=len(completed_ids),
             total_tasks_count=len(all_tasks),
         )
+
+        if self._event_emitter is not None:
+            try:
+                plan_event_type = None
+                if terminal_state == PlanExecutionState.COMPLETED:
+                    plan_event_type = EventType.PLAN_COMPLETED
+                elif terminal_state == PlanExecutionState.FAILED:
+                    plan_event_type = EventType.PLAN_FAILED
+
+                if plan_event_type is not None:
+                    await self._event_emitter.emit(
+                        event_type=plan_event_type,
+                        source="autonomous_plan_executor",
+                        plan_id=plan_id,
+                        actor="system",
+                        reason=reason,
+                        completed_tasks_count=len(completed_ids),
+                        total_tasks_count=len(all_tasks),
+                    )
+            except Exception as exc:
+                logger.warning("Event emission failed for plan %s: %s", plan_id, exc)
 
         return PlanExecutionResult(
             plan_id=plan_id,

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from app.orchestration.agent_interface import DevelopmentAgent
 from app.orchestration.exceptions import (
     CheckpointOrchestrationError,
+    DevelopmentManagerError,
     MaxAttemptsExceededError,
     OrchestrationError,
     StaleTaskStateError,
@@ -32,15 +33,19 @@ from app.orchestration.exceptions import (
     WorkspaceOrchestrationError,
 )
 from app.orchestration.models import (
+    AgentExecutionPrompt,
     DevelopmentAgentContext,
     DevelopmentResult,
     DevelopmentResultStatus,
     OrchestrationOptions,
     OrchestrationResult,
 )
+from app.orchestration.prompt_compiler import DevelopmentManager
 from app.tasks.exceptions import StaleStateTransitionError, TaskNotFoundError
 from app.tasks.models import TaskStatus
 from app.verification.models import VerificationContext
+
+from app.events.schemas import EventType
 
 if TYPE_CHECKING:
     from app.orchestration.agent_factory import DevelopmentAgentFactory
@@ -69,6 +74,8 @@ class AutonomousTaskOrchestrator:
         verification_gate: VerificationGate,
         agent: DevelopmentAgent | None = None,
         agent_factory: DevelopmentAgentFactory | None = None,
+        development_manager: DevelopmentManager | None = None,
+        event_emitter: Any | None = None,
     ) -> None:
         if agent is None and agent_factory is None:
             raise ValueError("Either agent or agent_factory must be provided to AutonomousTaskOrchestrator")
@@ -79,6 +86,8 @@ class AutonomousTaskOrchestrator:
         self._verification_gate = verification_gate
         self._agent = agent
         self._agent_factory = agent_factory
+        self._development_manager = development_manager
+        self._event_emitter = event_emitter
 
     async def start_task(
         self,
@@ -233,6 +242,14 @@ class AutonomousTaskOrchestrator:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
             raise WorkspaceOrchestrationError(task_id=task_id, reason=err_msg)
 
+        await self._emit_event(
+            EventType.TASK_STARTED,
+            task_id=task_id,
+            plan_id=claimed_task.project_id,
+            attempt_count=current_attempt,
+            actor="system",
+        )
+
         # 6. Execute DevelopmentAgent
         await self._task_repo.update_heartbeat(task_id, execution_token=claimed_task.execution_token)
         try:
@@ -264,7 +281,30 @@ class AutonomousTaskOrchestrator:
                 agent = await self._agent_factory.create_agent()
             else:
                 raise OrchestrationError("No DevelopmentAgent or DevelopmentAgentFactory available")
-            agent_result = await agent.execute(agent_context)
+
+            compiled_prompt = None
+            if self._development_manager is not None and hasattr(agent, "execute_with_prompt"):
+                try:
+                    compiled_prompt = self._development_manager.compile(
+                        context=agent_context,
+                        task=claimed_task,
+                        previous_verification_result=previous_verification_result,
+                    )
+                except DevelopmentManagerError as exc:
+                    logger.warning(
+                        "DevelopmentManager compilation failed for task %s (attempt %d): %s",
+                        task_id, current_attempt, exc,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Unexpected DevelopmentManager error for task %s (attempt %d): %s",
+                        task_id, current_attempt, exc,
+                    )
+
+            if compiled_prompt is not None and hasattr(agent, "execute_with_prompt"):
+                agent_result = await agent.execute_with_prompt(agent_context, compiled_prompt)
+            else:
+                agent_result = await agent.execute(agent_context)
         except Exception as exc:
             logger.error("DevelopmentAgent raised exception for task %s: %s", task_id, exc)
             agent_result = DevelopmentResult(
@@ -290,6 +330,14 @@ class AutonomousTaskOrchestrator:
                     self._safe_remove_workspace(task_id, workspace, execution_token)
                 except Exception:
                     pass
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason=reason,
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=next_status,
@@ -318,6 +366,14 @@ class AutonomousTaskOrchestrator:
                     self._safe_remove_workspace(task_id, workspace, execution_token)
                 except Exception:
                     pass
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason=reason,
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=next_status,
@@ -346,6 +402,14 @@ class AutonomousTaskOrchestrator:
             if opts.auto_cleanup_workspace:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
 
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason=reason,
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=next_status,
@@ -421,6 +485,13 @@ class AutonomousTaskOrchestrator:
             changed_files=list(agent_result.changed_files),
         )
 
+        await self._emit_event(
+            EventType.VERIFICATION_STARTED,
+            task_id=task_id,
+            plan_id=claimed_task.project_id,
+            actor="system",
+        )
+
         try:
             verification_report = self._verification_gate.run(verification_context)
         except Exception as exc:
@@ -434,6 +505,13 @@ class AutonomousTaskOrchestrator:
             )
             if opts.auto_cleanup_workspace:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
+            await self._emit_event(
+                EventType.VERIFICATION_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                actor="system",
+                reason=f"Verification gate runtime error: {exc}",
+            )
             raise VerificationOrchestrationError(task_id=task_id, reason=str(exc))
 
         # 11. Interpret Verification Report
@@ -448,6 +526,21 @@ class AutonomousTaskOrchestrator:
             if opts.auto_cleanup_workspace:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
 
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason="Verification gate verdict: FAIL",
+            )
+            await self._emit_event(
+                EventType.VERIFICATION_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                actor="system",
+                reason="Verification gate verdict: FAIL",
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=next_status,
@@ -466,6 +559,14 @@ class AutonomousTaskOrchestrator:
             expected_status=TaskStatus.VERIFYING,
             new_status=TaskStatus.PASSED,
             reason="Verification gate verdict: PASS",
+        )
+
+        await self._emit_event(
+            EventType.VERIFICATION_PASSED,
+            task_id=task_id,
+            plan_id=claimed_task.project_id,
+            actor="system",
+            verification_decision="PASS",
         )
 
         # Check for cancellation/abort before committing
@@ -534,6 +635,14 @@ class AutonomousTaskOrchestrator:
             )
             if opts.auto_cleanup_workspace:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason=f"Git checkpoint creation failed: {exc}",
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=TaskStatus.FAILED,
@@ -556,6 +665,14 @@ class AutonomousTaskOrchestrator:
             )
             if opts.auto_cleanup_workspace:
                 self._safe_remove_workspace(task_id, workspace, execution_token)
+            await self._emit_event(
+                EventType.TASK_FAILED,
+                task_id=task_id,
+                plan_id=claimed_task.project_id,
+                attempt_count=current_attempt,
+                actor="system",
+                reason=err_msg,
+            )
             return OrchestrationResult(
                 task_id=task_id,
                 final_status=TaskStatus.FAILED,
@@ -568,12 +685,30 @@ class AutonomousTaskOrchestrator:
                 finished_at=_utc_now(),
             )
 
+        await self._emit_event(
+            EventType.CHECKPOINT_CREATED,
+            task_id=task_id,
+            plan_id=claimed_task.project_id,
+            actor="system",
+            commit_sha=cp_info.commit_sha,
+            checkpoint_id=cp_info.checkpoint_id,
+        )
+
         # 14. Transition PASSED -> COMMITTED via TaskStateMachine
         await self._state_machine.transition(
             task_id=task_id,
             expected_status=TaskStatus.PASSED,
             new_status=TaskStatus.COMMITTED,
             reason=f"Successfully committed checkpoint SHA {cp_info.commit_sha}",
+        )
+
+        await self._emit_event(
+            EventType.TASK_COMPLETED,
+            task_id=task_id,
+            plan_id=claimed_task.project_id,
+            commit_sha=cp_info.commit_sha,
+            attempt_count=current_attempt,
+            actor="system",
         )
 
         # 15. Cleanup workspace & return success
@@ -676,3 +811,17 @@ class AutonomousTaskOrchestrator:
             )
         except Exception as exc:
             logger.warning("Failed to clean up workspace for task %s: %s", task_id, exc)
+
+    async def _emit_event(self, event_type: Any, *, task_id: str, **kwargs: Any) -> None:
+        """Emit a lifecycle event if an event_emitter is configured. Failures are logged, not raised."""
+        if self._event_emitter is None:
+            return
+        try:
+            await self._event_emitter.emit(
+                event_type=event_type,
+                source="autonomous_task_orchestrator",
+                task_id=task_id,
+                **kwargs,
+            )
+        except Exception as exc:
+            logger.warning("Event emission failed for task %s event %s: %s", task_id, event_type, exc)

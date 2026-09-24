@@ -129,3 +129,30 @@ class RecoveryResult(BaseModel):
     message: str = ""
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+# ── Prompt compilation contracts ───────────────────────────────────────────────
+
+
+_MAX_RENDERED_PROMPT_LENGTH = 65_536
+_MAX_SYSTEM_PROMPT_LENGTH = 8_192
+_MAX_METADATA_ENTRIES = 50
+
+
+class AgentExecutionPrompt(BaseModel):
+    """
+    Compiled execution prompt for a coding agent.
+
+    All fields are application-owned. The model sees only rendered_prompt.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    rendered_prompt: str = Field(min_length=1, max_length=_MAX_RENDERED_PROMPT_LENGTH)
+    """The complete prompt text sent to the coding agent."""
+
+    system_prompt: str = Field(min_length=1, max_length=_MAX_SYSTEM_PROMPT_LENGTH)
+    """The trusted system/instruction block."""
+
+    metadata: dict[str, Any] = Field(default_factory=dict, max_length=_MAX_METADATA_ENTRIES)
+    """Bounded metadata about the prompt compilation (not sent to model)."""
+

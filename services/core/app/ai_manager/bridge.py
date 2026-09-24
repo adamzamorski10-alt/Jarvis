@@ -21,7 +21,7 @@ import hashlib
 import logging
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai_manager.models import (
     DecisionOutcome,
@@ -86,6 +86,11 @@ class ManagerPlanningResult(BaseModel):
     project_id: str
     manager_plan_result: ManagerPlanResult
     decision_outcome: DecisionOutcome
+    execution_authorized: bool = False
+    approval_required: bool = False
+    approval_capabilities: list[str] = Field(default_factory=list)
+    effective_risk: str | None = None
+    auth_reason: str | None = None
 
 
 # ── Bridge service ────────────────────────────────────────────────────────────
@@ -137,6 +142,7 @@ class ManagerPlanningService:
         self,
         result: ManagerResult,
         project_id: str | None = None,
+        execution_authorized: bool = False,
     ) -> ManagerPlanningResult:
         """
         Convert a ManagerResult into a planning request.
@@ -145,6 +151,10 @@ class ManagerPlanningService:
             result: Trusted ManagerResult from AIManager.
             project_id: Application-controlled project identifier.
                 Defaults to the service's default_project_id.
+            execution_authorized: If True, the caller has already verified
+                execution authorization (e.g., via ExecutionBridge) and the
+                planning step should not block on NEEDS_APPROVAL. This does
+                NOT bypass eligibility or policy enforcement.
 
         Returns:
             ManagerPlanningResult containing the plan_id and ManagerPlanResult.
@@ -167,6 +177,7 @@ class ManagerPlanningService:
         decision = result.decision
 
         # 2. Application capability/policy authorization gate
+        auth_decision = None
         if self._policy_gate is not None:
             auth_decision = self._policy_gate.authorize(decision)
             if auth_decision.outcome == PolicyDecision.DISABLED:
@@ -177,7 +188,7 @@ class ManagerPlanningService:
                 raise ManagerPlanningAuthorizationError(
                     f"Capability authorization denied: {auth_decision.reason}"
                 )
-            if auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL:
+            if auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL and not execution_authorized:
                 raise ManagerPlanningNotEligibleError(
                     DecisionOutcome.NEEDS_APPROVAL,
                     f"Capabilities require application approval: {auth_decision.reason}",
@@ -189,10 +200,10 @@ class ManagerPlanningService:
         # 4. Application policy enforcement
         self._enforce_policy(decision)
 
-        # 4. Convert to UserPlan (application-controlled fields only)
+        # 5. Convert to UserPlan (application-controlled fields only)
         user_plan = self._decision_to_user_plan(decision, project_id=project_id)
 
-        # 5. Delegate to existing PlanManager
+        # 6. Delegate to existing PlanManager
         try:
             manager_plan_result = await self._plan_manager.plan(user_plan)
         except ManagerInvalidPlanError:
@@ -205,6 +216,11 @@ class ManagerPlanningService:
             project_id=user_plan.project_id,
             manager_plan_result=manager_plan_result,
             decision_outcome=result.outcome,
+            execution_authorized=execution_authorized,
+            approval_required=auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL if auth_decision else False,
+            approval_capabilities=[str(c) for c in auth_decision.approval_required_capabilities] if auth_decision else [],
+            effective_risk=auth_decision.effective_risk.value if auth_decision else None,
+            auth_reason=auth_decision.reason if auth_decision else None,
         )
 
     def _check_eligibility(self, outcome: DecisionOutcome) -> None:

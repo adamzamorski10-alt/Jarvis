@@ -124,7 +124,7 @@ class VerificationGate:
         """
         if not primary_worktree_path.is_absolute():
             raise ValueError(
-                f"primary_worktree_path must be absolute, got: {primary_worktree_path}"
+                f"primary_worktree_path must be absolute, got: {primary_worktree_path!r}"
             )
         self._registry = registry
         self._primary_worktree = primary_worktree_path.resolve()

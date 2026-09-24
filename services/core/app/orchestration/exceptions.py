@@ -66,3 +66,10 @@ class StaleTaskStateError(OrchestrationError):
             f"Concurrent task modification detected for '{task_id}': "
             f"expected '{expected_status}', got '{actual_status}'"
         )
+
+
+class DevelopmentManagerError(OrchestrationError):
+    """Raised when DevelopmentManager prompt compilation fails."""
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Development manager error: {reason}")

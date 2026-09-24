@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.database import init_db
+from app.notifications.policy import NotificationPolicy
 
 START_TIME = datetime.now(timezone.utc)
 
@@ -117,11 +118,80 @@ async def lifespan(app: FastAPI):
 
     logger.info("AI Operator Core is ready", host=settings.host, port=settings.port)
 
+    # 7. Start scheduler worker
+    scheduler_worker = None
+    try:
+        from pathlib import Path
+        from app.scheduler.worker import SchedulerWorker
+        from app.scheduler.handoff import SchedulerHandoffService
+        from app.services.background_execution_manager import background_execution_manager
+        from app.repositories.task_repository import TaskRepository
+        from app.tasks.state_machine import TaskStateMachine
+        from app.orchestration.run_controller import AutonomousRunController
+        from app.orchestration.orchestrator import AutonomousTaskOrchestrator
+        from app.workspace.workspace_manager import WorkspaceManager
+        from app.verification.gate import VerificationGate
+        from app.verification.check_registry import CheckRegistry
+
+        _repo_root = Path.cwd()
+
+        def _handoff_factory(repo: Any) -> Any:
+            task_repo = TaskRepository(repo._session)
+            task_state_machine = TaskStateMachine(task_repo)
+            workspace_manager = WorkspaceManager(repo_root=_repo_root)
+            check_registry = CheckRegistry()
+            verification_gate = VerificationGate(
+                registry=check_registry,
+                primary_worktree_path=_repo_root,
+            )
+            orchestrator = AutonomousTaskOrchestrator(
+                task_repo=task_repo,
+                state_machine=task_state_machine,
+                workspace_manager=workspace_manager,
+                verification_gate=verification_gate,
+                agent=None,
+                agent_factory=None,
+                development_manager=None,
+                event_emitter=None,
+            )
+            run_controller = AutonomousRunController(
+                task_repo=task_repo,
+                state_machine=task_state_machine,
+                workspace_manager=workspace_manager,
+                verification_gate=verification_gate,
+                orchestrator=orchestrator,
+            )
+            return SchedulerHandoffService(
+                scheduler_repo=repo,
+                task_repo=task_repo,
+                task_state_machine=task_state_machine,
+                run_controller=run_controller,
+                background_execution_manager=background_execution_manager,
+                plan_executor_factory=None,
+            )
+
+        scheduler_worker = SchedulerWorker(
+            session_factory=AsyncSessionLocal,
+            handoff_factory=_handoff_factory,
+            notification_policy=NotificationPolicy(),
+        )
+        await scheduler_worker.start()
+        logger.info("Scheduler worker started")
+    except Exception as exc:
+        logger.warning("Could not start scheduler worker", error=str(exc))
+
     # --- yield: application runs here ---
     yield
 
     # --- shutdown ---
     logger.info("Shutting down AI Operator Core")
+
+    # Stop scheduler worker
+    if scheduler_worker is not None:
+        try:
+            await scheduler_worker.stop()
+        except Exception as exc:
+            logger.warning("Error during scheduler worker shutdown", error=str(exc))
 
     # Clean up background executions safely
     try:

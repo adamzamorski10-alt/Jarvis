@@ -157,6 +157,33 @@ async def get_task_repository(
     yield TaskRepository(session)
 
 
+async def get_history_service(
+    session: AsyncSession = Depends(get_db),
+    task_repo: TaskRepository = Depends(get_task_repository),
+) -> AsyncGenerator[HistoryService, None]:
+    from app.events.history import HistoryService
+    from app.events.repository import EventRepository
+    yield HistoryService(event_repository=EventRepository(session), task_repository=task_repo)
+
+
+async def get_scheduler_service(
+    session: AsyncSession = Depends(get_db),
+    task_repo: TaskRepository = Depends(get_task_repository),
+) -> AsyncGenerator[SchedulerService, None]:
+    from app.events.emitter import EventEmitter
+    from app.events.repository import EventRepository
+    from app.notifications.policy import NotificationPolicy
+    from app.notifications.repository import NotificationRepository
+    from app.scheduler.repository import SchedulerRepository
+    from app.scheduler.service import SchedulerService
+    event_repo = EventRepository(session)
+    notification_policy = NotificationPolicy()
+    notification_repo = NotificationRepository(session)
+    emitter = EventEmitter(event_repo, notification_policy=notification_policy, notification_repository=notification_repo)
+    repo = SchedulerRepository(session, event_emitter=emitter)
+    yield SchedulerService(repo, task_repo=task_repo)
+
+
 def get_background_execution_manager():
     from app.services.background_execution_manager import background_execution_manager
     return background_execution_manager

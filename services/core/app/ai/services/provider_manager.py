@@ -10,7 +10,7 @@ from app.ai.providers.openrouter import OpenRouterProvider
 from app.ai.services.credential_service import CredentialService, CredentialStoreError
 from app.services.settings_service import SettingsService
 
-SUPPORTED_PROVIDERS = ("ollama", "openrouter", "kimi", "omniroute")
+SUPPORTED_PROVIDERS = ("ollama", "openrouter", "kimi", "kilo", "omniroute")
 DEFAULT_KIMI_BASE_URL = "https://api.moonshot.ai/v1"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
@@ -38,6 +38,8 @@ class ProviderManager:
             "kimi_api_key_configured": bool(kimi_encrypted_key),
             "kimi_api_key_hint": self._safe_key_hint(kimi_encrypted_key),
             "selected_model": all_settings.get("ai_selected_model") or None,
+            "kilo_executable_path": all_settings.get("kilo_executable_path") or "",
+            "kilo_auto_approve": all_settings.get("kilo_auto_approve") or "false",
         }
 
     async def update_config(

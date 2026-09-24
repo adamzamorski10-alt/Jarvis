@@ -199,6 +199,7 @@ class WorkspaceManager:
         *,
         worktree_base_dir: Path | None = None,
         git_timeout: float = _GIT_TIMEOUT,
+        event_emitter: Any | None = None,
     ) -> None:
         """
         Initialise the manager for a specific Git repository root.
@@ -210,6 +211,7 @@ class WorkspaceManager:
                                created.  Must be OUTSIDE the primary worktree.
                                Defaults to ``<repo_root>/../.ai_operator/worktrees``.
             git_timeout: Timeout in seconds for individual git subprocess calls.
+            event_emitter: Optional EventEmitter for lifecycle events.
 
         Raises:
             NotAGitRepositoryError: if repo_root is not a Git repository.
@@ -223,6 +225,7 @@ class WorkspaceManager:
 
         self._repo_root = repo_root
         self._git_timeout = git_timeout
+        self._event_emitter = event_emitter
 
         # Determine and validate worktree base directory
         if worktree_base_dir is None:

@@ -261,7 +261,7 @@ class KiloSessionManager:
 
         # 9. Previous process terminated
         if target_session.pid is not None and target_session.process_terminated_at is None:
-            alive = _is_process_alive(target_session.pid)
+            alive = await _is_process_alive(target_session.pid)
             checks["process_terminated"] = not alive
             if alive:
                 reasons.append(f"Previous process PID {target_session.pid} is still alive")
@@ -326,7 +326,7 @@ class KiloSessionManager:
             )
 
         if existing.pid is not None and existing.process_terminated_at is None:
-            if _is_process_alive(existing.pid):
+            if await _is_process_alive(existing.pid):
                 identity_ok = await self._verify_process_identity(existing)
                 if identity_ok:
                     await self._terminate_process(existing.pid)
@@ -352,7 +352,7 @@ class KiloSessionManager:
                 continue
             if session.process_terminated_at is not None:
                 continue
-            if not _is_process_alive(session.pid):
+            if not await _is_process_alive(session.pid):
                 continue
 
             # Verify process identity before declaring it orphaned
@@ -420,7 +420,8 @@ class KiloSessionManager:
 
         try:
             if platform.system() == "Windows":
-                result = subprocess.run(
+                result = await asyncio.to_thread(
+                    subprocess.run,
                     ["wmic", "process", "where", f"ProcessId={session.pid}", "get", "CreationDate", "/format:list"],
                     capture_output=True,
                     text=True,
@@ -445,7 +446,8 @@ class KiloSessionManager:
                 return False
             else:
                 # On non-Windows, check process start time via ps
-                result = subprocess.run(
+                result = await asyncio.to_thread(
+                    subprocess.run,
                     ["ps", "-p", str(session.pid), "-o", "lstart="],
                     capture_output=True,
                     text=True,
@@ -472,20 +474,21 @@ class KiloSessionManager:
             return False
         try:
             if platform.system() == "Windows":
-                subprocess.run(
+                await asyncio.to_thread(
+                    subprocess.run,
                     ["taskkill", "/F", "/T", "/PID", str(pid)],
                     capture_output=True,
                     timeout=10,
                 )
                 for _ in range(10):
-                    if not _is_process_alive(pid):
+                    if not await _is_process_alive(pid):
                         return True
                     await asyncio.sleep(0.3)
-                return not _is_process_alive(pid)
+                return not await _is_process_alive(pid)
             else:
                 os.kill(pid, 9)
                 await asyncio.sleep(0.1)
-                return not _is_process_alive(pid)
+                return not await _is_process_alive(pid)
         except (ProcessLookupError, OSError):
             return True
         except Exception as exc:
@@ -524,13 +527,14 @@ class KiloSessionManager:
         return events
 
 
-def _is_process_alive(pid: int) -> bool:
+async def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is still running."""
     if pid <= 0:
         return False
     try:
         if platform.system() == "Windows":
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 capture_output=True,
                 text=True,

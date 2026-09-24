@@ -210,6 +210,103 @@ async def test_factory_uses_explicit_selected_model():
     assert agent._model == "custom-coder:32b"
 
 
+@pytest.mark.asyncio
+async def test_factory_kilo_auto_approve_true_propagates():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+        "kilo_auto_approve": "true",
+    })
+    pm = ProviderManager(settings)
+    factory = DevelopmentAgentFactory(pm)
+
+    agent = await factory.create_agent()
+    from app.orchestration.agents.kilo_agent import KiloDevelopmentAgent
+    assert isinstance(agent, KiloDevelopmentAgent)
+    assert agent._auto_approve is True
+
+
+@pytest.mark.asyncio
+async def test_factory_kilo_auto_approve_false_propagates():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+        "kilo_auto_approve": "false",
+    })
+    pm = ProviderManager(settings)
+    factory = DevelopmentAgentFactory(pm)
+
+    agent = await factory.create_agent()
+    from app.orchestration.agents.kilo_agent import KiloDevelopmentAgent
+    assert isinstance(agent, KiloDevelopmentAgent)
+    assert agent._auto_approve is False
+
+
+@pytest.mark.asyncio
+async def test_factory_kilo_auto_approve_missing_defaults_false():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+    })
+    pm = ProviderManager(settings)
+    factory = DevelopmentAgentFactory(pm)
+
+    agent = await factory.create_agent()
+    from app.orchestration.agents.kilo_agent import KiloDevelopmentAgent
+    assert isinstance(agent, KiloDevelopmentAgent)
+    assert agent._auto_approve is False
+
+
+@pytest.mark.asyncio
+async def test_factory_kilo_auto_approve_invalid_value_defaults_false():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+        "kilo_auto_approve": "not_a_bool",
+    })
+    pm = ProviderManager(settings)
+    factory = DevelopmentAgentFactory(pm)
+
+    agent = await factory.create_agent()
+    from app.orchestration.agents.kilo_agent import KiloDevelopmentAgent
+    assert isinstance(agent, KiloDevelopmentAgent)
+    assert agent._auto_approve is False
+
+
+@pytest.mark.asyncio
+async def test_provider_manager_snapshot_includes_kilo_auto_approve():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+        "kilo_auto_approve": "true",
+    })
+    pm = ProviderManager(settings)
+    config = await pm.get_config()
+    assert "kilo_auto_approve" in config
+    assert config["kilo_auto_approve"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_provider_manager_snapshot_kilo_auto_approve_not_secret():
+    settings = FakeSettingsService({
+        "ai_provider": "kilo",
+        "kilo_executable_path": "C:\\kilo.exe",
+        "ai_selected_model": "google/gemini-flash-latest",
+        "kilo_auto_approve": "true",
+    })
+    pm = ProviderManager(settings)
+    config = await pm.get_config()
+    assert "kilo_auto_approve" in config
+    value = config["kilo_auto_approve"]
+    assert isinstance(value, str)
+    assert value in ("true", "false", "1", "0", "yes", "no")
+
+
 # ── End-to-End Orchestrator & Factory Integration Tests ───────────────────────
 
 @pytest.mark.asyncio

@@ -111,13 +111,14 @@ async def _read_stream(stream: asyncio.StreamReader | None, max_bytes: int) -> b
     return data
 
 
-def _is_process_alive(pid: int) -> bool:
+async def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is still running (Windows-compatible)."""
     if pid <= 0:
         return False
     try:
         if platform.system() == "Windows":
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 capture_output=True,
                 text=True,
@@ -136,12 +137,13 @@ def _is_process_alive(pid: int) -> bool:
         return False
 
 
-def _is_process_alive_via_tasklist(pid: int) -> bool:
+async def _is_process_alive_via_tasklist(pid: int) -> bool:
     """Check process existence via tasklist (more reliable on Windows after termination)."""
     if pid <= 0:
         return False
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["tasklist", "/FI", f"PID eq {pid}"],
             capture_output=True,
             text=True,
@@ -149,7 +151,7 @@ def _is_process_alive_via_tasklist(pid: int) -> bool:
         )
         return str(pid) in result.stdout
     except Exception:
-        return _is_process_alive(pid)
+        return await _is_process_alive(pid)
 
 
 async def _terminate_process_tree(pid: int, kill_timeout: float = 15.0) -> bool:
@@ -181,17 +183,17 @@ async def _terminate_process_tree(pid: int, kill_timeout: float = 15.0) -> bool:
             # before the OS reaps it. Use tasklist for more reliable checks.
             alive_check = _is_process_alive_via_tasklist if platform.system() == "Windows" else _is_process_alive
             for _ in range(10):
-                if not alive_check(pid):
+                if not await alive_check(pid):
                     return True
                 await asyncio.sleep(0.3)
-            return not alive_check(pid)
+            return not await alive_check(pid)
         except Exception:
             return False
     else:
         try:
             os.kill(pid, 9)
-            time.sleep(0.1)
-            return not _is_process_alive(pid)
+            await asyncio.sleep(0.1)
+            return not await _is_process_alive(pid)
         except (ProcessLookupError, OSError):
             return True
         except Exception:
@@ -202,7 +204,7 @@ async def _register_kilo_pid(pid: int | None) -> None:
     """Register a Kilo PID for orphan tracking."""
     if pid is None or pid <= 0:
         return
-    if not _is_process_alive(pid):
+    if not await _is_process_alive(pid):
         return
     async with _KILO_PID_LOCK:
         _ACTIVE_KILO_PIDS.add(pid)
@@ -215,7 +217,7 @@ async def _terminate_orphaned_kilos(kill_timeout: float = 15.0) -> None:
         _ACTIVE_KILO_PIDS.clear()
 
     for pid in pids_to_kill:
-        if _is_process_alive(pid):
+        if await _is_process_alive(pid):
             logger.warning("Terminating orphaned Kilo process PID %s", pid)
             await _terminate_process_tree(pid, kill_timeout=kill_timeout)
 
@@ -228,6 +230,7 @@ def build_kilo_args(
     pure: bool = True,
     json_format: bool = True,
     model: str | None = None,
+    auto: bool = False,
 ) -> list[str]:
     """Build Kilo CLI arguments from trusted application parameters."""
     if not executable or not isinstance(executable, str):
@@ -248,6 +251,8 @@ def build_kilo_args(
         args.extend(["--format", "json"])
     if pure:
         args.append("--pure")
+    if auto:
+        args.append("--auto")
     args.extend(["--dir", str(resolved_workspace)])
     if model:
         args.extend(["-m", model])

@@ -36,6 +36,14 @@ from app.ai_manager.providers.base import AIManagerProvider
 from app.ai_manager.providers.ollama import OllamaAIManagerAdapter
 from app.ai_manager.providers.openrouter import OpenRouterAIManagerAdapter
 from app.ai_manager.bridge import ManagerPlanningError, ManagerPlanningNotEligibleError, ManagerPlanningPolicyError, ManagerPlanningResult, ManagerPlanningService
+from app.ai_manager.execution_bridge import (
+    ExecutionAuthorizationError,
+    ExecutionBridge,
+    ExecutionBridgeError,
+    ExecutionNeedsApprovalError,
+    ExecutionPrepareResult,
+    ExecutionResult,
+)
 from app.ai_manager.gate import PolicyCapabilityGate
 from app.ai_manager.policy import ApplicationPolicy, AuthorizationDecision, PolicyDecision
 from app.ai_manager.capabilities import CapabilityDefinition, CapabilityRegistry, create_default_registry
@@ -73,6 +81,12 @@ __all__ = [
     "ManagerPlanningPolicyError",
     "ManagerPlanningResult",
     "ManagerPlanningService",
+    "ExecutionBridge",
+    "ExecutionBridgeError",
+    "ExecutionAuthorizationError",
+    "ExecutionNeedsApprovalError",
+    "ExecutionPrepareResult",
+    "ExecutionResult",
     "ManagerPromptBuilder",
     "ManagerResult",
     "ManagerOutputParser",

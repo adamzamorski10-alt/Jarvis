@@ -17,6 +17,8 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "ai_kimi_base_url": "https://api.moonshot.ai/v1",
     "ai_kimi_api_key_encrypted": "",
     "ai_selected_model": "",
+    "kilo_executable_path": "",
+    "kilo_auto_approve": "false",
 }
 
 

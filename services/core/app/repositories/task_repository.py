@@ -86,6 +86,7 @@ class TaskRepository:
             workspace_path=task.workspace_path,
             execution_terminated_at=task.execution_terminated_at,
             workspace_cleanup_pending=1 if task.workspace_cleanup_pending else 0,
+            plan_id=(task.plan_id or "").strip() or None,
         )
         self._session.add(model)
         await self._session.flush()

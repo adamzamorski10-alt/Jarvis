@@ -9,18 +9,27 @@ from app.db.models.capability_approval import CapabilityApprovalModel
 from app.db.models.development_task import DevelopmentTaskModel
 from app.db.models.task_dependency import TaskDependencyModel
 from app.db.models.plan_fingerprint import PlanFingerprintModel
+from app.db.models.kilo_session import KiloSessionModel
+from app.db.models.event import EventModel
+from app.db.models.kilo_session import KiloSessionModel
+from app.db.models.notification import NotificationModel
+from app.db.models.scheduled_job import ScheduledJobModel
 
 __all__ = [
-    "AppSetting",
     "ActivityEvent",
-    "Conversation",
-    "Message",
-    "PermissionGrantModel",
+    "AppSetting",
     "AuditEventModel",
-    "PendingApprovalModel",
     "CapabilityApprovalModel",
+    "Conversation",
     "DevelopmentTaskModel",
-    "TaskDependencyModel",
+    "EventModel",
+    "KiloSessionModel",
+    "Message",
+    "NotificationModel",
+    "PendingApprovalModel",
+    "PermissionGrantModel",
     "PlanFingerprintModel",
+    "ScheduledJobModel",
+    "TaskDependencyModel",
 ]
 

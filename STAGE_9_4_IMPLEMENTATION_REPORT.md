@@ -287,7 +287,7 @@ python -m pytest services/core/tests/ --ignore=services/core/tests/test_ollama_e
 
 ### 17. Exact Commit SHA
 
-(TBD after commit)
+`f85507dc5904e500db1aa0afd602b4eda083027a`
 
 ### 18. Working Tree Status
 

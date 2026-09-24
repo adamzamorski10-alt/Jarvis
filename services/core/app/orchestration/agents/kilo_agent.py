@@ -31,6 +31,7 @@ from app.orchestration.agents.kilo_process import (
 from app.orchestration.kilo_session_manager import KiloSessionManager
 from app.orchestration.kilo_session_models import KiloSessionRecord, KiloSessionState
 from app.orchestration.models import (
+    AgentExecutionPrompt,
     DevelopmentAgentContext,
     DevelopmentResult,
     DevelopmentResultStatus,
@@ -59,6 +60,7 @@ class KiloDevelopmentAgent(DevelopmentAgent):
         pure_mode: bool = True,
         kill_timeout_seconds: float = 15.0,
         kilo_session_manager: KiloSessionManager | None = None,
+        auto_approve: bool = False,
     ) -> None:
         if not kilo_executable_path or not isinstance(kilo_executable_path, str):
             raise ValueError("kilo_executable_path must be a non-empty string")
@@ -67,6 +69,7 @@ class KiloDevelopmentAgent(DevelopmentAgent):
         self._pure_mode = pure_mode
         self._kill_timeout_seconds = kill_timeout_seconds
         self._kilo_session_manager = kilo_session_manager
+        self._auto_approve = auto_approve
 
     async def execute(self, context: DevelopmentAgentContext) -> DevelopmentResult:
         workspace = Path(context.workspace_path).resolve()
@@ -83,13 +86,48 @@ class KiloDevelopmentAgent(DevelopmentAgent):
                 error_message="Task description is empty",
             )
 
+        return await self._execute_internal(context, task_description)
+
+    async def execute_with_prompt(
+        self,
+        context: DevelopmentAgentContext,
+        execution_prompt: AgentExecutionPrompt,
+    ) -> DevelopmentResult:
+        """
+        Execute Kilo with an application-compiled AgentExecutionPrompt.
+
+        Uses execution_prompt.rendered_prompt as the task instruction.
+        All lifecycle, security, session, cancellation, and recovery behavior
+        is identical to execute().
+        """
+        workspace = Path(context.workspace_path).resolve()
+        if not workspace.is_dir():
+            return DevelopmentResult(
+                status=DevelopmentResultStatus.ERROR,
+                error_message=f"Workspace does not exist or is not a directory: {workspace}",
+            )
+
+        if not execution_prompt.rendered_prompt:
+            return DevelopmentResult(
+                status=DevelopmentResultStatus.ERROR,
+                error_message="execution_prompt.rendered_prompt is empty",
+            )
+
+        return await self._execute_internal(context, execution_prompt.rendered_prompt)
+
+    async def _execute_internal(
+        self,
+        context: DevelopmentAgentContext,
+        task_description: str,
+    ) -> DevelopmentResult:
+        """Shared Kilo execution lifecycle. task_description is the final instruction text."""
         # Enforce Kilo session recovery eligibility before creating a new session
         if self._kilo_session_manager is not None:
             execution_id = f"exec_{context.task_id}_{context.attempt_count}"
             eligibility = await self._kilo_session_manager.enforce_recovery_before_execution(
                 task_id=context.task_id,
                 project_id=context.project_id,
-                workspace_path=str(workspace),
+                workspace_path=str(Path(context.workspace_path).resolve()),
                 execution_id=execution_id,
                 authorization_version=self._compute_auth_version(context),
                 approval_scope_hash=self._compute_approval_hash(context),
@@ -107,7 +145,7 @@ class KiloDevelopmentAgent(DevelopmentAgent):
                 app_session = await self._kilo_session_manager.create_session(
                     task_id=context.task_id,
                     project_id=context.project_id,
-                    workspace_path=str(workspace),
+                    workspace_path=str(Path(context.workspace_path).resolve()),
                     execution_id=f"exec_{context.task_id}_{context.attempt_count}",
                     authorization_version=self._compute_auth_version(context),
                     approval_scope_hash=self._compute_approval_hash(context),
@@ -115,6 +153,7 @@ class KiloDevelopmentAgent(DevelopmentAgent):
             except Exception as exc:
                 logger.warning("Failed to create Kilo session record: %s", exc)
 
+        workspace = Path(context.workspace_path).resolve()
         before_snapshot = self._snapshot_workspace(workspace)
 
         try:
@@ -125,6 +164,7 @@ class KiloDevelopmentAgent(DevelopmentAgent):
                 pure=self._pure_mode,
                 json_format=True,
                 model=self._default_model,
+                auto=self._auto_approve,
             )
         except KiloProcessError as exc:
             if app_session and self._kilo_session_manager:

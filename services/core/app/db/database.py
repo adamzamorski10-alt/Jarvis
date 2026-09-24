@@ -67,6 +67,9 @@ async def init_db() -> None:
         task_dependency,
         plan_fingerprint,
         kilo_session,
+        event,
+        scheduled_job,
+        notification,
     )
 
     engine = get_engine()
@@ -154,6 +157,95 @@ async def init_db() -> None:
                 connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_task_id ON kilo_sessions(task_id)"))
                 connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_state ON kilo_sessions(state)"))
                 connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_kilo_session_id ON kilo_sessions(kilo_session_id)"))
+            if "events" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS events (
+                        event_id VARCHAR(64) PRIMARY KEY,
+                        event_type VARCHAR(128) NOT NULL,
+                        occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        source VARCHAR(128) NOT NULL,
+                        event_version VARCHAR(32) NOT NULL DEFAULT '1.0',
+                        correlation_id VARCHAR(128),
+                        causation_id VARCHAR(64),
+                        task_id VARCHAR(74),
+                        plan_id VARCHAR(64),
+                        run_id VARCHAR(64),
+                        execution_id VARCHAR(64),
+                        actor VARCHAR(128),
+                        payload TEXT,
+                        metadata TEXT,
+                        sensitivity VARCHAR(20) NOT NULL DEFAULT 'internal'
+                    )
+                """))
+            if "scheduled_jobs" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS scheduled_jobs (
+                        job_id VARCHAR(64) PRIMARY KEY,
+                        name VARCHAR(200) NOT NULL,
+                        enabled INTEGER NOT NULL DEFAULT 1,
+                        schedule_type VARCHAR(20) NOT NULL,
+                        schedule_expr VARCHAR(200) NOT NULL,
+                        timezone VARCHAR(64),
+                        target_type VARCHAR(20) NOT NULL,
+                        target_id VARCHAR(64) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                        last_run_at TIMESTAMP WITH TIME ZONE,
+                        next_run_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        occurrence_id VARCHAR(128),
+                        claim_token VARCHAR(64),
+                        claim_sequence INTEGER NOT NULL DEFAULT 0,
+                        claimed_at TIMESTAMP WITH TIME ZONE,
+                        lease_until TIMESTAMP WITH TIME ZONE,
+                        execution_id VARCHAR(64),
+                        job_metadata TEXT
+                    )
+                """))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_next_run_at ON scheduled_jobs(next_run_at)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_enabled ON scheduled_jobs(enabled)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_target ON scheduled_jobs(target_type, target_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_status ON scheduled_jobs(status)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_occurrence_id ON scheduled_jobs(occurrence_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_claim_token ON scheduled_jobs(claim_token)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_lease_until ON scheduled_jobs(lease_until)"))
+            if "scheduled_jobs" in inspector.get_table_names():
+                columns = {col["name"] for col in inspector.get_columns("scheduled_jobs")}
+                if "claim_sequence" not in columns:
+                    connection.execute(text("ALTER TABLE scheduled_jobs ADD COLUMN claim_sequence INTEGER NOT NULL DEFAULT 0"))
+            if "notifications" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        notification_id VARCHAR(64) PRIMARY KEY,
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        notification_type VARCHAR(64) NOT NULL,
+                        severity VARCHAR(20) NOT NULL DEFAULT 'info',
+                        title VARCHAR(200) NOT NULL,
+                        body TEXT,
+                        source_event_id VARCHAR(64) NOT NULL,
+                        correlation_id VARCHAR(128),
+                        task_id VARCHAR(74),
+                        plan_id VARCHAR(64),
+                        run_id VARCHAR(64),
+                        execution_id VARCHAR(64),
+                        read_at TIMESTAMP WITH TIME ZONE,
+                        expires_at TIMESTAMP WITH TIME ZONE,
+                        metadata TEXT
+                    )
+                """))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications(created_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_notification_type ON notifications(notification_type)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_severity ON notifications(severity)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_source_event_id ON notifications(source_event_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_correlation_id ON notifications(correlation_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_task_id ON notifications(task_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_execution_id ON notifications(execution_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_read_at ON notifications(read_at)"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_source_event_type ON notifications(source_event_id, notification_type)"))
+
 
         await conn.run_sync(migrate_sqlite)
         await conn.run_sync(Base.metadata.create_all)
