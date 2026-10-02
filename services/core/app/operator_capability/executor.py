@@ -117,7 +117,30 @@ class OperatorCapabilityExecutor:
             )
 
         try:
-            # Build tool call from resolution parameters
+            # Execution parameters must be concrete. Never pass resolver schema
+            # placeholders such as "string (required)" into a real tool.
+            required = {
+                "files.read_file": {"path"},
+                "files.write_file": {"path", "content"},
+                "files.delete_file": {"path"},
+            }.get(resolution.capability_id or "", set())
+            parameters = resolution.parameters or {}
+            missing = sorted(required - set(parameters))
+            if missing:
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.TOOL,
+                    capability_id=resolution.capability_id,
+                    success=False,
+                    state="BLOCKED",
+                    user_message="Required capability parameters are missing.",
+                    result_metadata={"missing_parameters": missing},
+                    error_category="MISSING_CAPABILITY_PARAMETERS",
+                    error_detail=f"Missing parameters: {', '.join(missing)}",
+                )
+
+            # Build tool call from validated resolution parameters
             tool_call = ToolCall(
                 id=f"cap_{request.request_id}",
                 tool_id=resolution.capability_id or "",
