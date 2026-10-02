@@ -413,7 +413,7 @@ class VerificationGate:
         ws_path = Path(context.workspace_path)
 
         tracked = self._git(ws_path, [
-            "diff", "--name-only", f"{context.expected_base_commit}..HEAD"
+            "diff", "--name-only", context.expected_base_commit
         ])
         if tracked is None:
             raise RuntimeError("git diff could not determine tracked changes")
