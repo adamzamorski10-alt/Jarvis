@@ -60,8 +60,11 @@ class TestOperatorCapabilityExecutor:
     def setup_method(self):
         self.tool_execution_service = MagicMock()
         self.tool_execution_service.execute_tool_call = AsyncMock()
+        self.task_repository = MagicMock()
+        self.task_repository.create_task = AsyncMock()
         self.executor = OperatorCapabilityExecutor(
             tool_execution_service=self.tool_execution_service,
+            task_repository=self.task_repository,
             autonomy_mode=None,
         )
 
@@ -197,9 +200,19 @@ class TestOperatorCapabilityExecutor:
             capability_id="task.create",
         )
 
+        created_task = MagicMock()
+        created_task.task_id = "task_real_123"
+        created_task.model_dump.return_value = {"task_id": "task_real_123"}
+        self.task_repository.create_task.return_value = created_task
+
         result = await self.executor.execute(request, resolution)
+
+        assert result.success is True
+        assert result.state == "TASK_CREATED"
         assert result.capability_kind == CapabilityKind.SERVICE
         assert result.capability_id == "task.create"
+        assert result.result_metadata["task_id"] == "task_real_123"
+        self.task_repository.create_task.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_service_unsupported_returns_blocked(self):
