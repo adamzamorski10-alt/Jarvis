@@ -29,7 +29,7 @@ from app.operator_request.service import OperatorRequestService
 from app.operator_capability.resolver import CapabilityResolver
 from app.operator_capability.executor import OperatorCapabilityExecutor
 from app.operator_capability.models import CapabilityKind
-from app.operator_request.models import ReadinessState
+from app.operator_request.models import OperatorRequestUpdate, ReadinessState
 
 logger = get_logger(__name__)
 
@@ -841,6 +841,21 @@ class AIService:
         )
         if clarification_result is not None:
             return clarification_result
+
+        # Information Sufficiency has completed successfully at this point.
+        # Promote the transient OperatorRequest to READY before capability
+        # resolution. Without this handoff, the capability executor correctly
+        # fails closed because newly classified requests remain UNKNOWN.
+        if operator_request is not None and self._operator_request_service is not None:
+            try:
+                operator_request = await self._operator_request_service.update_request(
+                    operator_request,
+                    OperatorRequestUpdate(assembled_context=assembled_context),
+                )
+                operator_request = await self._operator_request_service.mark_ready(operator_request)
+            except Exception as exc:
+                logger.warning("Operator request readiness handoff failed: %s", exc)
+                operator_request = None
 
         # ── Capability Resolution & Execution ───────────────────────────────────
         capability_result = None
