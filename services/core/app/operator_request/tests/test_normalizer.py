@@ -29,6 +29,44 @@ class TestRequestNormalizer:
     def setup_method(self):
         self.normalizer = RequestNormalizer()
 
+    def test_same_client_message_id_produces_stable_request_id(self):
+        first = self.normalizer.normalize(
+            OperatorRequestCreate(
+                user_request="Do it",
+                message_id="msg_123",
+                conversation_id="conv_123",
+                request_context=_make_request_context(),
+            )
+        )
+        second = self.normalizer.normalize(
+            OperatorRequestCreate(
+                user_request="Do it again",
+                message_id="msg_123",
+                conversation_id="conv_123",
+                request_context=_make_request_context(),
+            )
+        )
+        assert first.request_id == second.request_id
+
+    def test_same_message_id_in_different_conversation_is_distinct(self):
+        first = self.normalizer.normalize(
+            OperatorRequestCreate(
+                user_request="Do it",
+                message_id="msg_123",
+                conversation_id="conv_a",
+                request_context=_make_request_context(),
+            )
+        )
+        second = self.normalizer.normalize(
+            OperatorRequestCreate(
+                user_request="Do it",
+                message_id="msg_123",
+                conversation_id="conv_b",
+                request_context=_make_request_context(),
+            )
+        )
+        assert first.request_id != second.request_id
+
     def test_basic_normalization(self):
         create = OperatorRequestCreate(
             user_request="Hello, world!",
