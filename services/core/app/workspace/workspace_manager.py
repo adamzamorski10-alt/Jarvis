@@ -434,7 +434,7 @@ class WorkspaceManager:
         runner = GitRunner(cwd=wt_path, timeout=self._git_timeout)
 
         tracked = runner.run(
-            ["diff", "--name-only", f"{base_sha}..HEAD"],
+            ["diff", "--name-only", base_sha],
             check=False,
         )
         if tracked.returncode != 0:
