@@ -875,6 +875,70 @@ class TestAuthoritativePlan:
         assert called_with == exec_result.plan_id
 
 
+# ── EXEC-08B: PERSISTED PLAN BOUNDARY ────────────────────────────────────────
+
+
+class TestPersistedPlanBoundary:
+    async def test_empty_persistence_blocks_execution(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        plan_manager = _fake_plan_manager(proposals=[
+            ProviderTaskProposal(proposal_key="a", title="A", description="d")
+        ])
+        planning_service = _make_planning_service(plan_manager=plan_manager)
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.return_value = []
+
+        bridge = _make_execution_bridge(
+            planning_service=planning_service,
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="no persisted tasks"):
+            await bridge.execute(result, project_id="proj")
+
+        autonomous_executor.execute_plan.assert_not_awaited()
+
+    async def test_foreign_project_task_blocks_execution(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        plan_manager = _fake_plan_manager(proposals=[
+            ProviderTaskProposal(proposal_key="a", title="A", description="d")
+        ])
+        planning_service = _make_planning_service(plan_manager=plan_manager)
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+
+        async def _foreign_persist(_plan_result):
+            from app.tasks.models import DevelopmentTask, TaskStatus
+            return [DevelopmentTask(
+                task_id="task_foreign",
+                task_key="a",
+                project_id="attacker_project",
+                title="foreign",
+                description="foreign",
+                status=TaskStatus.PENDING,
+                metadata={"source_plan_id": "wrong_plan"},
+            )]
+
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.side_effect = _foreign_persist
+
+        bridge = _make_execution_bridge(
+            planning_service=planning_service,
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="does not belong to authoritative plan"):
+            await bridge.execute(result, project_id="proj")
+
+        autonomous_executor.execute_plan.assert_not_awaited()
+
+
 # ── EXEC-09: IDENTITY / SECURITY CONTEXT ──────────────────────────────────────
 
 
