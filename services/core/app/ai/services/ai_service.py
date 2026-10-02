@@ -265,6 +265,7 @@ class AIService:
             message=message,
             request_context=request_context,
             assembled_context=assembled_context,
+            operator_request=operator_request,
         )
 
     async def _handle_clarification_answer(
