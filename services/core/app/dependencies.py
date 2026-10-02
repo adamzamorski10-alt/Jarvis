@@ -216,13 +216,6 @@ async def get_ai_service(
     )
 
 
-async def get_task_repository(
-    session: AsyncSession = Depends(get_db),
-) -> AsyncGenerator[TaskRepository, None]:
-    from app.repositories.task_repository import TaskRepository
-    yield TaskRepository(session)
-
-
 async def get_history_service(
     session: AsyncSession = Depends(get_db),
     task_repo: TaskRepository = Depends(get_task_repository),
