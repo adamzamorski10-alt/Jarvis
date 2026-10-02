@@ -215,6 +215,7 @@ class AIService:
         request_context: RequestContext | None,
         assembled_context: Any,
         context_messages: list[dict[str, str]],
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Information Sufficiency + Clarification integration.
@@ -256,6 +257,7 @@ class AIService:
                 request_context=request_context,
                 context_messages=context_messages,
                 conversation=conversation,
+                operator_request=operator_request,
             )
 
         return await self._run_sufficiency_and_maybe_clarify(
@@ -272,6 +274,7 @@ class AIService:
         request_context: RequestContext,
         context_messages: list[dict[str, str]],
         conversation: Any,
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Process an incoming message as an answer to an active clarification.
@@ -398,6 +401,7 @@ class AIService:
         message: str,
         request_context: RequestContext,
         assembled_context: Any,
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Run Information Sufficiency on the current request.
@@ -428,7 +432,17 @@ class AIService:
                 retryable=True,
             ) from exc
 
-        if not sufficiency_result.success or sufficiency_result.outcome == SufficiencyOutcome.SUFFICIENT:
+        if not sufficiency_result.success:
+            if operator_request is not None and self._operator_request_service is not None:
+                await self._operator_request_service.mark_blocked(
+                    operator_request,
+                    "Information sufficiency assessment did not complete successfully.",
+                )
+            return None
+
+        if sufficiency_result.outcome == SufficiencyOutcome.SUFFICIENT:
+            if operator_request is not None and self._operator_request_service is not None:
+                operator_request = await self._operator_request_service.mark_ready(operator_request)
             return None
 
         questions = list(sufficiency_result.questions)
@@ -847,6 +861,7 @@ class AIService:
             request_context=request_context,
             assembled_context=assembled_context,
             context_messages=context_messages,
+            operator_request=operator_request,
         )
         if clarification_result is not None:
             return clarification_result
