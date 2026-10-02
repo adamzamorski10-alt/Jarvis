@@ -937,7 +937,7 @@ class TestPlanPersistenceBoundary:
         autonomous_executor.execute_plan.assert_awaited_once_with("plan_abc")
 
         assert (
-            plan_service.persist_manager_plan_result.await_args_list[0].call_args[0]
+            plan_service.persist_manager_plan_result.await_args_list[0].args[0]
             .plan_id == "plan_abc"
         )
 
