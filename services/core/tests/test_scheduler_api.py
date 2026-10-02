@@ -29,6 +29,9 @@ from app.api.schemas.history import HistoryPageResponse
 from app.db.database import Base, get_db, init_db
 from app.db.models.development_task import DevelopmentTaskModel
 from app.db.models.scheduled_job import ScheduledJobModel
+from app.identity.auth import AuthMiddleware
+from app.identity.bootstrap import BootstrapSecret
+from app.identity.session import SessionStore
 from app.repositories.task_repository import TaskRepository
 from app.scheduler.models import ScheduledJob, ScheduleType, SchedulerJobStatus
 from app.scheduler.repository import SchedulerRepository
@@ -100,6 +103,15 @@ async def app_with_scheduler(tmp_path):
     test_app.dependency_overrides[get_db] = _get_test_db
     test_app.state._test_session_factory = factory
 
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    test_app.state.session_store = session_store
+    test_app.state.bootstrap_secret = bootstrap_secret
+    test_app.add_middleware(AuthMiddleware)
+
+    test_session = await session_store.create(user_id="test_user")
+    test_app.state._test_session_id = test_session.session_id
+
     @test_app.exception_handler(Exception)
     async def _global_exception_handler(request, exc):
         from starlette.responses import JSONResponse
@@ -112,6 +124,7 @@ async def app_with_scheduler(tmp_path):
 async def async_client(app_with_scheduler):
     app, factory, engine = app_with_scheduler
     async with AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {app.state._test_session_id}"
         yield client
     await engine.dispose()
 

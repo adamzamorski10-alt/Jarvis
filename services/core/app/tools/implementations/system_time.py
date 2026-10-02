@@ -4,7 +4,7 @@ Tool implementations for AI Operator.
 from datetime import datetime, timezone
 
 from app.tools.base import BaseTool
-from app.tools.models import ToolCategory, ToolDefinition, ToolExecutionResult, ToolExecutionStatus, RiskLevel
+from app.tools.models import ToolCategory, ToolDefinition, ToolExecutionContext, ToolExecutionResult, ToolExecutionStatus, RiskLevel
 
 
 class SystemGetTime(BaseTool):
@@ -38,7 +38,7 @@ class SystemGetTime(BaseTool):
             },
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }

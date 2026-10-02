@@ -44,6 +44,7 @@ from app.tools.models import (
     ToolCall,
     ToolCategory,
     ToolDefinition,
+    ToolExecutionContext,
     ToolExecutionStatus,
 )
 from app.tools.permission_engine import PermissionEngine
@@ -95,7 +96,7 @@ class SpyTool(BaseTool):
             result_schema={"type": "object"},
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         self.execute_calls.append({"arguments": arguments, "context": context})
         return {"spied": True, "arguments": arguments}
 
@@ -1760,7 +1761,7 @@ class FailingTool(BaseTool):
             result_schema={"type": "object"},
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         raise RuntimeError("Intentional tool failure")
 
 

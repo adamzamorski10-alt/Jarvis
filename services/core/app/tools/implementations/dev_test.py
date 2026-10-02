@@ -12,7 +12,7 @@ import sys
 from typing import Any
 
 from app.tools.base import BaseTool
-from app.tools.models import RiskLevel, ToolCategory, ToolDefinition
+from app.tools.models import RiskLevel, ToolCategory, ToolDefinition, ToolExecutionContext
 
 
 class DevRunTest(BaseTool):
@@ -59,7 +59,7 @@ class DevRunTest(BaseTool):
             },
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> dict[str, Any]:
         target_file = str(arguments.get("target_file", "")).strip()
         if not target_file:
             raise ValueError("target_file is required")
@@ -70,7 +70,7 @@ class DevRunTest(BaseTool):
         if any(part == ".." for part in p.parts):
             raise ValueError("Path traversal not allowed")
 
-        ws_path_str = (context or {}).get("workspace_path")
+        ws_path_str = context.workspace.workspace_path if context and context.workspace else None
         if not ws_path_str:
             raise ValueError("workspace_path context is required for dev.run_test execution")
 

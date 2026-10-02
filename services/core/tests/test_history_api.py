@@ -40,6 +40,9 @@ from app.events.emitter import EventEmitter
 from app.events.history import HistoryEntry, HistoryPage, HistoryService
 from app.events.repository import EventRepository
 from app.events.schemas import EventType, Sensitivity
+from app.identity.auth import AuthMiddleware
+from app.identity.bootstrap import BootstrapSecret
+from app.identity.session import SessionStore
 from app.repositories.task_repository import TaskRepository
 from app.tasks.models import DevelopmentTask
 
@@ -109,6 +112,15 @@ async def app_with_history(tmp_path):
     app.dependency_overrides[get_db] = _get_test_db
     app.state._test_session_factory = factory
 
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+
+    test_session = await session_store.create(user_id="test_user")
+    app.state._test_session_id = test_session.session_id
+
     return app, factory, engine
 
 
@@ -116,6 +128,7 @@ async def app_with_history(tmp_path):
 async def async_client(app_with_history):
     app, factory, engine = app_with_history
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {app.state._test_session_id}"
         yield client
     await engine.dispose()
 

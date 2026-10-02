@@ -402,7 +402,7 @@ async def test_tool_11_execution_timeout_is_enforced(tmp_path: Path):
                 risk_level=RiskLevel.LOW,
             )
 
-        async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+        async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
             await asyncio.sleep(2.0)
             return {"done": True}
 

@@ -1,0 +1,338 @@
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+.....................................................................s.. [ 25%]
+........................................................................ [ 28%]
+...........................................ss........................... [ 31%]
+........................................................................ [ 34%]
+...............ssss.................s.......ss.s.........s.............. [ 37%]
+..............s.....sss..................................sss...s........ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+......................................s................................. [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+============================== warnings summary ===============================
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5551CD4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55527E350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D555575650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5523830D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5520CCA50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5533A2DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55337C750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55336B8D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55330F550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5532EA1D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55336ACD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D553277950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D553264E50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55323EED0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5531F65D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557320150>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55278BB50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557386150>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5573E03D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5573E2D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5573E0CD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557490350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55744E5D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557493650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5574937D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5572977D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5571D6550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55719AD50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D556D48ED0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D556D0C6D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D556D0DF50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55564AF50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5535C3C50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D553874ED0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5537E01D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D553A57F50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D552418FD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D552419A50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55258E950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5530389D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5530C4450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55303B950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_kilo_agent.py::TestRecoveryWiring::test_recovery_wire_04_cross_workspace_rejected
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D553106F50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_notification_integration.py::TestRequiredEventTypesCreateNotification::test_required_event_creates_notification[task.failed]
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5594C6B50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D556F1C650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559408250>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559408350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559367D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559324CD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55927DCD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559408950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55940B850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559366950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5592CADD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559465DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55917E1D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5591386D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5590F9750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559139DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558DC3850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558F38450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558BFE8D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558B79750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558AE4050>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558AAD4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558999650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558B25150>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5588E86D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558B26E50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5587D4850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55889AA50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558BC3D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5587206D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_idempotent_existing_notification
+  <string>:1: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5570775D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557075DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558CAA0D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5588674D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5594A3550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559192E50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_creates_no_event
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D559154CD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_multiple_events_bounded
+  F:\Projects\AI-Operator\services\core\app\db\database.py:245: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5590EEB50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+
+tests/test_notification_replay.py::test_replay_multiple_events_bounded
+  F:\Projects\AI-Operator\services\core\app\db\database.py:245: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5587D7450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+
+tests/test_notification_replay.py::test_replay_multiple_events_bounded
+  F:\Projects\AI-Operator\services\core\app\db\database.py:245: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D558AAD4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+
+tests/test_notification_replay.py::test_replay_transaction_semantics
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5537C6B50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D55752AAD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_recovered
+  F:\Projects\AI-Operator\services\core\app\db\database.py:158: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5551CF450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    connection.execute(text("CREATE INDEX IF NOT EXISTS idx_kilo_sessions_task_id ON kilo_sessions(task_id)"))
+
+tests/test_ollama_autostart.py::test_autostart_off_does_not_start_ollama
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:2252: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5523B49D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, name, parent):
+
+tests/test_scheduler_api.py::TestGetJobs::test_get_sanitized_response_no_sensitive_fields
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pydantic\_internal\_generate_schema.py:2402: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D557076550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def _get_wrapped_inner_schema(
+
+tests/test_scheduler_api.py::TestPatchJob::test_patch_claimed_schedule_returns_409
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pydantic\_internal\_generate_schema.py:2402: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001D5537AB950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def _get_wrapped_inner_schema(
+
+tests/test_stage_816_hardening.py::test_stage816_background_manager_lifecycle
+  F:\Projects\AI-Operator\services\core\app\services\background_execution_manager.py:211: RuntimeWarning: coroutine 'test_stage816_background_manager_lifecycle.<locals>.slow_executor.<locals>._factory' was never awaited
+    executor, session_ctx = await result
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2504 passed, 21 skipped, 90 warnings in 782.09s (0:13:02)

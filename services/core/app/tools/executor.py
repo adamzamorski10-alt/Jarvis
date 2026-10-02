@@ -12,7 +12,7 @@ from typing import Any
 
 from app.tools.base import BaseTool
 from app.tools.implementation_registry import ToolImplementationRegistry
-from app.tools.models import ToolCall, ToolExecutionResult, ToolExecutionStatus
+from app.tools.models import ToolCall, ToolExecutionContext, ToolExecutionResult, ToolExecutionStatus
 from app.tools.registry import ToolRegistry
 
 
@@ -39,14 +39,14 @@ class ToolExecutor:
     async def execute(
         self,
         tool_call: ToolCall,
-        context: dict[str, Any] | None = None,
+        context: ToolExecutionContext | None = None,
     ) -> ToolExecutionResult:
         """
         Execute a tool call safely.
 
         Args:
             tool_call: Validated ToolCall from the AI model.
-            context: Optional execution context payload.
+            context: Typed execution context payload.
 
         Returns:
             ToolExecutionResult describing the outcome.
@@ -91,13 +91,9 @@ class ToolExecutor:
 
         # 4. Execute
         try:
-            exec_context = {"request_id": tool_call.request_id}
-            if context:
-                exec_context.update(context)
-
             raw_result = await impl.execute(
                 arguments=tool_call.arguments,
-                context=exec_context,
+                context=context,
             )
             elapsed_ms = (time.perf_counter() - start) * 1000.0
 

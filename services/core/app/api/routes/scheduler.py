@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,7 @@ from app.api.schemas.scheduler import (
     UpdateScheduledJobRequest,
 )
 from app.dependencies import get_history_service, get_scheduler_service
+from app.identity.auth import require_authenticated
 from app.events.history import HistoryService
 from app.scheduler.service import JobIdempotentReturn, SchedulerService
 
@@ -70,19 +71,21 @@ def _map_service_error(exc: ValueError) -> HTTPException:
     tags=["Scheduler"],
 )
 async def create_job(
-    request: CreateScheduledJobRequest,
+    request: Request,
+    req: CreateScheduledJobRequest,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobResponse:
+    _ = require_authenticated(request)
     try:
         job = await svc.create_job(
-            job_id=request.job_id,
-            name=request.name,
-            schedule_type=request.schedule_type,
-            schedule_expr=request.schedule_expr,
-            timezone=request.timezone,
-            target_type=request.target_type,
-            target_id=request.target_id,
-            enabled=request.enabled,
+            job_id=req.job_id,
+            name=req.name,
+            schedule_type=req.schedule_type,
+            schedule_expr=req.schedule_expr,
+            timezone=req.timezone,
+            target_type=req.target_type,
+            target_id=req.target_id,
+            enabled=req.enabled,
             now=_now_utc(),
         )
     except JobIdempotentReturn as exc:
@@ -104,6 +107,7 @@ async def create_job(
     tags=["Scheduler"],
 )
 async def list_jobs(
+    request: Request,
     status: str | None = Query(default=None, description="Filter by job status"),
     enabled: bool | None = Query(default=None, description="Filter by enabled flag"),
     target_type: str | None = Query(default=None, description="Filter by target type"),
@@ -112,6 +116,7 @@ async def list_jobs(
     offset: int = Query(default=0, ge=0, le=100000),
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobListResponse:
+    _ = require_authenticated(request)
     jobs, total = await svc.list_jobs(
         status=status,
         enabled=enabled,
@@ -137,9 +142,11 @@ async def list_jobs(
     tags=["Scheduler"],
 )
 async def get_job(
+    request: Request,
     job_id: str,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobResponse:
+    _ = require_authenticated(request)
     job = await svc.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' not found")
@@ -158,11 +165,13 @@ async def get_job(
     tags=["Scheduler"],
 )
 async def update_job(
+    request: Request,
     job_id: str,
-    request: UpdateScheduledJobRequest,
+    req: UpdateScheduledJobRequest,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobResponse:
-    updates = request.model_dump(exclude_unset=True)
+    _ = require_authenticated(request)
+    updates = req.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -185,9 +194,11 @@ async def update_job(
     tags=["Scheduler"],
 )
 async def delete_job(
+    request: Request,
     job_id: str,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> None:
+    _ = require_authenticated(request)
     try:
         await svc.delete_job(job_id)
     except ValueError as exc:
@@ -203,9 +214,11 @@ async def delete_job(
     tags=["Scheduler"],
 )
 async def enable_job(
+    request: Request,
     job_id: str,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobResponse:
+    _ = require_authenticated(request)
     try:
         job = await svc.enable_job(job_id)
     except ValueError as exc:
@@ -222,9 +235,11 @@ async def enable_job(
     tags=["Scheduler"],
 )
 async def disable_job(
+    request: Request,
     job_id: str,
     svc: SchedulerService = Depends(get_scheduler_service),
 ) -> ScheduledJobResponse:
+    _ = require_authenticated(request)
     try:
         job = await svc.disable_job(job_id)
     except ValueError as exc:
@@ -241,11 +256,13 @@ async def disable_job(
     tags=["Scheduler"],
 )
 async def get_job_history(
+    request: Request,
     job_id: str,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=100000),
     history_svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     from app.api.routes.history import _to_response
     job_id_clean = job_id.strip()
     if not job_id_clean:

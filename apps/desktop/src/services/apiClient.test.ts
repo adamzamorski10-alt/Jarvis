@@ -54,11 +54,10 @@ describe('apiClient', () => {
   });
 
   it('automatically retries once with fresh Core URL when fetch encounters a network error', async () => {
-    // Attempt 1: Core URL port 40001, fetch throws TypeError
     invokeMock.mockResolvedValueOnce('http://127.0.0.1:40001');
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
-    // Attempt 2 (Auto retry): Tauri returns new dynamic port 50002, fetch succeeds
+    invokeMock.mockResolvedValueOnce(undefined); // get_core_token
     invokeMock.mockResolvedValueOnce('http://127.0.0.1:50002');
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -136,5 +135,126 @@ describe('apiClient', () => {
     const { apiClient, ApiTimeoutError } = await import('./apiClient');
 
     await expect(apiClient.post('/api/ai/chat', { message: 'long request' })).rejects.toBeInstanceOf(ApiTimeoutError);
+  });
+
+  it('resets Tauri session token on 401 and retries once with a fresh bootstrapped token', async () => {
+    invokeMock.mockResolvedValueOnce('http://127.0.0.1:49153');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Session expired' })),
+    } as Response);
+
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'reset_core_token') return undefined;
+      if (cmd === 'get_core_url') return 'http://127.0.0.1:49153';
+      if (cmd === 'get_core_token') return 'session-token-v2';
+      throw new Error(`Unknown command: ${cmd}`);
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ status: 'healthy' }),
+    } as Response);
+
+    const { apiClient } = await import('./apiClient');
+
+    const res = await apiClient.get('/api/health') as { status: string };
+    expect(res.status).toBe('healthy');
+    expect(fetch).toHaveBeenLastCalledWith(
+      'http://127.0.0.1:49153/api/health',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer session-token-v2',
+        }),
+      }),
+    );
+  });
+
+  it('throws CoreAuthError when retry after 401 also fails', async () => {
+    invokeMock.mockResolvedValueOnce('http://127.0.0.1:49153');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Session expired' })),
+    } as Response);
+
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'reset_core_token') return undefined;
+      if (cmd === 'get_core_url') return 'http://127.0.0.1:49153';
+      if (cmd === 'get_core_token') return 'session-token-v2';
+      throw new Error(`Unknown command: ${cmd}`);
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Still invalid' })),
+    } as Response);
+
+    const { apiClient, CoreAuthError } = await import('./apiClient');
+
+    await expect(apiClient.get('/api/health')).rejects.toBeInstanceOf(CoreAuthError);
+  });
+
+  it('throws CoreAuthError when bootstrap fails after 401', async () => {
+    invokeMock.mockResolvedValueOnce('http://127.0.0.1:49153');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Session expired' })),
+    } as Response);
+
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'reset_core_token') return Promise.resolve(undefined);
+      if (cmd === 'get_core_url') return Promise.resolve('http://127.0.0.1:49153');
+      if (cmd === 'get_core_token') return Promise.reject(new Error('Bootstrap failed: no local secret'));
+      return Promise.reject(new Error(`Unknown command: ${cmd}`));
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Still invalid' })),
+    } as Response);
+
+    const { apiClient, CoreAuthError } = await import('./apiClient');
+
+    await expect(apiClient.get('/api/health')).rejects.toBeInstanceOf(CoreAuthError);
+  });
+
+  it('does not allow client-side token spoofing - token always comes from Tauri bootstrap', async () => {
+    invokeMock.mockResolvedValueOnce('http://127.0.0.1:49153');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ detail: 'Session expired' })),
+    } as Response);
+
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'reset_core_token') return undefined;
+      if (cmd === 'get_core_url') return 'http://127.0.0.1:49153';
+      if (cmd === 'get_core_token') return 'server-issued-session-id';
+      throw new Error(`Unknown command: ${cmd}`);
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ status: 'healthy' }),
+    } as Response);
+
+    const { apiClient } = await import('./apiClient');
+    const res = await apiClient.get('/api/health') as { status: string };
+
+    expect(res.status).toBe('healthy');
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('/api/health'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer server-issued-session-id',
+        }),
+      }),
+    );
   });
 });

@@ -103,6 +103,11 @@ async def lifespan(app: FastAPI):
         from app.tools.registry import tool_registry
         from app.tools.implementation_registry import tool_implementation_registry
         from app.tools.implementations.system_time import SystemGetTime
+        from app.tools.implementations.files_read import FilesReadFile
+        from app.tools.implementations.files_list import FilesListDirectory
+        from app.tools.implementations.files_write import FilesWriteFile
+        from app.tools.implementations.files_delete import FilesDeleteFile
+        from app.tools.implementations.files_search import FilesSearch
         from app.tools.exceptions import ToolAlreadyRegisteredError
 
         system_time_impl = SystemGetTime()
@@ -112,13 +117,63 @@ async def lifespan(app: FastAPI):
             logger.info("Builtin tools registered", count=1, tool_id=system_time_impl.tool_id)
         else:
             logger.debug("Builtin tool already registered", tool_id=system_time_impl.tool_id)
+
+        files_read_impl = FilesReadFile()
+        if not tool_registry.exists(files_read_impl.tool_id):
+            tool_registry.register(files_read_impl.definition)
+            tool_implementation_registry.register(files_read_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=files_read_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=files_read_impl.tool_id)
+
+        files_list_impl = FilesListDirectory()
+        if not tool_registry.exists(files_list_impl.tool_id):
+            tool_registry.register(files_list_impl.definition)
+            tool_implementation_registry.register(files_list_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=files_list_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=files_list_impl.tool_id)
+
+        files_write_impl = FilesWriteFile()
+        if not tool_registry.exists(files_write_impl.tool_id):
+            tool_registry.register(files_write_impl.definition)
+            tool_implementation_registry.register(files_write_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=files_write_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=files_write_impl.tool_id)
+
+        files_delete_impl = FilesDeleteFile()
+        if not tool_registry.exists(files_delete_impl.tool_id):
+            tool_registry.register(files_delete_impl.definition)
+            tool_implementation_registry.register(files_delete_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=files_delete_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=files_delete_impl.tool_id)
+
+        files_search_impl = FilesSearch()
+        if not tool_registry.exists(files_search_impl.tool_id):
+            tool_registry.register(files_search_impl.definition)
+            tool_implementation_registry.register(files_search_impl)
+            logger.info("Builtin tools registered", count=1, tool_id=files_search_impl.tool_id)
+        else:
+            logger.debug("Builtin tool already registered", tool_id=files_search_impl.tool_id)
     except Exception as exc:
         logger.error("Failed to register builtin tools", error=str(exc))
         raise
 
     logger.info("AI Operator Core is ready", host=settings.host, port=settings.port)
 
-    # 7. Start scheduler worker
+    # 7. Ensure bootstrap secret exists
+    try:
+        from app.identity.bootstrap import BootstrapSecret
+        from app.core.config import get_settings as _get_settings
+        bootstrap = BootstrapSecret()
+        bootstrap.ensure_generated()
+        logger.info("Bootstrap secret verified")
+    except Exception as exc:
+        logger.warning("Could not verify bootstrap secret", error=str(exc))
+
+    # 8. Start scheduler worker
     scheduler_worker = None
     try:
         from pathlib import Path

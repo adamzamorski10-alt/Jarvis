@@ -18,21 +18,28 @@ const AUTONOMY_MODES = [
     desc: 'AI analyzes and proposes actions. Nothing is executed without your explicit confirmation.',
   },
   {
-    key: 'supervised',
-    title: 'Supervised',
-    desc: 'AI can perform low-risk actions automatically. Medium and high-risk actions require approval.',
-  },
-  {
-    key: 'controlled',
-    title: 'Controlled',
-    desc: 'AI can execute most pre-approved actions. Critical actions still require confirmation.',
+    key: 'semi_autonomous',
+    title: 'Semi-Autonomous',
+    desc: 'AI can perform safe and low-risk actions automatically. Medium, high, and critical-risk actions require approval.',
   },
   {
     key: 'autonomous',
     title: 'Autonomous',
-    desc: 'AI works independently within defined policies. All actions remain logged and auditable.',
+    desc: 'AI can execute safe, low, and medium-risk actions automatically. High and critical-risk actions require approval.',
   },
 ];
+
+const AUTONOMY_MODE_ALIASES: Record<string, 'manual' | 'semi_autonomous' | 'autonomous'> = {
+  supervised: 'semi_autonomous',
+  controlled: 'autonomous',
+};
+
+function normalizeAutonomyMode(raw: string | undefined | null): 'manual' | 'semi_autonomous' | 'autonomous' {
+  if (!raw) return 'manual';
+  const normalized = AUTONOMY_MODE_ALIASES[raw];
+  if (normalized) return normalized;
+  return ['manual', 'semi_autonomous', 'autonomous'].includes(raw) ? (raw as 'manual' | 'semi_autonomous' | 'autonomous') : 'manual';
+}
 
 function SystemInfoRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
@@ -1106,7 +1113,7 @@ export function SettingsView() {
     if (!isLoading && settings) {
       setLocalTheme(settings.theme ?? 'dark');
       setLocalLanguage(settings.language ?? 'en');
-      setLocalAutonomy(settings.autonomy_mode ?? 'manual');
+      setLocalAutonomy(normalizeAutonomyMode(settings.autonomy_mode));
       setIsDirty(false);
     }
   }, [settings, isLoading]);
@@ -1274,12 +1281,11 @@ export function SettingsView() {
                 <span style={{ fontSize: 20, color: 'var(--color-warning)' }}>⚠</span>
                 <div>
                   <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 'var(--space-1)' }}>
-                    Permission Engine — Phase 3
+                    Autonomy Mode
                   </div>
                   <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
-                    The full autonomy system with risk levels (GREEN/YELLOW/ORANGE/RED), 
-                    Approval Center, and Policy Engine will be implemented in Phase 3.
-                    Setting your preferred mode now ensures a smooth transition.
+                    Your chosen mode controls how the Permission Engine evaluates tool requests:
+                    Manual asks for confirmation on every non-safe action; Semi-Autonomous allows safe and low-risk actions automatically; Autonomous additionally allows medium-risk actions. High and critical-risk actions always require approval.
                   </div>
                 </div>
               </div>

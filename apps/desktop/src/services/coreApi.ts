@@ -181,6 +181,94 @@ export interface AIConversation {
   messages: AIMessage[];
 }
 
+export interface PendingApprovalCountResponse {
+  count: number;
+}
+
+export interface ApprovalResponse {
+  approval_id: string;
+  status: string;
+  tool_id: string;
+  action: string;
+  tool_call_id: string;
+  arguments: Record<string, unknown>;
+  conversation_id: string;
+  request_id?: string | null;
+  created_at: string;
+  expires_at: string;
+  executed_at?: string | null;
+  decision_reason?: string | null;
+  execution_result?: Record<string, unknown> | null;
+}
+
+export interface PendingApprovalListResponse {
+  approvals: ApprovalResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TaskListItem {
+  task_id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+  plan_id: string | null;
+  parent_task_id: string | null;
+  project_id: string | null;
+  attempt_count: number;
+  max_attempts: number;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_reason: string | null;
+}
+
+export interface TaskDetailResponse extends TaskListItem {
+  task_key: string;
+  priority: number;
+  recovery_attempt_count: number;
+  max_recovery_attempts: number;
+  last_recovery_at: string | null;
+  execution_token: string | null;
+  workspace_path: string | null;
+}
+
+export interface TaskListResponse {
+  tasks: TaskListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface FileEntry {
+  name: string;
+  type: string;
+  size: number | null;
+  path: string;
+}
+
+export interface DirectoryListResponse {
+  path: string;
+  entries: FileEntry[];
+  truncated: boolean;
+}
+
+export interface FileReadResponse {
+  content: string;
+  size: number;
+  encoding: string;
+  truncated: boolean;
+}
+
+export interface FileSearchResponse {
+  success: boolean;
+  query: string;
+  path: string;
+  matches: FileEntry[];
+  truncated: boolean;
+}
+
 /* ---- API Functions ---- */
 export const coreApi = {
   getHealth: () => apiClient.get<HealthResponse>('/api/health'),
@@ -234,35 +322,45 @@ export const coreApi = {
       agent_loop?: Record<string, unknown> | null;
     }>('/api/ai/chat', payload, CHAT_TIMEOUT_MS),
   approveTool: (approvalId: string, reason?: string) =>
-    apiClient.post<{
-      approval_id: string;
-      status: string;
-      tool_id: string;
-      action: string;
-      tool_call_id: string;
-      arguments: Record<string, unknown>;
-      conversation_id: string;
-      request_id?: string | null;
-      created_at: string;
-      expires_at: string;
-      executed_at?: string | null;
-      decision_reason?: string | null;
-      execution_result?: Record<string, unknown> | null;
-    }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/approve`, { decision_reason: reason }),
+    apiClient.post<ApprovalResponse>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/approve`, { decision_reason: reason }),
   rejectTool: (approvalId: string, reason?: string) =>
-    apiClient.post<{
-      approval_id: string;
-      status: string;
-      tool_id: string;
-      action: string;
-      tool_call_id: string;
-      arguments: Record<string, unknown>;
-      conversation_id: string;
-      request_id?: string | null;
-      created_at: string;
-      expires_at: string;
-      executed_at?: string | null;
-      decision_reason?: string | null;
-    }>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/reject`, { decision_reason: reason }),
+    apiClient.post<ApprovalResponse>(`/api/ai/approvals/${encodeURIComponent(approvalId)}/reject`, { decision_reason: reason }),
+  getPendingApprovalCount: () => apiClient.get<PendingApprovalCountResponse>('/api/ai/approvals/count'),
+  getPendingApprovals: (params?: { limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.offset !== undefined) q.set('offset', String(params.offset));
+    const qs = q.toString();
+    return apiClient.get<PendingApprovalListResponse>(`/api/ai/approvals${qs ? `?${qs}` : ''}`);
+  },
+  getTasks: (params?: { status?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set('status', params.status);
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.offset !== undefined) q.set('offset', String(params.offset));
+    const qs = q.toString();
+    return apiClient.get<TaskListResponse>(`/api/tasks${qs ? `?${qs}` : ''}`);
+  },
+  getTask: (taskId: string) => apiClient.get<TaskDetailResponse>(`/api/tasks/${encodeURIComponent(taskId)}`),
+  getFilesList: (path?: string, recursive?: boolean) => {
+    const q = new URLSearchParams();
+    if (path && path !== '.') q.set('path', path);
+    if (recursive) q.set('recursive', 'true');
+    const qs = q.toString();
+    return apiClient.get<DirectoryListResponse>(`/api/files/list${qs ? `?${qs}` : ''}`);
+  },
+  getFilesRead: (filePath: string, maxBytes?: number) => {
+    const q = new URLSearchParams();
+    q.set('path', filePath);
+    if (maxBytes && maxBytes !== 1024 * 1024) q.set('max_bytes', String(maxBytes));
+    return apiClient.get<FileReadResponse>(`/api/files/read?${q.toString()}`);
+  },
+  getFilesSearch: (query: string, path?: string, maxResults?: number) => {
+    const q = new URLSearchParams();
+    q.set('query', query);
+    if (path && path !== '.') q.set('path', path);
+    if (maxResults && maxResults !== 50) q.set('max_results', String(maxResults));
+    return apiClient.get<FileSearchResponse>(`/api/files/search?${q.toString()}`);
+  },
 };
 

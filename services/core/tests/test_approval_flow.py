@@ -546,6 +546,46 @@ async def test_reject_invalid_approval_id_returns_400(client):
     assert response.status_code == 400
 
 
+@pytest.mark.asyncio
+async def test_count_pending_approvals_returns_zero_when_empty(client):
+    response = await client.get("/api/ai/approvals/count")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_count_pending_approvals_returns_correct_count(session, client):
+    from app.repositories.approval_repository import ApprovalRepository
+    from app.tools.approval_models import PendingApproval, ApprovalStatus
+
+    repo = ApprovalRepository(session)
+    now = datetime.now(timezone.utc)
+    for i in range(4):
+        approval = PendingApproval(
+            approval_id=f"count_test_{i}",
+            conversation_id="conv-count",
+            request_id="req-count",
+            tool_id="system.exec",
+            action="exec",
+            tool_call_id=f"call-{i}",
+            arguments={},
+            arguments_hash="hash",
+            tool_definition_version="1.0",
+            tool_definition_fingerprint="fp",
+            status=ApprovalStatus.PENDING,
+            created_at=now,
+            expires_at=now + timedelta(minutes=30),
+        )
+        await repo.create(approval)
+    await session.commit()
+
+    response = await client.get("/api/ai/approvals/count")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 4
+
+
 def _make_ai_service_with_approval(session, tool_execution_service=None):
     from app.services.activity_service import ActivityService
     from app.services.settings_service import SettingsService

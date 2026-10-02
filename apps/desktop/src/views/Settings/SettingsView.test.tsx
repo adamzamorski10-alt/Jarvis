@@ -563,5 +563,105 @@ describe('SettingsView AI tab', () => {
 });
 
 
+describe('SettingsView Autonomy tab', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: vi.fn().mockResolvedValue(true),
+    });
+    coreStatusMock.mockReturnValue({
+      isOnline: true,
+      status: { database: { status: 'connected' } },
+      coreUrl: 'http://127.0.0.1:49152',
+      diagnostics: null,
+    });
+  });
+
+  it('renders only backend-supported autonomy modes', async () => {
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Autonomy' }));
+
+    expect(screen.getByText('Manual')).toBeInTheDocument();
+    expect(screen.getByText('Semi-Autonomous')).toBeInTheDocument();
+    expect(screen.getByText('Autonomous')).toBeInTheDocument();
+    expect(screen.queryByText('Supervised')).not.toBeInTheDocument();
+    expect(screen.queryByText('Controlled')).not.toBeInTheDocument();
+  });
+
+  it('normalizes legacy supervised mode to semi_autonomous', async () => {
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'supervised' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: vi.fn().mockResolvedValue(true),
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Autonomy' }));
+
+    expect(screen.getByText('Semi-Autonomous').closest('.autonomy-card')).toHaveClass('selected');
+  });
+
+  it('normalizes legacy controlled mode to autonomous', async () => {
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'controlled' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: vi.fn().mockResolvedValue(true),
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Autonomy' }));
+
+    expect(screen.getByText('Autonomous').closest('.autonomy-card')).toHaveClass('selected');
+  });
+
+  it('persists a valid selected mode through updateSettings', async () => {
+    const updateSettingsMock = vi.fn().mockResolvedValue(true);
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: updateSettingsMock,
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Autonomy' }));
+
+    fireEvent.click(screen.getByText('Autonomous'));
+    fireEvent.click(screen.getByRole('button', { name: '✓ Save Changes' }));
+
+    expect(updateSettingsMock).toHaveBeenCalledWith({ autonomy_mode: 'autonomous', theme: 'dark', language: 'en' });
+  });
+
+  it('does not save an unsupported mode value', async () => {
+    const updateSettingsMock = vi.fn().mockResolvedValue(true);
+    settingsMock.mockReturnValue({
+      settings: { theme: 'dark', language: 'en', autonomy_mode: 'manual' },
+      isLoading: false,
+      isSaving: false,
+      savedAt: null,
+      error: null,
+      updateSettings: updateSettingsMock,
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Autonomy' }));
+
+    // The UI should not expose invalid modes at all, so this test asserts absence
+    expect(screen.queryByText('Supervised')).not.toBeInTheDocument();
+    expect(screen.queryByText('Controlled')).not.toBeInTheDocument();
+  });
+});
 
 

@@ -1,0 +1,10 @@
+........................................................................ [  4%]
+................F
+================================== FAILURES ===================================
+E   assert 503 == 200
+     +  where 503 = <Response [503 Service Unavailable]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:57: assert 503 == 200
+=========================== short test summary info ===========================
+FAILED tests/test_ai.py::test_ai_models_success - assert 503 == 200
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 88 passed in 13.92s

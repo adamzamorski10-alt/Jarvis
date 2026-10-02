@@ -70,6 +70,7 @@ async def init_db() -> None:
         event,
         scheduled_job,
         notification,
+        memory,
     )
 
     engine = get_engine()
@@ -235,16 +236,43 @@ async def init_db() -> None:
                         metadata TEXT
                     )
                 """))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications(created_at)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_notification_type ON notifications(notification_type)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_severity ON notifications(severity)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_source_event_id ON notifications(source_event_id)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_correlation_id ON notifications(correlation_id)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_task_id ON notifications(task_id)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_execution_id ON notifications(execution_id)"))
-            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_read_at ON notifications(read_at)"))
-            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_source_event_type ON notifications(source_event_id, notification_type)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications(created_at)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_notification_type ON notifications(notification_type)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_severity ON notifications(severity)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_source_event_id ON notifications(source_event_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_correlation_id ON notifications(correlation_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_task_id ON notifications(task_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_execution_id ON notifications(execution_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_read_at ON notifications(read_at)"))
+                connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_notifications_source_event_type ON notifications(source_event_id, notification_type)"))
+            if "memories" not in inspector.get_table_names():
+                connection.execute(text("""
+                    CREATE TABLE IF NOT EXISTS memories (
+                        memory_id VARCHAR(64) PRIMARY KEY,
+                        category VARCHAR(32) NOT NULL,
+                        scope VARCHAR(16) NOT NULL,
+                        scope_id VARCHAR(100),
+                        content TEXT NOT NULL,
+                        trust_level VARCHAR(16) NOT NULL,
+                        confidence REAL NOT NULL DEFAULT 1.0,
+                        source VARCHAR(32) NOT NULL,
+                        source_id VARCHAR(128),
+                        created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                        archived_at TIMESTAMP WITH TIME ZONE,
+                        expires_at TIMESTAMP WITH TIME ZONE,
+                        superseded_by VARCHAR(64),
+                        deleted_at TIMESTAMP WITH TIME ZONE,
+                        metadata TEXT
+                    )
+                """))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope, scope_id)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_trust ON memories(trust_level)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_source ON memories(source)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_deleted_at ON memories(deleted_at)"))
 
 
         await conn.run_sync(migrate_sqlite)

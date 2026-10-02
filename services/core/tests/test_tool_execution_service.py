@@ -25,6 +25,7 @@ from app.tools.models import (
     ToolCall,
     ToolCategory,
     ToolDefinition,
+    ToolExecutionContext,
     ToolExecutionResult,
     ToolExecutionStatus,
 )
@@ -67,6 +68,15 @@ def _make_registry() -> ToolRegistry:
     return reg
 
 
+def _init_test_workspace(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "calculator.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
+    (path / "test_calculator.py").write_text(
+        "from calculator import add\n\ndef test_add():\n    assert add(2, 3) == 5\n",
+        encoding="utf-8",
+    )
+
+
 def _make_impl_registry() -> ToolImplementationRegistry:
     reg = ToolImplementationRegistry()
     reg.register(SystemGetTime())
@@ -103,7 +113,7 @@ class BrokenTool(BaseTool):
             parameters_schema={"type": "object", "properties": {}},
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         raise RuntimeError("intentional failure")
 
 
@@ -125,7 +135,7 @@ class SlowTool(BaseTool):
             parameters_schema={"type": "object", "properties": {}},
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         await asyncio.sleep(10)
         return {"ok": True}
 
@@ -149,7 +159,7 @@ class OversizedResultTool(BaseTool):
             result_schema={"type": "object", "properties": {"data": {"type": "string"}}},
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         return {"data": "x" * (300 * 1024)}
 
 
@@ -501,7 +511,7 @@ async def test_result_validation_failure_logs_warning():
         def definition(self) -> ToolDefinition:
             return reg.get("bad_result.tool")
 
-        async def execute(self, arguments, context=None):
+        async def execute(self, arguments, context: ToolExecutionContext | None = None):
             return {"timestamp": 123}
 
     impl_reg = ToolImplementationRegistry()
@@ -741,3 +751,136 @@ async def test_secrets_not_persisted_to_audit(session):
     for ev in events:
         assert "secret123" not in (ev.arguments or "")
         assert "REDACTED" in (ev.arguments or "") or "password" not in (ev.arguments or "")
+
+
+# ===========================================================================
+# Stage 17.2 — Typed Execution Context
+# ===========================================================================
+
+@pytest.mark.asyncio
+async def test_typed_context_passed_to_implementation():
+    audit = FakeAuditService()
+    svc = _build_service(audit_service=audit)
+
+    captured: dict[str, Any] = {}
+
+    class ContextSpyTool(BaseTool):
+        @property
+        def tool_id(self) -> str:
+            return "spy.ctx"
+
+        @property
+        def definition(self) -> ToolDefinition:
+            return ToolDefinition(
+                action="spy",
+                tool_id="spy.ctx",
+                name="Context Spy",
+                description="Spies on context.",
+                version="1.0.0",
+                category=ToolCategory.SYSTEM,
+                risk_level=RiskLevel.SAFE,
+                parameters_schema={"type": "object", "properties": {}},
+            )
+
+        async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
+            captured["context"] = context
+            return {"ok": True}
+
+    reg = _make_registry()
+    reg.register(ContextSpyTool().definition)
+    impl_reg = ToolImplementationRegistry()
+    impl_reg.register(ContextSpyTool())
+    svc2 = _build_service(registry=reg, impl_registry=impl_reg, audit_service=audit)
+
+    tc = ToolCall(tool_id="spy.ctx", arguments={}, request_id="req-ctx")
+    await svc2.execute_tool_call(
+        tc,
+        action="spy",
+        autonomy_mode=AutonomyMode.MANUAL,
+        request_id="req-ctx",
+        actor_id="actor-1",
+        workspace_path="/tmp/workspace",
+    )
+
+    ctx = captured.get("context")
+    assert isinstance(ctx, ToolExecutionContext)
+    assert ctx.request_id == "req-ctx"
+    assert ctx.actor_id == "actor-1"
+    assert ctx.workspace is not None
+    assert ctx.workspace.workspace_path == "/tmp/workspace"
+    assert ctx.tool_call_id == tc.tool_call_id
+
+
+@pytest.mark.asyncio
+async def test_typed_context_from_dict_backward_compat():
+    audit = FakeAuditService()
+    svc = _build_service(audit_service=audit)
+
+    captured: dict[str, Any] = {}
+
+    class ContextSpyTool(BaseTool):
+        @property
+        def tool_id(self) -> str:
+            return "spy.ctx2"
+
+        @property
+        def definition(self) -> ToolDefinition:
+            return ToolDefinition(
+                action="spy",
+                tool_id="spy.ctx2",
+                name="Context Spy 2",
+                description="Spies on context.",
+                version="1.0.0",
+                category=ToolCategory.SYSTEM,
+                risk_level=RiskLevel.SAFE,
+                parameters_schema={"type": "object", "properties": {}},
+            )
+
+        async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
+            captured["context"] = context
+            return {"ok": True}
+
+    reg = _make_registry()
+    reg.register(ContextSpyTool().definition)
+    impl_reg = ToolImplementationRegistry()
+    impl_reg.register(ContextSpyTool())
+    svc2 = _build_service(registry=reg, impl_registry=impl_reg, audit_service=audit)
+
+    tc = ToolCall(tool_id="spy.ctx2", arguments={}, request_id="req-ctx2")
+    await svc2.execute_tool_call(
+        tc,
+        action="spy",
+        autonomy_mode=AutonomyMode.MANUAL,
+        request_id="req-ctx2",
+        context={"workspace_path": "/tmp/workspace2", "custom_key": "custom_val"},
+    )
+
+    ctx = captured.get("context")
+    assert isinstance(ctx, ToolExecutionContext)
+    assert ctx.request_id == "req-ctx2"
+    assert ctx.workspace is not None
+    assert ctx.workspace.workspace_path == "/tmp/workspace2"
+
+
+@pytest.mark.asyncio
+async def test_dev_run_test_receives_typed_workspace_context(tmp_path: Path):
+    _init_test_workspace(tmp_path)
+    audit = FakeAuditService()
+    reg = _make_registry()
+    from app.tools.implementations.dev_test import DevRunTest
+    dev_tool = DevRunTest()
+    reg.register(dev_tool.definition)
+    impl_reg = ToolImplementationRegistry()
+    impl_reg.register(dev_tool)
+    service = _build_service(registry=reg, impl_registry=impl_reg, audit_service=audit)
+
+    call = ToolCall(tool_id="dev.run_test", arguments={"target_file": "test_calculator.py"})
+    res = await service.execute_tool_call(
+        call,
+        autonomy_mode=AutonomyMode.AUTONOMOUS,
+        request_id="req-dev",
+        workspace_path=str(tmp_path),
+    )
+
+    assert res.success is True
+    assert res.status == ToolExecutionStatus.SUCCESS

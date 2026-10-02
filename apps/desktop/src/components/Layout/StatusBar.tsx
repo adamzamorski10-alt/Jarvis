@@ -2,9 +2,11 @@
  * Status Bar — bottom bar showing live system status.
  */
 import { useCoreStatus } from '../../hooks/useCoreStatus';
+import { useAIStatus } from '../../hooks/useAI';
 
 export function StatusBar() {
   const { isOnline, status, lastChecked } = useCoreStatus();
+  const { status: aiStatus, label: aiLabel } = useAIStatus();
 
   const fmt = (d: Date | null) =>
     d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
@@ -23,8 +25,8 @@ export function StatusBar() {
             <span>SQLite</span>
           </div>
           <div className="status-item">
-            <div className="status-dot info" />
-            <span>AI Not Configured</span>
+            <div className={`status-dot ${aiStatus?.ai_ready ? 'online' : aiStatus ? 'offline' : 'offline'}`} />
+            <span>{aiLabel}</span>
           </div>
         </>
       )}

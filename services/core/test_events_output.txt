@@ -1,0 +1,296 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: F:\Projects\AI-Operator\services\core
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 109 items
+
+tests/test_event_foundation.py::TestEventContract::test_valid_event_creation PASSED [  0%]
+tests/test_event_foundation.py::TestEventContract::test_required_fields PASSED [  1%]
+tests/test_event_foundation.py::TestEventContract::test_invalid_event_type PASSED [  2%]
+tests/test_event_foundation.py::TestEventContract::test_invalid_timestamp_naive PASSED [  3%]
+tests/test_event_foundation.py::TestEventContract::test_string_length_validation PASSED [  4%]
+tests/test_event_foundation.py::TestEventContract::test_payload_size_limit PASSED [  5%]
+tests/test_event_foundation.py::TestEventContract::test_metadata_size_limit PASSED [  6%]
+tests/test_event_foundation.py::TestEventContract::test_event_version_default PASSED [  7%]
+tests/test_event_foundation.py::TestEventContract::test_sensitivity_default PASSED [  8%]
+tests/test_event_foundation.py::TestEventPersistence::test_insert_and_get PASSED [  9%]
+tests/test_event_foundation.py::TestEventPersistence::test_insert_duplicate_idempotent PASSED [ 10%]
+tests/test_event_foundation.py::TestEventPersistence::test_insert_conflicting_duplicate_raises PASSED [ 11%]
+tests/test_event_foundation.py::TestEventPersistence::test_query_by_task_id PASSED [ 11%]
+tests/test_event_foundation.py::TestEventPersistence::test_query_by_correlation_id PASSED [ 12%]
+tests/test_event_foundation.py::TestEventPersistence::test_query_by_event_type PASSED [ 13%]
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering PASSED [ 14%]
+tests/test_event_foundation.py::TestEventPersistence::test_bounded_pagination PASSED [ 15%]
+tests/test_event_foundation.py::TestEventPersistence::test_time_range_query PASSED [ 16%]
+tests/test_event_foundation.py::TestEventPersistence::test_delete_before_retention PASSED [ 17%]
+tests/test_event_foundation.py::TestSanitization::test_redact_bearer_token PASSED [ 18%]
+tests/test_event_foundation.py::TestSanitization::test_redact_api_key PASSED [ 19%]
+tests/test_event_foundation.py::TestSanitization::test_redact_password PASSED [ 20%]
+tests/test_event_foundation.py::TestSanitization::test_redact_nested_dict PASSED [ 21%]
+tests/test_event_foundation.py::TestSanitization::test_redact_list PASSED [ 22%]
+tests/test_event_foundation.py::TestSanitization::test_none_passthrough PASSED [ 22%]
+tests/test_event_foundation.py::TestSanitization::test_aws_key_redaction PASSED [ 23%]
+tests/test_event_foundation.py::TestSanitization::test_private_key_block_redaction PASSED [ 24%]
+tests/test_event_foundation.py::TestTier1Integration::test_task_lifecycle_events PASSED [ 25%]
+tests/test_event_foundation.py::TestTier1Integration::test_plan_lifecycle_events PASSED [ 26%]
+tests/test_event_foundation.py::TestTier1Integration::test_verification_lifecycle_events PASSED [ 27%]
+tests/test_event_foundation.py::TestTier1Integration::test_checkpoint_event PASSED [ 28%]
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_payload PASSED [ 29%]
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata PASSED [ 30%]
+tests/test_event_foundation.py::TestTier1Integration::test_correlation_and_causation PASSED [ 31%]
+tests/test_event_foundation.py::TestSecurity::test_reject_none_payload_size PASSED [ 32%]
+tests/test_event_foundation.py::TestSecurity::test_payload_size_rejected_at_emitter PASSED [ 33%]
+tests/test_event_foundation.py::TestSecurity::test_event_id_uniqueness PASSED [ 33%]
+tests/test_event_foundation.py::TestRegression::test_existing_orchestrator_tests_still_pass PASSED [ 34%]
+tests/test_event_foundation.py::TestRegression::test_existing_verification_gate_tests_still_pass PASSED [ 35%]
+tests/test_history_service.py::TestTaskHistory::test_correct_events_for_task PASSED [ 36%]
+tests/test_history_service.py::TestTaskHistory::test_deterministic_ordering PASSED [ 37%]
+tests/test_history_service.py::TestTaskHistory::test_pagination PASSED   [ 38%]
+tests/test_history_service.py::TestTaskHistory::test_task_not_found_returns_empty PASSED [ 39%]
+tests/test_history_service.py::TestTaskHistory::test_no_task_repo_returns_events_anyway PASSED [ 40%]
+tests/test_history_service.py::TestPlanHistory::test_correct_events_for_plan PASSED [ 41%]
+tests/test_history_service.py::TestPlanHistory::test_plan_not_found_returns_empty PASSED [ 42%]
+tests/test_history_service.py::TestPlanHistory::test_plan_with_events_but_zero_tasks_returns_events PASSED [ 43%]
+tests/test_history_service.py::TestPlanHistory::test_ordering PASSED     [ 44%]
+tests/test_history_service.py::TestExecutionHistory::test_correct_filtering PASSED [ 44%]
+tests/test_history_service.py::TestExecutionHistory::test_empty_result PASSED [ 45%]
+tests/test_history_service.py::TestCorrelationHistory::test_correct_grouping PASSED [ 46%]
+tests/test_history_service.py::TestCorrelationHistory::test_ordering PASSED [ 47%]
+tests/test_history_service.py::TestTimeRange::test_start_end_filtering PASSED [ 48%]
+tests/test_history_service.py::TestTimeRange::test_event_type_filtering PASSED [ 49%]
+tests/test_history_service.py::TestTimeRange::test_invalid_range_raises PASSED [ 50%]
+tests/test_history_service.py::TestTimeRange::test_naive_datetime_raises PASSED [ 51%]
+tests/test_history_service.py::TestTimeRange::test_boundaries PASSED     [ 52%]
+tests/test_history_service.py::TestRecentHistory::test_newest_records_first PASSED [ 53%]
+tests/test_history_service.py::TestRecentHistory::test_bounded_retrieval PASSED [ 54%]
+tests/test_history_service.py::TestRecentHistory::test_empty_when_no_events PASSED [ 55%]
+tests/test_history_service.py::TestEmptyVsFailure::test_no_events_returns_empty_page PASSED [ 55%]
+tests/test_history_service.py::TestEmptyVsFailure::test_database_failure_propagates PASSED [ 56%]
+tests/test_history_service.py::TestEmptyVsFailure::test_event_deserialization_failure_logs_and_returns_none PASSED [ 57%]
+tests/test_history_service.py::TestSecurityHistory::test_redacted_payload_remains_inert PASSED [ 58%]
+tests/test_history_service.py::TestSecurityHistory::test_no_database_bypass PASSED [ 59%]
+tests/test_history_repository.py::TestHistoryEntry::test_from_event_preserves_all_fields PASSED [ 60%]
+tests/test_history_repository.py::TestHistoryEntry::test_history_entry_is_frozen PASSED [ 61%]
+tests/test_history_repository.py::TestHistoryEntry::test_none_fields_preserved PASSED [ 62%]
+tests/test_history_repository.py::TestHistoryPage::test_valid_page PASSED [ 63%]
+tests/test_history_repository.py::TestHistoryPage::test_limit_validation_max PASSED [ 64%]
+tests/test_history_repository.py::TestHistoryPage::test_limit_validation_min PASSED [ 65%]
+tests/test_history_repository.py::TestHistoryPage::test_offset_validation_max PASSED [ 66%]
+tests/test_history_repository.py::TestHistoryPage::test_offset_validation_negative PASSED [ 66%]
+tests/test_history_repository.py::TestHistoryPage::test_boundary_limit_500 PASSED [ 67%]
+tests/test_history_repository.py::TestHistoryPage::test_boundary_offset_100000 PASSED [ 68%]
+tests/test_history_repository.py::TestListRecent::test_recent_ordering_recorded_at_desc PASSED [ 69%]
+tests/test_history_repository.py::TestListRecent::test_recent_ordering_event_id_desc_for_ties PASSED [ 70%]
+tests/test_history_repository.py::TestListRecent::test_recent_bounded_by_limit PASSED [ 71%]
+tests/test_history_repository.py::TestListRecent::test_recent_empty_when_no_events PASSED [ 72%]
+tests/test_history_repository.py::TestDeterministicOrdering::test_occurred_at_asc_event_id_asc PASSED [ 73%]
+tests/test_history_repository.py::TestSecurityRedaction::test_redacted_payload_in_history_entry PASSED [ 74%]
+tests/test_history_repository.py::TestSecurityRedaction::test_no_secret_reconstruction PASSED [ 75%]
+tests/test_history_integration.py::TestFullTaskLifecycleHistory::test_full_task_lifecycle PASSED [ 76%]
+tests/test_history_integration.py::TestFullPlanLifecycleHistory::test_full_plan_lifecycle PASSED [ 77%]
+tests/test_history_integration.py::TestCorrelationChainHistory::test_correlation_chain_across_boundaries PASSED [ 77%]
+tests/test_history_integration.py::TestNoCrossContamination::test_events_for_task_a_do_not_appear_in_task_b PASSED [ 78%]
+tests/test_history_integration.py::TestIntegrationPath::test_full_path_emitter_to_historypage PASSED [ 79%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_returns_page PASSED [ 80%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_empty PASSED [ 81%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_default_pagination PASSED [ 82%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_custom_pagination PASSED [ 83%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_limit_over_max_rejected PASSED [ 84%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_offset_over_max_rejected PASSED [ 85%]
+tests/test_history_api.py::TestTaskHistoryAPI::test_get_task_history_deterministic_ordering PASSED [ 86%]
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_returns_page PASSED [ 87%]
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty PASSED [ 88%]
+tests/test_history_api.py::TestExecutionHistoryAPI::test_get_execution_history_returns_page PASSED [ 88%]
+tests/test_history_api.py::TestExecutionHistoryAPI::test_get_execution_history_empty PASSED [ 89%]
+tests/test_history_api.py::TestCorrelationHistoryAPI::test_get_correlation_history_returns_page PASSED [ 90%]
+tests/test_history_api.py::TestCorrelationHistoryAPI::test_get_correlation_history_empty PASSED [ 91%]
+tests/test_history_api.py::TestTimeRangeHistoryAPI::test_get_history_between PASSED [ 92%]
+tests/test_history_api.py::TestTimeRangeHistoryAPI::test_get_history_between_invalid_range PASSED [ 93%]
+tests/test_history_api.py::TestTimeRangeHistoryAPI::test_get_history_between_invalid_event_type PASSED [ 94%]
+tests/test_history_api.py::TestRecentHistoryAPI::test_get_recent_history PASSED [ 95%]
+tests/test_history_api.py::TestRecentHistoryAPI::test_get_recent_history_default_limit PASSED [ 96%]
+tests/test_history_api.py::TestRecentHistoryAPI::test_get_recent_history_empty PASSED [ 97%]
+tests/test_history_api.py::TestHistoryAPIErrorSemantics::test_repository_failure_not_converted_to_empty PASSED [ 98%]
+tests/test_history_api.py::TestHistoryAPIErrorSemantics::test_get_endpoints_do_not_mutate PASSED [ 99%]
+The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E1E8440>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\unraisableexception.py:33: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E1E8440>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+  gc.collect()
+The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E2E0E10>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\unraisableexception.py:33: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E2E0E10>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+  gc.collect()
+tests/test_history_api.py::TestHistoryAPIErrorSemantics::test_payload_remains_inert PASSED [100%]
+
+============================== warnings summary ===============================
+tests/test_event_foundation.py::TestEventPersistence::test_query_by_task_id
+  F:\Projects\AI-Operator\services\core\app\db\database.py:245: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E2F1E50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_plan_id ON notifications(plan_id)"))
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E20E520>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E20F5C0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E2C31D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E302360>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E303AC0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E451350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E452350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F4F94F0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F4FB110>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F59A7B0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F610670>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F678410>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F6CA0A0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F6EEDB0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F8C0690>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F914730>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9E36B920>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F9964D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F9E2750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F996A50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9FA2A450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BD9F8A4150>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0ABF850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0AF4550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0AF49D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0B6A2D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0BF5BD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0C3BF50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0C3B750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0CAF950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0D48850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0D8D2D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0DE8D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0DEA3D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0EE4CD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA0E9AAD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA1F408D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA1F43450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA1FADE50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA1FAC950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+tests/test_history_api.py::TestPlanHistoryAPI::test_get_plan_history_empty
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\fastapi\routing.py:351: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x000001BDA1FEB6D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def get_request_handler(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 109 passed, 42 warnings in 36.19s ======================

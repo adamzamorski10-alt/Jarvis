@@ -1,0 +1,103 @@
+........................................................................ [  4%]
+................F...........FF........FFFFFFFF.......................... [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+...................................................................s.... [ 40%]
+........................................................................ [ 44%]
+.........................................FF............................. [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+..F.........F........................................................... [ 71%]
+........................................................................ [ 75%]
+...........s............................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+...................................                                      [100%]
+================================== FAILURES ===================================
+E   assert 503 == 200
+     +  where 503 = <Response [503 Service Unavailable]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:57: assert 503 == 200
+E   assert 422 == 200
+     +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:162: assert 422 == 200
+E   AssertionError: assert 'ollama' == 'kimi'
+      
+      - kimi
+      + ollama
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:186: AssertionError: assert 'ollama' == 'kimi'
+E   assert 422 == 200
+     +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:264: assert 422 == 200
+E   assert False is True
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:282: assert False is True
+E   AssertionError: assert 'ollama' == 'openrouter'
+      
+      - openrouter
+      + ollama
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:312: AssertionError: assert 'ollama' == 'openrouter'
+E   KeyError: 'conversation'
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:346: KeyError: 'conversation'
+E   AssertionError: assert 'ai_not_ready' == 'rate_limited'
+      
+      - rate_limited
+      + ai_not_ready
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:380: AssertionError: assert 'ai_not_ready' == 'rate_limited'
+E   AssertionError: assert 'ai_not_ready' == 'model_unavailable'
+      
+      - model_unavailable
+      + ai_not_ready
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:402: AssertionError: assert 'ai_not_ready' == 'model_unavailable'
+E   assert 0 == 1
+     +  where 0 = len([])
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:435: assert 0 == 1
+E   assert 409 == 200
+     +  where 409 = <Response [409 Conflict]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ai.py:471: assert 409 == 200
+E   AssertionError: assert False
+     +  where False = exists()
+     +    where exists = WindowsPath('C:/Users/adamz/.vscode/extensions/kilocode.kilo-code-7.6.2-win32-x64/bin/kilo.exe').exists
+     +      where WindowsPath('C:/Users/adamz/.vscode/extensions/kilocode.kilo-code-7.6.2-win32-x64/bin/kilo.exe') = Path('C:\\Users\\adamz\\.vscode\\extensions\\kilocode.kilo-code-7.6.2-win32-x64\\bin\\kilo.exe')
+F:\Projects\AI-Operator\services\core\tests\test_e2e_autonomous_coding.py:677: AssertionError: assert False
+E   FileNotFoundError: [WinError 2] Nie mo�na odnale�� okre�lonego pliku
+C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\subprocess.py:1552: FileNotFoundError: [WinError 2] Nie mo�na odnale�� okre�lonego pliku
+E   AssertionError: assert 'ollama' == 'openrouter'
+      
+      - openrouter
+      + ollama
+F:\Projects\AI-Operator\services\core\tests\test_ollama_diagnostics.py:211: AssertionError: assert 'ollama' == 'openrouter'
+E   assert 409 == 200
+     +  where 409 = <Response [409 Conflict]>.status_code
+F:\Projects\AI-Operator\services\core\tests\test_ollama_model_management.py:242: assert 409 == 200
+============================== warnings summary ===============================
+tests/test_stage_816_hardening.py::test_stage816_background_manager_lifecycle
+  F:\Projects\AI-Operator\services\core\app\services\background_execution_manager.py:211: RuntimeWarning: coroutine 'test_stage816_background_manager_lifecycle.<locals>.slow_executor.<locals>._factory' was never awaited
+    executor, session_ctx = await result
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_ai.py::test_ai_models_success - assert 503 == 200
+FAILED tests/test_ai.py::test_kimi_config_does_not_leak_api_key - assert 422 ...
+FAILED tests/test_ai.py::test_kimi_status_and_model_listing - AssertionError:...
+FAILED tests/test_ai.py::test_openrouter_config_does_not_leak_api_key - asser...
+FAILED tests/test_ai.py::test_openrouter_clear_api_key - assert False is True
+FAILED tests/test_ai.py::test_openrouter_chat_flow_and_free_router_selection
+FAILED tests/test_ai.py::test_provider_switching_preserves_conversation_history
+FAILED tests/test_ai.py::test_openrouter_chat_structured_error_on_429 - Asser...
+FAILED tests/test_ai.py::test_openrouter_chat_structured_error_on_503 - Asser...
+FAILED tests/test_ai.py::test_openrouter_chat_retry_does_not_duplicate_user_message
+FAILED tests/test_ai.py::test_two_identical_prompts_normally_sent_creates_two_messages
+FAILED tests/test_e2e_autonomous_coding.py::TestKiloProviderReality::test_kilo_binary_exists
+FAILED tests/test_e2e_autonomous_coding.py::TestKiloProviderReality::test_kilo_version
+FAILED tests/test_ollama_diagnostics.py::test_openrouter_regression_check - A...
+FAILED tests/test_ollama_model_management.py::test_kimi_regression_check - as...
+15 failed, 1602 passed, 2 skipped, 1 warning in 364.21s (0:06:04)

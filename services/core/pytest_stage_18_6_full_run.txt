@@ -1,0 +1,1525 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: F:\Projects\AI-Operator\services\core
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 2509 items
+
+tests\manager\test_openrouter_planning.py .............................  [  1%]
+tests\manager\test_plan_manager.py ................                      [  1%]
+tests\manager\test_plan_providers.py .............                       [  2%]
+tests\test_activity.py ...........                                       [  2%]
+tests\test_agent_loop.py .................                               [  3%]
+tests\test_ai.py ................................                        [  4%]
+tests\test_ai_manager.py ............................................... [  6%]
+...........                                                              [  7%]
+tests\test_ai_manager_approval.py ...................................... [  8%]
+....                                                                     [  8%]
+tests\test_ai_manager_bridge.py ....................................     [ 10%]
+tests\test_ai_manager_gate.py .......................................... [ 11%]
+.........................................                                [ 13%]
+tests\test_ai_manager_integration.py .....                               [ 13%]
+tests\test_ai_manager_providers.py ..................................... [ 15%]
+..                                                                       [ 15%]
+tests\test_ai_models.py ....                                             [ 15%]
+tests\test_approval_flow.py .................................            [ 16%]
+tests\test_audit_log.py ................................................ [ 18%]
+....                                                                     [ 18%]
+tests\test_autonomous_loop.py ...................                        [ 19%]
+tests\test_autonomous_repair.py ......                                   [ 19%]
+tests\test_coding_agent_integration.py ................                  [ 20%]
+tests\test_coding_ollama.py ...........................                  [ 21%]
+tests\test_coding_openrouter.py ............................             [ 22%]
+tests\test_coding_protocol.py .......................................... [ 24%]
+..                                                                       [ 24%]
+tests\test_controlled_execution.py .....................                 [ 25%]
+tests\test_database.py ......                                            [ 25%]
+tests\test_development_agent.py ......s.........................         [ 26%]
+tests\test_development_manager.py ...................................... [ 28%]
+................................                                         [ 29%]
+tests\test_e2e_autonomous_coding.py ......................ss...          [ 30%]
+tests\test_errors.py .....                                               [ 30%]
+tests\test_event_foundation.py .......................................   [ 32%]
+tests\test_execution_bridge.py ......................................... [ 33%]
+......                                                                   [ 34%]
+tests\test_files_delete_file.py ..............ssss................       [ 35%]
+tests\test_files_list_directory.py .s.......ss.s....                     [ 36%]
+tests\test_files_read_file.py .....s..........                           [ 36%]
+tests\test_files_search.py ..................s.....sss.................. [ 38%]
+                                                                         [ 38%]
+tests\test_files_write_file.py ................sss...s.................. [ 40%]
+..                                                                       [ 40%]
+tests\test_health.py ....                                                [ 40%]
+tests\test_history_api.py ......................                         [ 41%]
+tests\test_history_integration.py .....                                  [ 41%]
+tests\test_history_repository.py .................                       [ 42%]
+tests\test_history_service.py ..........................                 [ 43%]
+tests\test_kilo_agent.py ............................................... [ 45%]
+......................................                                   [ 46%]
+tests\test_kilo_session.py ............................................  [ 48%]
+tests\test_kimi_provider.py ..                                           [ 48%]
+tests\test_lifecycle_cleanup.py .....                                    [ 48%]
+tests\test_manager_models.py ........................................... [ 50%]
+...................................................                      [ 52%]
+tests\test_memory_event_integration.py ....................              [ 53%]
+tests\test_memory_foundation.py ........................................ [ 54%]
+..                                                                       [ 54%]
+tests\test_memory_service.py ........................................... [ 56%]
+........                                                                 [ 56%]
+tests\test_normalization.py ............                                 [ 57%]
+tests\test_notification_foundation.py .................................. [ 58%]
+.........                                                                [ 59%]
+tests\test_notification_integration.py ................................  [ 60%]
+tests\test_notification_policy.py ...................................... [ 61%]
+...............                                                          [ 62%]
+tests\test_notification_replay.py ..................                     [ 63%]
+tests\test_ollama_autostart.py ..........                                [ 63%]
+tests\test_ollama_diagnostics.py ..........                              [ 64%]
+tests\test_ollama_model_management.py .........                          [ 64%]
+tests\test_ollama_process_api.py .........                               [ 64%]
+tests\test_ollama_process_manager.py ..........                          [ 65%]
+tests\test_ollama_provider.py ..                                         [ 65%]
+tests\test_openrouter_provider.py ..                                     [ 65%]
+tests\test_orchestrator.py ............................................. [ 67%]
+.........                                                                [ 67%]
+tests\test_permission_audit.py ......                                    [ 67%]
+tests\test_permission_engine.py ......................                   [ 68%]
+tests\test_plan_execution_service.py .......                             [ 68%]
+tests\test_plan_service.py ...............                               [ 69%]
+tests\test_recovery_manager.py ...............                           [ 70%]
+tests\test_repair_ollama_e2e.py s                                        [ 70%]
+tests\test_rest_control_plane.py ..........                              [ 70%]
+tests\test_rest_integration.py ..                                        [ 70%]
+tests\test_run_controller.py ....................................        [ 72%]
+tests\test_scheduler_api.py ............................................ [ 73%]
+................                                                         [ 74%]
+tests\test_scheduler_calculator.py ..................................... [ 75%]
+................................                                         [ 77%]
+tests\test_scheduler_claim.py .......................................... [ 78%]
+.                                                                        [ 78%]
+tests\test_scheduler_events.py ..........................                [ 79%]
+tests\test_scheduler_handoff.py .....................                    [ 80%]
+tests\test_scheduler_models.py ...........................               [ 81%]
+tests\test_scheduler_repository.py ........................              [ 82%]
+tests\test_scheduler_service.py .............................            [ 83%]
+tests\test_scheduler_worker.py ...........................               [ 85%]
+tests\test_security_e2e.py ............................................. [ 86%]
+....                                                                     [ 86%]
+tests\test_settings.py ..............                                    [ 87%]
+tests\test_stage_14_4_audit.py .............                             [ 88%]
+tests\test_stage_16_2_hostile_gate.py .........................          [ 89%]
+tests\test_stage_816_hardening.py ......................                 [ 89%]
+tests\test_system.py .....                                               [ 90%]
+tests\test_task_repository.py .............                              [ 90%]
+tests\test_task_state_machine.py .......                                 [ 90%]
+tests\test_tool_execution_service.py ....................                [ 91%]
+tests\test_tool_executor.py ...................                          [ 92%]
+tests\test_tool_registry.py ......................                       [ 93%]
+tests\test_tools_domain.py ...................                           [ 94%]
+tests\test_validation.py ................                                [ 94%]
+tests\test_verification_checks.py ...................                    [ 95%]
+tests\test_verification_gate.py ..............................           [ 96%]
+tests\test_verification_reporting.py ......................              [ 97%]
+tests\test_verification_suite.py ..............                          [ 98%]
+tests\test_workspace_manager.py ........................................ [ 99%]
+.......                                                                  [100%]
+
+============================== warnings summary ===============================
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F70B4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F6B7650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F649450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F5D7D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F5B1450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestEventPersistence::test_deterministic_ordering
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F54B8D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F50ED50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F8870D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F95C250>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0F84D2D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0FA468D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0C999150>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0FB303D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_event_foundation.py::TestTier1Integration::test_emitter_rejects_oversized_metadata
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0FC39650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_execution_bridge.py::TestNarrowExecutionScope::test_execution_bridge_no_forbidden_imports
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\ast.py:46: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E0FB97D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    return compile(source, filename, mode, flags,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11223250>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E111F30D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11253ED0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11299BD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E112EDE50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E112ED350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1134FBD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11389750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E113C8DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11417950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1145D350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11415050>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1149BB50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1161BBD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11665D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11694FD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11694250>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E11696250>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1177DE50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E117B5350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1177E3D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1181EFD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E12883AD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E128E4F50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E128E40D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1294E8D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E129BD750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E129BCBD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloDevelopmentAgentWithPrompt::test_kilo_dm_17_no_security_service_bypass
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\unittest\mock.py:1153: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E12A2A650>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    def __init__(self, spec=None, side_effect=None, return_value=DEFAULT,
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2426 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2423 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2410 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2432 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2418 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_timeout_produces_error
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2415 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2416 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2422 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2409 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2405 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2414 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2431 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2424 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2425 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2433 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2412 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2407 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2419 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2435 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2436 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2413 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2417 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2420 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2406 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2411 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2421 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2430 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2408 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_kilo_agent.py::TestKiloLifecycleState::test_cancellation_cannot_become_success
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2429 (_connection_worker_thread)
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 66, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_result, future, result)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  During handling of the above exception, another exception occurred:
+  
+  Traceback (most recent call last):
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1082, in _bootstrap_inner
+      self._context.run(self.run)
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\threading.py", line 1024, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 75, in _connection_worker_thread
+      future.get_loop().call_soon_threadsafe(set_exception, future, e)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 872, in call_soon_threadsafe
+      self._check_closed()
+      ~~~~~~~~~~~~~~~~~~^^
+    File "C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 550, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14386ED0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1145C4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E143DA750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14406B50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14442B50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14475AD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E144B1AD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14407C50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14477850>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1452A350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E144B3550>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E144EC2D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E145DC7D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1457FB50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1460DAD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E146779D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E146AB0D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14700F50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_integration.py::test_notification_failure_preserves_event
+  C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14776D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    self._context.run(self._callback, *self._args)
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1457D450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14282C50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14231CD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E141E1E50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E142821D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14110750>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14024FD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E142808D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13F42950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13E91450>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14067350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13CCF350>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13CCEC50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13CCFDD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E12C5A7D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E1145CD50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E10E6BCD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E10EC7DD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E10E605D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13F18950>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E13F709D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14248050>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_notification_replay.py::test_replay_scheduler_failed
+  <sys>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E14262AD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_ollama_diagnostics.py::test_ollama_chat_error_code_service_stopped
+  <string>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E141CB4D0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_ollama_diagnostics.py::test_ollama_chat_error_code_service_stopped
+  <string>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E12C59D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_ollama_diagnostics.py::test_ollama_chat_error_code_service_stopped
+  <string>:0: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021E12C1DCD0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+
+tests/test_stage_816_hardening.py::test_stage816_background_manager_lifecycle
+  F:\Projects\AI-Operator\services\core\app\services\background_execution_manager.py:211: RuntimeWarning: coroutine 'test_stage816_background_manager_lifecycle.<locals>.slow_executor.<locals>._factory' was never awaited
+    executor, session_ctx = await result
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========= 2488 passed, 21 skipped, 119 warnings in 686.54s (0:11:26) ==========

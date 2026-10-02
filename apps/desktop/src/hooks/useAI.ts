@@ -55,6 +55,14 @@ export function useAIStatus() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
   return { status, isLoading, error, refresh, label: formatAIStatus(status) };
 }
 

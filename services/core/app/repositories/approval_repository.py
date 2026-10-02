@@ -186,6 +186,32 @@ class ApprovalRepository:
         models = list(result.scalars().all())
         return [self._to_domain(m) for m in models]
 
+    async def count_pending(self) -> int:
+        result = await self._session.execute(
+            select(PendingApprovalModel).where(
+                PendingApprovalModel.status == ApprovalStatus.PENDING.value
+            )
+        )
+        return len(result.scalars().all())
+
+    async def list_pending(self, limit: int = 50, offset: int = 0) -> tuple[list[PendingApproval], int]:
+        total_result = await self._session.execute(
+            select(PendingApprovalModel).where(
+                PendingApprovalModel.status == ApprovalStatus.PENDING.value
+            )
+        )
+        total = len(total_result.scalars().all())
+
+        result = await self._session.execute(
+            select(PendingApprovalModel)
+            .where(PendingApprovalModel.status == ApprovalStatus.PENDING.value)
+            .order_by(PendingApprovalModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        models = list(result.scalars().all())
+        return [self._to_domain(m) for m in models], total
+
     @staticmethod
     def _to_domain(model: PendingApprovalModel | None) -> PendingApproval | None:
         if model is None:

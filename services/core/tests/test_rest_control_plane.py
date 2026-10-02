@@ -22,6 +22,9 @@ from app.api.models.plans_models import (
 from app.api.routes.plans import router as plans_router
 from app.db.database import init_db
 from app.dependencies import get_background_execution_manager, get_task_repository
+from app.identity.auth import AuthMiddleware
+from app.identity.bootstrap import BootstrapSecret
+from app.identity.session import SessionStore
 from app.orchestration.run_controller import AutonomousRunResult, RunStatus
 from app.repositories.task_repository import TaskRepository
 from app.services.autonomous_loop import (
@@ -50,12 +53,23 @@ def test_app():
             content={"error": "Internal server error", "detail": "An unexpected error occurred."},
         )
 
+    # Set up authentication for tests
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+
     return app
 
 
 @pytest.fixture
 async def async_client(test_app):
+    # Create a test session for authentication
+    test_session = await test_app.state.session_store.create(user_id="test_user")
+    
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {test_session.session_id}"
         yield client
 
 

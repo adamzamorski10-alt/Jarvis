@@ -614,6 +614,9 @@ async def test_stage816_api_cancellation_e2e(session_factory, git_repo):
 
     from app.api.routes.plans import router as plans_router
     from app.dependencies import get_background_execution_manager
+    from app.identity.auth import AuthMiddleware
+    from app.identity.bootstrap import BootstrapSecret
+    from app.identity.session import SessionStore
     from app.services.background_execution_manager import BackgroundExecutionManager
 
     repo_path, _ = git_repo
@@ -644,7 +647,17 @@ async def test_stage816_api_cancellation_e2e(session_factory, git_repo):
     from app.db.database import get_db
     app.dependency_overrides[get_db] = _get_db
 
+    # Set up authentication for tests
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+    
+    test_session = await session_store.create(user_id="test_user")
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {test_session.session_id}"
         # Start execution
         res_start = await client.post(f"/api/plans/{plan_id}/execute")
         assert res_start.status_code == 200
@@ -751,6 +764,9 @@ async def test_stage816_concurrent_plan_execution_requests(session_factory, git_
 
     from app.api.routes.plans import router as plans_router
     from app.dependencies import get_background_execution_manager
+    from app.identity.auth import AuthMiddleware
+    from app.identity.bootstrap import BootstrapSecret
+    from app.identity.session import SessionStore
     from app.services.background_execution_manager import BackgroundExecutionManager
 
     repo_path, _ = git_repo
@@ -781,7 +797,17 @@ async def test_stage816_concurrent_plan_execution_requests(session_factory, git_
     from app.db.database import get_db
     app.dependency_overrides[get_db] = _get_db
 
+    # Set up authentication for tests
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+    
+    test_session = await session_store.create(user_id="test_user")
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {test_session.session_id}"
         # Fire 10 concurrent requests
         responses = await asyncio.gather(
             *[client.post(f"/api/plans/{plan_id}/execute") for _ in range(10)]
@@ -1386,6 +1412,9 @@ async def test_stage816_malformed_ids_return_404_or_400():
 
     from app.api.routes.plans import router as plans_router
     from app.dependencies import get_background_execution_manager
+    from app.identity.auth import AuthMiddleware
+    from app.identity.bootstrap import BootstrapSecret
+    from app.identity.session import SessionStore
     from app.services.background_execution_manager import BackgroundExecutionManager
 
     app = FastAPI()
@@ -1407,7 +1436,17 @@ async def test_stage816_malformed_ids_return_404_or_400():
     from app.db.database import get_db
     app.dependency_overrides[get_db] = _get_db
 
+    # Set up authentication for tests
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+    
+    test_session = await session_store.create(user_id="test_user")
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {test_session.session_id}"
         # Empty plan_id
         res = await client.post("/api/plans//execute")
         assert res.status_code in (400, 404, 405)

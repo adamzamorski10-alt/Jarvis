@@ -33,6 +33,8 @@ def validate_arguments(
     - required: list[str]
     - additionalProperties: bool | schema
     - items: schema (for array type)
+    - maxLength: integer (for string type)
+    - maximum: integer (for integer/number type)
 
     Raises:
         ValidationError: if arguments do not conform to schema.
@@ -107,6 +109,37 @@ def _validate_value(value: Any, schema: dict[str, Any], path: str) -> None:
                 )
             elif isinstance(additional_properties, dict):
                 _validate_value(val, additional_properties, path=f"{path}.{key}")
+
+    if expected_type == "integer" and isinstance(value, int) and not isinstance(value, bool):
+        maximum = schema.get("maximum")
+        minimum = schema.get("minimum")
+        if maximum is not None and value > maximum:
+            raise ValidationError(
+                f"Field '{path}' exceeds maximum value of {maximum}."
+            )
+        if minimum is not None and value < minimum:
+            raise ValidationError(
+                f"Field '{path}' is below minimum value of {minimum}."
+            )
+
+    if expected_type == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+        maximum = schema.get("maximum")
+        minimum = schema.get("minimum")
+        if maximum is not None and value > maximum:
+            raise ValidationError(
+                f"Field '{path}' exceeds maximum value of {maximum}."
+            )
+        if minimum is not None and value < minimum:
+            raise ValidationError(
+                f"Field '{path}' is below minimum value of {minimum}."
+            )
+
+    if expected_type == "string" and isinstance(value, str):
+        max_length = schema.get("maxLength")
+        if max_length is not None and len(value) > max_length:
+            raise ValidationError(
+                f"Field '{path}' exceeds maximum length of {max_length}."
+            )
 
     if expected_type == "array" and isinstance(value, (list, tuple)):
         items_schema = schema.get("items")

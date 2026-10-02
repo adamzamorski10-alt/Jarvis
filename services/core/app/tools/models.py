@@ -83,6 +83,7 @@ class ToolDefinition(BaseModel):
     enabled: bool = Field(True, description="Master enable/disable switch")
     parameters_schema: dict[str, Any] = Field(default_factory=dict, description="JSON Schema for input arguments")
     result_schema: dict[str, Any] = Field(default_factory=dict, description="JSON Schema for output result")
+    max_arguments_size_bytes: int | None = Field(None, description="Optional per-tool argument size limit; falls back to service default")
 
     @field_validator("tool_id")
     @classmethod
@@ -188,6 +189,7 @@ class PermissionEvaluationRequest(BaseModel):
     arguments: dict[str, Any] = Field(default_factory=dict, description="Sanitized argument summary")
     context: dict[str, Any] = Field(default_factory=dict, description="Additional evaluation context")
     approval_context: Any = Field(None, description="Server-side approval verification token if executing approved request")
+    actor_id: str | None = Field(None, description="Authenticated actor identity for audit/correlation only")
 
     @field_validator("tool_id")
     @classmethod
@@ -290,3 +292,18 @@ class ApprovalRequest(BaseModel):
         """Returns True if the approval request has passed its expiration time."""
         now = at or datetime.now(timezone.utc)
         return now >= self.expires_at
+
+
+class WorkspaceContext(BaseModel):
+    """Workspace-scoped execution context."""
+    workspace_path: str = Field(..., description="Absolute path to the authorized workspace root")
+    conversation_id: str | None = Field(None, description="Conversation ID for correlation")
+
+
+class ToolExecutionContext(BaseModel):
+    """Typed execution context passed from ToolExecutionService to BaseTool implementations."""
+    request_id: str | None = Field(None, description="Request correlation ID")
+    actor_id: str | None = Field(None, description="Authenticated actor identity")
+    workspace: WorkspaceContext | None = Field(None, description="Workspace context for tool execution")
+    tool_call_id: str | None = Field(None, description="Unique tool call identifier")
+    approval_context: Any = Field(None, description="Server-side approval verification token")

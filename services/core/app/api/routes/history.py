@@ -9,10 +9,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.api.schemas.history import HistoryEntryResponse, HistoryPageResponse
 from app.dependencies import get_history_service
+from app.identity.auth import require_authenticated
 from app.events.history import HistoryService
 
 router = APIRouter()
@@ -38,11 +39,13 @@ def _to_response(page: Any) -> HistoryPageResponse:
     tags=["History"],
 )
 async def get_task_history(
+    request: Request,
     task_id: str,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=100000),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     task_id_clean = task_id.strip()
     if not task_id_clean:
         raise HTTPException(status_code=422, detail="task_id must not be empty")
@@ -59,11 +62,13 @@ async def get_task_history(
     tags=["History"],
 )
 async def get_plan_history(
+    request: Request,
     plan_id: str,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=100000),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     plan_id_clean = plan_id.strip()
     if not plan_id_clean:
         raise HTTPException(status_code=422, detail="plan_id must not be empty")
@@ -80,11 +85,13 @@ async def get_plan_history(
     tags=["History"],
 )
 async def get_execution_history(
+    request: Request,
     execution_id: str,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=100000),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     execution_id_clean = execution_id.strip()
     if not execution_id_clean:
         raise HTTPException(status_code=422, detail="execution_id must not be empty")
@@ -101,11 +108,13 @@ async def get_execution_history(
     tags=["History"],
 )
 async def get_correlation_history(
+    request: Request,
     correlation_id: str,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=100000),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     correlation_id_clean = correlation_id.strip()
     if not correlation_id_clean:
         raise HTTPException(status_code=422, detail="correlation_id must not be empty")
@@ -122,6 +131,7 @@ async def get_correlation_history(
     tags=["History"],
 )
 async def get_history_between(
+    request: Request,
     start: datetime,
     end: datetime,
     limit: int = Query(default=50, ge=1, le=500),
@@ -129,6 +139,7 @@ async def get_history_between(
     event_type: str | None = Query(default=None),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     if start.tzinfo is None:
         raise HTTPException(status_code=422, detail="start datetime must be timezone-aware (UTC)")
     if end.tzinfo is None:
@@ -159,8 +170,10 @@ async def get_history_between(
     tags=["History"],
 )
 async def get_recent_history(
+    request: Request,
     limit: int = Query(default=50, ge=1, le=500),
     svc: HistoryService = Depends(get_history_service),
 ) -> HistoryPageResponse:
+    _ = require_authenticated(request)
     page = await svc.get_recent_history(limit=limit)
     return _to_response(page)

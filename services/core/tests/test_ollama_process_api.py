@@ -1,11 +1,32 @@
 """Unit & API tests for Ollama Process Manager REST endpoints (Stage 4.2)."""
+import asyncio
 from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.identity.session import SessionStore
+from app.identity.bootstrap import BootstrapSecret
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _auth_client():
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+
+    loop = asyncio.new_event_loop()
+    try:
+        session = loop.run_until_complete(session_store.create(user_id="test_user"))
+        client.headers["Authorization"] = f"Bearer {session.session_id}"
+        yield
+    finally:
+        loop.close()
+        app.state.session_store = None
+        app.state.bootstrap_secret = None
 
 
 def test_get_ollama_process_status():

@@ -26,7 +26,7 @@ async def engine():
     eng = create_async_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
     async with eng.begin() as conn:
         # Import models to register them
-        from app.db.models import settings, activity, conversation, permission_grant, audit_event  # noqa: F401
+        from app.db.models import settings, activity, conversation, permission_grant, audit_event, pending_clarification  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     async with eng.begin() as conn:
@@ -51,8 +51,10 @@ async def session_factory(engine):
 
 @pytest_asyncio.fixture(scope="function")
 async def client(engine):
-    """Provide an AsyncClient wired to a test DB via dependency override."""
+    """Provide an AsyncClient wired to a test DB with authentication."""
     from app.main import app
+    from app.identity.session import SessionStore
+    from app.identity.bootstrap import BootstrapSecret
 
     factory = async_sessionmaker(bind=engine, expire_on_commit=False, autocommit=False)
 
@@ -73,12 +75,26 @@ async def client(engine):
         await svc.ensure_defaults()
         await s.commit()
 
+    # Set up test identity/session
+    test_session_store = SessionStore()
+    test_bootstrap_secret = BootstrapSecret()
+    app.state.session_store = test_session_store
+    app.state.bootstrap_secret = test_bootstrap_secret
+
+    # Create a test session directly in the store
+    test_session = await test_session_store.create(user_id="test_user")
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
+        # Include auth header in all requests
+        ac.headers["Authorization"] = f"Bearer {test_session.session_id}"
         yield ac
 
     app.dependency_overrides.clear()
+    # Clean up session store state
+    app.state.session_store = None
+    app.state.bootstrap_secret = None
 
 
 @pytest_asyncio.fixture

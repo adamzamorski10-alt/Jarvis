@@ -14,6 +14,7 @@ from app.db.models.event import EventModel
 from app.db.models.kilo_session import KiloSessionModel
 from app.db.models.notification import NotificationModel
 from app.db.models.scheduled_job import ScheduledJobModel
+from app.db.models.memory import MemoryModel
 
 __all__ = [
     "ActivityEvent",
@@ -25,6 +26,7 @@ __all__ = [
     "EventModel",
     "KiloSessionModel",
     "Message",
+    "MemoryModel",
     "NotificationModel",
     "PendingApprovalModel",
     "PermissionGrantModel",

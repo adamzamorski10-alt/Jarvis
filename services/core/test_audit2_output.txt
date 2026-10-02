@@ -1,0 +1,24 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: F:\Projects\AI-Operator\services\core
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 13 items
+
+tests/test_stage_14_4_audit.py::TestIdempotencyDuplicateEvents::test_two_creates_with_same_content_produce_different_memories_and_events PASSED [  7%]
+tests/test_stage_14_4_audit.py::TestIdempotencyDuplicateEvents::test_two_updates_on_same_memory_produce_two_distinct_events PASSED [ 15%]
+tests/test_stage_14_4_audit.py::TestIdempotencyDuplicateEvents::test_retried_create_after_rollback_creates_new_memory_and_event PASSED [ 23%]
+tests/test_stage_14_4_audit.py::TestCorrelationCausation::test_memory_create_uses_memory_id_as_correlation PASSED [ 30%]
+tests/test_stage_14_4_audit.py::TestCorrelationCausation::test_memory_update_uses_memory_id_as_correlation PASSED [ 38%]
+tests/test_stage_14_4_audit.py::TestCorrelationCausation::test_memory_delete_uses_memory_id_as_correlation PASSED [ 46%]
+tests/test_stage_14_4_audit.py::TestCorrelationCausation::test_supersede_correlation_uses_old_memory_id PASSED [ 53%]
+tests/test_stage_14_4_audit.py::TestCorrelationCausation::test_memory_events_have_no_causation_id PASSED [ 61%]
+tests/test_stage_14_4_audit.py::TestHistoryVerification::test_get_correlation_history_returns_memory_events PASSED [ 69%]
+tests/test_stage_14_4_audit.py::TestHistoryVerification::test_get_memory_history_not_needed_correlation_works PASSED [ 76%]
+tests/test_stage_14_4_audit.py::TestHistoryVerification::test_rolled_back_operations_absent_from_history PASSED [ 84%]
+tests/test_stage_14_4_audit.py::TestEventIdempotencyMechanism::test_same_event_id_same_content_is_idempotent PASSED [ 92%]
+tests/test_stage_14_4_audit.py::TestEventIdempotencyMechanism::test_same_event_id_different_content_raises_conflict PASSED [100%]
+
+============================= 13 passed in 6.51s ==============================

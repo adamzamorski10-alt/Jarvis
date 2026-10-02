@@ -64,12 +64,27 @@ export class ApiError extends Error {
   }
 }
 
+export class CoreAuthError extends Error {
+  public readonly code = 'core_session_invalid';
+  public readonly retryable = false;
+
+  constructor(message = 'Session token is invalid or expired') {
+    super(message);
+    this.name = 'CoreAuthError';
+  }
+}
+
 let cachedCoreUrl: string | null = null;
 let coreUrlPromise: Promise<string> | null = null;
+let sessionToken: string | null = null;
 
 export function resetCoreUrlForRetry() {
   cachedCoreUrl = null;
   coreUrlPromise = null;
+}
+
+export function resetSessionToken() {
+  sessionToken = null;
 }
 
 export async function getCoreDiagnostics(): Promise<CoreDiagnostics> {
@@ -91,7 +106,7 @@ export async function getCoreUrl(forceRefresh = false): Promise<string> {
     resetCoreUrlForRetry();
   }
 
-  if (cachedCoreUrl && !forceRefresh) {
+  if (cachedCoreUrl) {
     return cachedCoreUrl;
   }
 
@@ -112,6 +127,16 @@ export async function getCoreUrl(forceRefresh = false): Promise<string> {
   }
 
   return coreUrlPromise;
+}
+
+export async function getCoreToken(): Promise<string> {
+  if (sessionToken) {
+    return sessionToken;
+  }
+
+  const token = await invoke<string>('get_core_token');
+  sessionToken = token;
+  return token;
 }
 
 function sanitizeForLog(text: string): string {
@@ -232,7 +257,7 @@ let lastProviderError: { code: string; provider?: string; retryable: boolean; ti
 export function addDiagnosticLog(log: Omit<DiagnosticLogEvent, 'id' | 'timestamp'>) {
   const event: DiagnosticLogEvent = {
     ...log,
-    id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: `log_${Date.now}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: new Date().toISOString(),
     message: sanitizeForLog(log.message),
   };
@@ -299,6 +324,7 @@ async function request<T>(
   options: RequestInit = {},
   timeoutMs = DEFAULT_TIMEOUT_MS,
   isRetry = false,
+  isAuthRetry = false,
 ): Promise<T> {
   const isFromCache = Boolean(cachedCoreUrl) && !isRetry;
   const coreUrl = await getCoreUrl(isRetry);
@@ -314,7 +340,7 @@ async function request<T>(
   }
 
   console.info(
-    `[Assistant API] source=api-client url=${coreUrl} port=${port} endpoint=${path} cached=${isFromCache} retry=${isRetry} method=${method}`
+    `[Assistant API] source=api-client url=${coreUrl} port=${port} endpoint=${path} cached=${isFromCache} retry=${isRetry} auth_retry=${isAuthRetry} method=${method}`
   );
 
   const controller = new AbortController();
@@ -327,6 +353,7 @@ async function request<T>(
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(await buildAuthHeaders()),
         ...options.headers,
       },
     });
@@ -377,6 +404,22 @@ async function request<T>(
       console.warn(`[API Log] Failed to parse response error body as JSON:`, parseError);
     }
 
+    if (response.status === 401) {
+      resetSessionToken();
+      resetCoreUrlForRetry();
+      try {
+        await invoke('reset_core_token');
+      } catch {
+        // best-effort: if Tauri reset fails, continue with cleared JS cache
+      }
+
+      if (!isAuthRetry) {
+        return request<T>(path, options, timeoutMs, false, true);
+      }
+
+      throw new CoreAuthError();
+    }
+
     const apiError = new ApiError(response.status, detail, structured);
     lastProviderError = {
       code: apiError.code,
@@ -423,6 +466,19 @@ async function request<T>(
   }
 }
 
+async function buildAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  try {
+    const token = await getCoreToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {
+    // proceed without session token if it cannot be retrieved
+  }
+  return headers;
+}
+
 export const apiClient = {
   get: <T>(path: string, timeoutMs?: number) => request<T>(path, { method: 'GET' }, timeoutMs),
   post: <T>(path: string, body: unknown, timeoutMs?: number) =>
@@ -433,6 +489,7 @@ export const apiClient = {
   getCoreUrl,
   getCoreDiagnostics,
   resetCoreUrlForRetry,
+  getCoreToken,
   getDiagnosticSnapshot,
   addDiagnosticLog,
 };

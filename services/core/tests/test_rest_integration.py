@@ -23,6 +23,9 @@ from app.api.routes.plans import router as plans_router
 from app.db.database import Base, get_db, init_db
 from app.db.models.development_task import DevelopmentTaskModel
 from app.dependencies import get_background_execution_manager
+from app.identity.auth import AuthMiddleware
+from app.identity.bootstrap import BootstrapSecret
+from app.identity.session import SessionStore
 from app.manager.models import compute_task_id
 from app.orchestration.run_controller import AutonomousRunResult, RunStatus
 from app.repositories.task_repository import TaskRepository
@@ -66,7 +69,17 @@ async def async_client(sqlite_engine, session_factory):
 
     app.dependency_overrides[get_db] = _get_test_db
 
+    # Set up authentication for tests
+    session_store = SessionStore()
+    bootstrap_secret = BootstrapSecret()
+    app.state.session_store = session_store
+    app.state.bootstrap_secret = bootstrap_secret
+    app.add_middleware(AuthMiddleware)
+    
+    test_session = await session_store.create(user_id="test_user")
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.headers["Authorization"] = f"Bearer {test_session.session_id}"
         yield client
 
 

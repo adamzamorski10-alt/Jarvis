@@ -17,12 +17,18 @@ export function AssistantView() {
       <aside className="assistant-sidebar">
         <button className="btn btn-primary" onClick={newConversation} disabled={isSending}>New Conversation</button>
         <div className="assistant-conversation-list">
-          {conversations.map(item => (
-            <button key={item.id} className={`assistant-conversation${active?.id === item.id ? ' active' : ''}`} onClick={() => selectConversation(item.id)} disabled={isSending}>
-              <span>{item.title}</span>
-              <small>{item.model ?? 'No model'}</small>
-            </button>
-          ))}
+          {conversations.length === 0 ? (
+            <div className="assistant-empty" style={{ padding: 'var(--space-3)', textAlign: 'center' }}>
+              No conversations yet. Start a new one.
+            </div>
+          ) : (
+            conversations.map(item => (
+              <button key={item.id} className={`assistant-conversation${active?.id === item.id ? ' active' : ''}`} onClick={() => selectConversation(item.id)} disabled={isSending}>
+                <span>{item.title}</span>
+                <small>{item.model ?? 'No model'} · {new Date(item.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+              </button>
+            ))
+          )}
         </div>
       </aside>
       <section className="assistant-main">

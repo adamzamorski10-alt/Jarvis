@@ -7,6 +7,9 @@ import { DashboardView } from './views/Dashboard/DashboardView';
 import { ActivityView } from './views/Activity/ActivityView';
 import { SettingsView } from './views/Settings/SettingsView';
 import { AssistantView } from './views/Assistant/AssistantView';
+import { ApprovalsView } from './views/Approvals/ApprovalsView';
+import { TasksView } from './views/Tasks/TasksView';
+import { FilesView } from './views/Files/FilesView';
 import { ComingSoon } from './components/Common/ComingSoon';
 
 export function App() {
@@ -19,21 +22,13 @@ export function App() {
           <Route path="/settings" element={<SettingsView />} />
 
           <Route path="/assistant" element={<AssistantView />} />
-          <Route path="/tasks" element={
-            <ComingSoon moduleName="Tasks" icon="☑"
-              description="Task queue with statuses, retry logic, scheduling, and task plans."
-              phase="Phase 5 — Task Engine" />
-          } />
+          <Route path="/tasks" element={<TasksView />} />
           <Route path="/agents" element={
             <ComingSoon moduleName="Agents" icon="◈"
               description="Agent monitoring panel showing active agents, their plans, and tool calls."
               phase="Phase 3 — Tool System" />
           } />
-          <Route path="/files" element={
-            <ComingSoon moduleName="Files" icon="◫"
-              description="File indexing, semantic search, safe operations with recycle-bin protection."
-              phase="Phase 4 — File Agent" />
-          } />
+          <Route path="/files" element={<FilesView />} />
           <Route path="/projects" element={
             <ComingSoon moduleName="Projects" icon="⬙"
               description="Project management with memory, tasks, decisions, Git integration."
@@ -54,11 +49,7 @@ export function App() {
               description="Trigger-based workflow automation with scheduler and failure recovery."
               phase="Phase 9 — Automations" />
           } />
-          <Route path="/approvals" element={
-            <ComingSoon moduleName="Approvals" icon="◈"
-              description="Approval Center for reviewing AI actions that require your decision."
-              phase="Phase 3 — Tool System" />
-          } />
+          <Route path="/approvals" element={<ApprovalsView />} />
         </Route>
       </Routes>
     </BrowserRouter>

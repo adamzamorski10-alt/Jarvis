@@ -16,7 +16,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.models.plans_models import (
@@ -28,6 +28,7 @@ from app.api.models.plans_models import (
 )
 from app.db.database import AsyncSessionLocal, get_db
 from app.dependencies import get_background_execution_manager, get_task_repository
+from app.identity.auth import require_authenticated
 from app.orchestration.orchestrator import AutonomousTaskOrchestrator
 from app.orchestration.run_controller import AutonomousRunController, RunStatus
 from app.repositories.task_repository import TaskRepository
@@ -199,11 +200,13 @@ async def _create_executor_context(engine: Any = None) -> tuple[AutonomousPlanEx
     },
 )
 async def execute_plan(
+    request: Request,
     plan_id: str,
     timeout_seconds: float | None = Query(None, description="Optional execution timeout override in seconds"),
     task_repo: TaskRepository = Depends(get_task_repository),
     bg_manager: BackgroundExecutionManager = Depends(get_background_execution_manager),
 ) -> PlanExecutionResponse:
+    _ = require_authenticated(request)
     """
     Start background autonomous plan execution.
     Returns immediately with execution_id and RUNNING status.
@@ -260,10 +263,12 @@ async def execute_plan(
     },
 )
 async def get_plan_execution_status(
+    request: Request,
     plan_id: str,
     task_repo: TaskRepository = Depends(get_task_repository),
     bg_manager: BackgroundExecutionManager = Depends(get_background_execution_manager),
 ) -> PlanExecutionStatusResponse:
+    _ = require_authenticated(request)
     """
     Get authoritative execution status for plan_id.
     """
@@ -320,10 +325,12 @@ async def get_plan_execution_status(
     },
 )
 async def cancel_plan_execution(
+    request: Request,
     plan_id: str,
     task_repo: TaskRepository = Depends(get_task_repository),
     bg_manager: BackgroundExecutionManager = Depends(get_background_execution_manager),
 ) -> PlanExecutionStatusResponse:
+    _ = require_authenticated(request)
     """
     Request cancellation of plan execution by plan_id.
     """
@@ -366,10 +373,12 @@ async def cancel_plan_execution(
     },
 )
 async def cancel_execution_by_id(
+    request: Request,
     execution_id: str,
     task_repo: TaskRepository = Depends(get_task_repository),
     bg_manager: BackgroundExecutionManager = Depends(get_background_execution_manager),
 ) -> PlanExecutionStatusResponse:
+    _ = require_authenticated(request)
     """
     Request cancellation of background execution by execution_id.
     """
@@ -401,9 +410,11 @@ async def cancel_execution_by_id(
     },
 )
 async def get_task_status(
+    request: Request,
     task_id: str,
     task_repo: TaskRepository = Depends(get_task_repository),
 ) -> TaskStatusResponse:
+    _ = require_authenticated(request)
     """
     Get authoritative persisted status for task_id.
     Exposes bounded, sanitized task status information.
@@ -442,9 +453,11 @@ async def get_task_status(
     },
 )
 async def get_run_status(
+    request: Request,
     run_id: str,
     task_repo: TaskRepository = Depends(get_task_repository),
 ) -> RunStatusResponse:
+    _ = require_authenticated(request)
     """
     Get authoritative status for run_id or task_id.
     """

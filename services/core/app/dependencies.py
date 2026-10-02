@@ -3,7 +3,7 @@ FastAPI Dependency Injection
 Provides reusable dependencies for routes.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING, Any, AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,12 @@ from app.services.activity_service import ActivityService
 from app.ai.services.provider_manager import ProviderManager
 from app.ai.services.conversation_service import ConversationService
 from app.ai.services.ai_service import AIService
+from app.context_assembly.service import ContextAssemblyService
+from app.information_sufficiency.service import InformationSufficiencyService
+from app.clarification.service import ClarificationService
+from app.operator_request.service import OperatorRequestService
+from app.operator_capability.resolver import CapabilityResolver
+from app.operator_capability.executor import OperatorCapabilityExecutor
 
 if TYPE_CHECKING:
     from app.repositories.grant_repository import GrantRepository
@@ -139,6 +145,35 @@ def get_approval_service(
     )
 
 
+async def get_clarification_service(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[ClarificationService | None, None]:
+    from app.clarification.repository import ClarificationRepository
+    from app.clarification.service import ClarificationService
+    repo = ClarificationRepository(session)
+    yield ClarificationService(repo)
+
+
+async def get_context_assembly_service(
+    memory_service: Any | None = None,
+) -> AsyncGenerator[ContextAssemblyService | None, None]:
+    from app.context_assembly.service import ContextAssemblyService
+    yield ContextAssemblyService(memory_service=memory_service)
+
+
+async def get_information_sufficiency_service(
+    llm_provider: Any | None = None,
+) -> AsyncGenerator[InformationSufficiencyService | None, None]:
+    from app.information_sufficiency.service import InformationSufficiencyService
+    yield InformationSufficiencyService(llm_provider=llm_provider)
+
+
+async def get_operator_request_service(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[OperatorRequestService | None, None]:
+    yield OperatorRequestService()
+
+
 async def get_ai_service(
     providers: ProviderManager = Depends(get_provider_manager),
     conversations: ConversationService = Depends(get_conversation_service),
@@ -146,8 +181,30 @@ async def get_ai_service(
     settings_svc: SettingsService = Depends(get_settings_service),
     tool_execution_service: ToolExecutionService = Depends(get_tool_execution_service),
     approval_service: ApprovalService = Depends(get_approval_service),
+    context_assembly_service: ContextAssemblyService | None = Depends(get_context_assembly_service),
+    information_sufficiency_service: InformationSufficiencyService | None = Depends(get_information_sufficiency_service),
+    clarification_service: ClarificationService | None = Depends(get_clarification_service),
+    operator_request_service: OperatorRequestService | None = Depends(get_operator_request_service),
 ) -> AsyncGenerator[AIService, None]:
-    yield AIService(providers, conversations, activity, settings_svc, tool_execution_service, approval_service)
+    capability_resolver = CapabilityResolver()
+    capability_executor = OperatorCapabilityExecutor(
+        tool_execution_service=tool_execution_service,
+        autonomy_mode=None,
+    )
+    yield AIService(
+        providers,
+        conversations,
+        activity,
+        settings_svc,
+        tool_execution_service,
+        approval_service,
+        context_assembly_service=context_assembly_service,
+        information_sufficiency_service=information_sufficiency_service,
+        clarification_service=clarification_service,
+        operator_request_service=operator_request_service,
+        capability_resolver=capability_resolver,
+        capability_executor=capability_executor,
+    )
 
 
 async def get_task_repository(
@@ -184,7 +241,32 @@ async def get_scheduler_service(
     yield SchedulerService(repo, task_repo=task_repo)
 
 
+async def get_memory_service(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[MemoryService, None]:
+    from app.events.emitter import EventEmitter
+    from app.events.repository import EventRepository
+    from app.memory.service import MemoryService
+    event_repo = EventRepository(session)
+    emitter = EventEmitter(event_repo)
+    yield MemoryService(session, event_emitter=emitter)
+
+
 def get_background_execution_manager():
     from app.services.background_execution_manager import background_execution_manager
     return background_execution_manager
+
+
+def get_session_store():
+    from app.main import _session_store
+    if _session_store is None:
+        raise RuntimeError("Session store not initialized")
+    return _session_store
+
+
+def get_bootstrap_secret():
+    from app.main import _bootstrap_secret
+    if _bootstrap_secret is None:
+        raise RuntimeError("Bootstrap secret not initialized")
+    return _bootstrap_secret
 

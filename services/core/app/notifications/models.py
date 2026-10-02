@@ -56,6 +56,9 @@ class NotificationType(str, Enum):
     APPROVAL_REQUESTED = "approval.requested"
     RECOVERY_COMPLETED = "recovery.completed"
     SYSTEM_ERROR = "system.error"
+    CLARIFICATION_REQUESTED = "clarification.requested"
+    CLARIFICATION_EXPIRED = "clarification.expired"
+    CLARIFICATION_FAILED = "clarification.failed"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

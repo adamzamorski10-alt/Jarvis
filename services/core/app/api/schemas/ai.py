@@ -81,11 +81,19 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     conversation: ConversationResponse
-    message: MessageResponse
+    message: MessageResponse | None = None
     approval_required: bool | None = None
     pending_tool_call: dict | None = None
     approval_id: str | None = None
     agent_loop: dict | None = None
+    clarification_required: bool | None = None
+    clarification_session_id: str | None = None
+    clarification_questions: list[dict] | None = None
+    # Operator Request Pipeline
+    operator_request_id: str | None = None
+    state: str | None = None
+    operation_type: str | None = None
+    readiness_state: str | None = None
 
 
 class PullModelRequest(BaseModel):
@@ -155,5 +163,13 @@ class ApprovalResponse(BaseModel):
     executed_at: datetime | None = None
     decision_reason: str | None = None
     execution_result: dict | None = None
+
+
+class PendingApprovalListResponse(BaseModel):
+    approvals: list[ApprovalResponse]
+    total: int
+    limit: int = 50
+    offset: int = 0
+
 
 

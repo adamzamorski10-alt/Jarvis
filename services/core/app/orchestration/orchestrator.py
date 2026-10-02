@@ -41,6 +41,11 @@ from app.orchestration.models import (
     OrchestrationResult,
 )
 from app.orchestration.prompt_compiler import DevelopmentManager
+
+# Context Assembly integration (Stage 19.5)
+from app.context_assembly.models import ContextAssemblyRequest, ContextMode, OperationType
+from app.identity.models import ActorType, RequestContext
+
 from app.tasks.exceptions import StaleStateTransitionError, TaskNotFoundError
 from app.tasks.models import TaskStatus
 from app.verification.models import VerificationContext
@@ -76,6 +81,7 @@ class AutonomousTaskOrchestrator:
         agent_factory: DevelopmentAgentFactory | None = None,
         development_manager: DevelopmentManager | None = None,
         event_emitter: Any | None = None,
+        context_assembly_service: Any | None = None,
     ) -> None:
         if agent is None and agent_factory is None:
             raise ValueError("Either agent or agent_factory must be provided to AutonomousTaskOrchestrator")
@@ -88,6 +94,7 @@ class AutonomousTaskOrchestrator:
         self._agent_factory = agent_factory
         self._development_manager = development_manager
         self._event_emitter = event_emitter
+        self._context_assembly_service = context_assembly_service
 
     async def start_task(
         self,
@@ -283,12 +290,38 @@ class AutonomousTaskOrchestrator:
                 raise OrchestrationError("No DevelopmentAgent or DevelopmentAgentFactory available")
 
             compiled_prompt = None
+            assembled_context = None
+            if self._context_assembly_service is not None:
+                try:
+                    request = ContextAssemblyRequest(
+                        operation_type=OperationType.CODING,
+                        actor_type=ActorType.SYSTEM,
+                        user_id=None,
+                        project_id=claimed_task.project_id,
+                        user_request=f"{claimed_task.title}\n\n{claimed_task.description}",
+                        request_context=RequestContext(
+                            user_id=None,
+                            actor_type=ActorType.SYSTEM,
+                            actor_id="orchestrator",
+                            session_id=None,
+                            service_name="autonomous_orchestrator",
+                        ),
+                    )
+                    assembled_context = await self._context_assembly_service.assemble(request)
+                except Exception as exc:
+                    logger.warning(
+                        "Context assembly failed for task %s: %s",
+                        task_id, exc,
+                    )
+                    assembled_context = None
+
             if self._development_manager is not None and hasattr(agent, "execute_with_prompt"):
                 try:
                     compiled_prompt = self._development_manager.compile(
                         context=agent_context,
                         task=claimed_task,
                         previous_verification_result=previous_verification_result,
+                        assembled_context=assembled_context,
                     )
                 except DevelopmentManagerError as exc:
                     logger.warning(

@@ -23,6 +23,7 @@ struct CoreState {
     last_error: Option<String>,
     retry_attempts: u32,
     log_dir: Option<String>,
+    session_token: Option<String>,
 }
 
 type SharedCoreState = Arc<Mutex<CoreState>>;
@@ -35,6 +36,7 @@ struct CoreDiagnostics {
     last_error: Option<String>,
     retry_attempts: u32,
     log_dir: Option<String>,
+    session_token: Option<String>,
 }
 
 struct CoreProcess(Mutex<Option<CommandChild>>);
@@ -101,7 +103,78 @@ fn get_core_diagnostics(state: State<'_, SharedCoreState>) -> Result<CoreDiagnos
         last_error: state.last_error.clone(),
         retry_attempts: state.retry_attempts,
         log_dir: state.log_dir.clone(),
+        session_token: state.session_token.clone(),
     })
+}
+
+fn read_local_secret(data_dir: &Path) -> Result<String, String> {
+    let secret_path = data_dir.join(".local_secret");
+    std::fs::read_to_string(&secret_path)
+        .map_err(|error| format!("Could not read local secret: {}", error))
+}
+
+fn bootstrap_session(url: &str, secret: &str) -> Result<String, String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .map_err(|error| format!("Could not create HTTP client: {}", error))?;
+
+    let response = client
+        .post(format!("{}/api/auth/session", url))
+        .header("Content-Type", "application/json")
+        .header("X-Local-Secret", secret)
+        .send()
+        .map_err(|error| format!("Bootstrap request failed: {}", error))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Bootstrap failed with status: {}", response.status()));
+    }
+
+    let body: serde_json::Value = response
+        .json()
+        .map_err(|error| format!("Could not parse bootstrap response: {}", error))?;
+
+    let session_id = body["session_id"]
+        .as_str()
+        .ok_or_else(|| "Missing session_id in bootstrap response".to_string())?;
+
+    Ok(session_id.to_string())
+}
+
+fn attempt_bootstrap(url: &str, data_dir: &Path) -> Result<String, String> {
+    let secret = read_local_secret(data_dir)?;
+    let session_id = bootstrap_session(url, &secret)?;
+    Ok(session_id)
+}
+
+#[tauri::command]
+fn get_core_token(state: State<'_, SharedCoreState>, data_dir: PathBuf) -> Result<String, String> {
+    let core_state = state.lock().map_err(|_| "Core state lock poisoned".to_string())?;
+
+    if let Some(token) = core_state.session_token.as_ref() {
+        return Ok(token.clone());
+    }
+
+    let url = core_state
+        .url
+        .clone()
+        .ok_or_else(|| core_state.last_error.clone().unwrap_or_else(|| "Core URL is not available".to_string()))?;
+
+    drop(core_state);
+
+    let session_id = attempt_bootstrap(&url, &data_dir)?;
+
+    let mut core_state = state.lock().map_err(|_| "Core state lock poisoned".to_string())?;
+    core_state.session_token = Some(session_id.clone());
+
+    Ok(session_id)
+}
+
+#[tauri::command]
+fn reset_core_token(state: State<'_, SharedCoreState>) {
+    if let Ok(mut guard) = state.lock() {
+        guard.session_token = None;
+    }
 }
 
 fn reserve_local_port() -> Result<u16, String> {
@@ -115,7 +188,7 @@ fn reserve_local_port() -> Result<u16, String> {
     Ok(port)
 }
 
-fn wait_for_health(url: &str, state: &SharedCoreState) -> Result<(), String> {
+fn wait_for_health(url: &str, state: &SharedCoreState, _data_dir: &Path) -> Result<(), String> {
     let health_url = format!("{url}/api/health");
 
     for attempt in 1..=30 {
@@ -224,7 +297,7 @@ fn start_python_core(app: &tauri::App, state: SharedCoreState) -> Result<Command
         }
     });
 
-    wait_for_health(&url, &state)?;
+    wait_for_health(&url, &state, &data_dir)?;
     Ok(child)
 }
 
@@ -254,7 +327,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_core_url, get_core_diagnostics])
+        .invoke_handler(tauri::generate_handler![get_core_url, get_core_diagnostics, get_core_token, reset_core_token])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();

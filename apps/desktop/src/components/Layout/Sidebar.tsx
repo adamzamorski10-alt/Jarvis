@@ -15,14 +15,14 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: '⬡', implemented: true },
   { path: '/assistant', label: 'Assistant', icon: '◎', implemented: true },
-  { path: '/tasks', label: 'Tasks', icon: '☑', implemented: false },
+  { path: '/tasks', label: 'Tasks', icon: '☑', implemented: true },
   { path: '/agents', label: 'Agents', icon: '◈', implemented: false },
-  { path: '/files', label: 'Files', icon: '◫', implemented: false },
+  { path: '/files', label: 'Files', icon: '◫', implemented: true },
   { path: '/projects', label: 'Projects', icon: '⬙', implemented: false },
   { path: '/browser', label: 'Browser', icon: '◉', implemented: false },
   { path: '/messages', label: 'Messages', icon: '◳', implemented: false },
   { path: '/automations', label: 'Automations', icon: '⟳', implemented: false },
-  { path: '/approvals', label: 'Approvals', icon: '◈', implemented: false },
+  { path: '/approvals', label: 'Approvals', icon: '◈', implemented: true },
   { path: '/activity', label: 'Activity', icon: '≡', implemented: true },
   { path: '/settings', label: 'Settings', icon: '⚙', implemented: true },
 ];

@@ -16,7 +16,7 @@ from app.tools.base import BaseTool
 from app.tools.executor import ToolExecutor
 from app.tools.implementation_registry import ToolImplementationRegistry
 from app.tools.implementations.system_time import SystemGetTime
-from app.tools.models import ToolCall, ToolExecutionStatus, ToolDefinition, ToolCategory, RiskLevel
+from app.tools.models import ToolCall, ToolExecutionStatus, ToolDefinition, ToolCategory, RiskLevel, ToolExecutionContext
 from app.tools.registry import ToolRegistry, tool_registry
 
 
@@ -63,7 +63,7 @@ class DummyTool(BaseTool):
             enabled=True,
         )
 
-    async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+    async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
         return {"ok": True}
 
 
@@ -234,7 +234,7 @@ async def test_execute_implementation_raises():
                 risk_level=RiskLevel.SAFE,
             )
 
-        async def execute(self, arguments: dict[str, Any], context: dict[str, Any] | None = None) -> Any:
+        async def execute(self, arguments: dict[str, Any], context: ToolExecutionContext | None = None) -> Any:
             raise RuntimeError(" intentional failure ")
 
     reg = _make_registry()

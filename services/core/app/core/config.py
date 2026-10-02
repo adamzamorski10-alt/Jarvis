@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "pretty"  # "pretty" | "json"
 
+    # Identity & Session
+    session_absolute_timeout_seconds: int = 86400  # 24 hours
+    session_idle_timeout_seconds: int = 86400  # 24 hours
+
     @property
     def database_url(self) -> str:
         # Ensure parent directory exists

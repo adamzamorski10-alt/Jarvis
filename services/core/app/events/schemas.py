@@ -73,6 +73,29 @@ class EventType(str, Enum):
     SCHEDULER_OCCURRENCE_RECOVERED = "scheduler.occurrence.recovered"
     SCHEDULER_OCCURRENCE_SKIPPED = "scheduler.occurrence.skipped"
 
+    # Memory lifecycle
+    MEMORY_CREATED = "memory.created"
+    MEMORY_UPDATED = "memory.updated"
+    MEMORY_SUPERSEDED = "memory.superseded"
+    MEMORY_DELETED = "memory.deleted"
+
+    # Clarification lifecycle
+    CLARIFICATION_REQUESTED = "clarification.requested"
+    CLARIFICATION_RESPONDED = "clarification.responded"
+    CLARIFICATION_SATISFIED = "clarification.satisfied"
+    CLARIFICATION_CANCELLED = "clarification.cancelled"
+    CLARIFICATION_EXPIRED = "clarification.expired"
+    CLARIFICATION_FAILED = "clarification.failed"
+
+    # Operator request lifecycle
+    OPERATOR_REQUEST_RECEIVED = "operator.request.received"
+    OPERATOR_REQUEST_NORMALIZED = "operator.request.normalized"
+    OPERATOR_REQUEST_CLASSIFIED = "operator.request.classified"
+    OPERATOR_REQUEST_CLARIFICATION_REQUIRED = "operator.request.clarification_required"
+    OPERATOR_REQUEST_READY = "operator.request.ready"
+    OPERATOR_REQUEST_REJECTED = "operator.request.rejected"
+    OPERATOR_REQUEST_BLOCKED = "operator.request.blocked"
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

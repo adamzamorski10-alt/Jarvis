@@ -30,8 +30,10 @@ from app.tools.models import (
     PermissionEvaluationRequest,
     ToolCall,
     ToolDefinition,
+    ToolExecutionContext,
     ToolExecutionResult,
     ToolExecutionStatus,
+    WorkspaceContext,
 )
 from app.tools.permission_engine import PermissionEngine
 from app.tools.registry import ToolRegistry
@@ -91,6 +93,8 @@ class ToolExecutionService:
         request_id: str | None = None,
         context: dict[str, Any] | None = None,
         approval_context: Any = None,
+        actor_id: str | None = None,
+        workspace_path: str | None = None,
     ) -> ToolExecutionResult:
         """
         Execute a single tool call through the full security pipeline.
@@ -159,7 +163,7 @@ class ToolExecutionService:
             validate_arguments(
                 tool_call.arguments,
                 definition.parameters_schema,
-                max_size_bytes=self._max_arguments_size_bytes,
+                max_size_bytes=definition.max_arguments_size_bytes or self._max_arguments_size_bytes,
             )
         except (ArgsValidationError, ValueError) as exc:
             await self._safe_audit(
@@ -189,6 +193,7 @@ class ToolExecutionService:
             arguments=tool_call.arguments,
             context=context or {"request_id": request_id} if request_id else (context or {}),
             approval_context=approval_context,
+            actor_id=actor_id,
         )
 
         decision = await self._permission_engine.evaluate(permission_request)
@@ -231,8 +236,17 @@ class ToolExecutionService:
 
         execution_start = time.perf_counter()
         try:
+            execution_context = self._build_execution_context(
+                request_id=request_id or tool_call.request_id,
+                actor_id=actor_id,
+                tool_call_id=tool_call.tool_call_id,
+                approval_context=approval_context,
+                context=context,
+                workspace_path=workspace_path,
+            )
+
             raw_result = await asyncio.wait_for(
-                self._executor.execute(tool_call, context=context),
+                self._executor.execute(tool_call, context=execution_context),
                 timeout=self._max_execution_time_ms / 1000.0,
             )
         except asyncio.TimeoutError:
@@ -322,6 +336,7 @@ class ToolExecutionService:
         request_id: str | None = None,
         context: dict[str, Any] | None = None,
         approval_context: Any = None,
+        actor_id: str | None = None,
     ) -> list[ToolExecutionResult]:
         """
         Execute multiple tool calls with a per-request limit.
@@ -354,6 +369,7 @@ class ToolExecutionService:
                 request_id=request_id,
                 context=context,
                 approval_context=approval_context,
+                actor_id=actor_id,
             )
             results.append(result)
 
@@ -370,6 +386,35 @@ class ToolExecutionService:
                 )
 
         return results
+
+    def _build_execution_context(
+        self,
+        *,
+        request_id: str | None,
+        actor_id: str | None,
+        tool_call_id: str | None,
+        approval_context: Any,
+        context: dict[str, Any] | None,
+        workspace_path: str | None,
+    ) -> ToolExecutionContext:
+        ctx_kwargs: dict[str, Any] = {
+            "request_id": request_id,
+            "actor_id": actor_id,
+            "tool_call_id": tool_call_id,
+            "approval_context": approval_context,
+        }
+
+        if context:
+            ctx_kwargs.setdefault("request_id", context.get("request_id"))
+            ctx_kwargs.setdefault("tool_call_id", context.get("tool_call_id"))
+            ctx_kwargs.setdefault("actor_id", context.get("actor_id"))
+            if workspace_path is None:
+                workspace_path = context.get("workspace_path")
+
+        if workspace_path:
+            ctx_kwargs["workspace"] = WorkspaceContext(workspace_path=workspace_path)
+
+        return ToolExecutionContext(**ctx_kwargs)
 
     def _build_permission_denied_result(
         self,

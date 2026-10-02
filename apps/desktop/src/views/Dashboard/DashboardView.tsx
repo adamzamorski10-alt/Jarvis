@@ -2,7 +2,7 @@
  * Dashboard — Main overview screen.
  * Shows real system status, recent activity, and quick actions.
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCoreStatus } from '../../hooks/useCoreStatus';
 import { useActivity } from '../../hooks/useActivity';
@@ -74,19 +74,37 @@ export function DashboardView() {
   const navigate = useNavigate();
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
+  const [activeTasks, setActiveTasks] = useState<number | null>(null);
 
-  const handleTestConnection = async () => {
+  const handleTestConnection = useCallback(async () => {
     setTestingConnection(true);
     setTestResult(null);
     try {
-      const health = await coreApi.getHealth();
-      setTestResult(`Core v${health.version} - ${health.status.toUpperCase()}`);
+      await coreApi.getSystemStatus();
+      setTestResult('HEALTHY');
     } catch {
-      setTestResult('Connection failed');
+      setTestResult('FAILED');
     } finally {
       setTestingConnection(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    coreApi.getPendingApprovalCount()
+      .then(res => { if (!cancelled) setPendingApprovals(res.count); })
+      .catch(() => { if (!cancelled) setPendingApprovals(0); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    coreApi.getTasks({ status: 'RUNNING', limit: 50, offset: 0 })
+      .then(res => { if (!cancelled) setActiveTasks(res.total); })
+      .catch(() => { if (!cancelled) setActiveTasks(0); });
+    return () => { cancelled = true; };
+  }, []);
 
   if (!isLoading && !isOnline) {
     return (
@@ -148,15 +166,15 @@ export function DashboardView() {
             />
             <StatusCard
               label="AI Provider"
-              value={aiStatus?.provider ?? 'Ollama'}
+              value={aiStatus?.provider ?? '—'}
               statusClass={aiStatus?.ai_ready ? 'success' : ['online', 'ready'].includes(aiStatus?.provider_status ?? '') ? 'warning' : 'muted'}
               detail={formatAIStatus(aiStatus)}
             />
             <StatusCard
               label="Active Tasks"
-              value="0"
-              statusClass="muted"
-              detail="Phase 5 — Task Engine"
+              value={isLoading ? '…' : activeTasks === null ? '0' : String(activeTasks)}
+              statusClass={isLoading ? 'muted' : activeTasks && activeTasks > 0 ? 'success' : 'muted'}
+              detail="Autonomous tasks"
             />
           </div>
         </div>
@@ -212,6 +230,18 @@ export function DashboardView() {
                   <span className="icon">⚙</span>
                   Open Settings
                 </button>
+                <button className="quick-action-btn" onClick={() => navigate('/tasks')}>
+                  <span className="icon">☑</span>
+                  Open Tasks
+                </button>
+                <button className="quick-action-btn" onClick={() => navigate('/files')}>
+                  <span className="icon">◫</span>
+                  Open Files
+                </button>
+                <button className="quick-action-btn" onClick={() => navigate('/approvals')}>
+                  <span className="icon">◈</span>
+                  Open Approvals
+                </button>
                 <button className="quick-action-btn" onClick={() => navigate('/activity')}>
                   <span className="icon">≡</span>
                   View Activity Log
@@ -264,7 +294,7 @@ export function DashboardView() {
                 </div>
                 <div className="info-row">
                   <span className="info-key">Pending Approvals</span>
-                  <span className="info-value">0</span>
+                  <span className="info-value">{pendingApprovals === null ? '…' : pendingApprovals}</span>
                 </div>
               </div>
             </div>

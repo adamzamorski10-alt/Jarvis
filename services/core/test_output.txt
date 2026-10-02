@@ -1,0 +1,31 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\adamz\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: F:\Projects\AI-Operator\services\core
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 20 items
+
+tests/test_memory_event_integration.py::TestMemoryEventTypes::test_memory_event_types_exist PASSED [  5%]
+tests/test_memory_event_integration.py::TestMemoryEventPayload::test_create_event_payload PASSED [ 10%]
+tests/test_memory_event_integration.py::TestMemoryEventPayload::test_update_event_payload_contains_changed_fields PASSED [ 15%]
+tests/test_memory_event_integration.py::TestMemoryEventPayload::test_delete_event_payload PASSED [ 20%]
+tests/test_memory_event_integration.py::TestMemoryEventPayload::test_supersede_event_payload PASSED [ 25%]
+tests/test_memory_event_integration.py::TestMemoryEventTransactionSemantics::test_successful_create_emits_event_and_commits PASSED [ 30%]
+tests/test_memory_event_integration.py::TestMemoryEventTransactionSemantics::test_rollback_after_create_removes_both_memory_and_event PASSED [ 35%]
+tests/test_memory_event_integration.py::TestMemoryEventTransactionSemantics::test_event_emitter_failure_rolls_back_memory PASSED [ 40%]
+tests/test_memory_event_integration.py::TestMemoryEventTransactionSemantics::test_supersede_event_failure_rolls_back_both_memories PASSED [ 45%]
+tests/test_memory_event_integration.py::TestMemoryEventTransactionSemantics::test_update_failure_does_not_emit_event PASSED [ 50%]
+tests/test_memory_event_integration.py::TestMemoryEventIdempotency::test_duplicate_create_event_is_idempotent PASSED [ 55%]
+tests/test_memory_event_integration.py::TestMemoryHistoryRetrieval::test_memory_history_ordered_by_occurred_at PASSED [ 60%]
+tests/test_memory_event_integration.py::TestMemoryHistoryRetrieval::test_rolled_back_operations_do_not_appear_in_history PASSED [ 65%]
+tests/test_memory_event_integration.py::TestMemoryHistoryRetrieval::test_history_between_sees_memory_events PASSED [ 70%]
+tests/test_memory_event_integration.py::TestMemoryEventSecurity::test_event_payload_does_not_contain_content PASSED [ 75%]
+tests/test_memory_event_integration.py::TestMemoryEventSecurity::test_event_payload_cannot_grant_authority PASSED [ 80%]
+tests/test_memory_event_integration.py::TestMemoryEventSecurity::test_memory_event_cannot_trigger_execution PASSED [ 85%]
+tests/test_memory_event_integration.py::TestMemoryEventFailureInjection::test_create_then_rollback_removes_event PASSED [ 90%]
+tests/test_memory_event_integration.py::TestMemoryEventFailureInjection::test_update_event_failure_does_not_leave_inconsistent_state PASSED [ 95%]
+tests/test_memory_event_integration.py::TestMemoryEventCorrelation::test_memory_events_share_correlation_id PASSED [100%]
+
+============================= 20 passed in 9.80s ==============================
