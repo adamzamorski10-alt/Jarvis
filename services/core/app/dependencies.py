@@ -174,6 +174,13 @@ async def get_operator_request_service(
     yield OperatorRequestService()
 
 
+async def get_task_repository(
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[Any, None]:
+    from app.repositories.task_repository import TaskRepository
+    yield TaskRepository(session)
+
+
 async def get_ai_service(
     task_repository = Depends(get_task_repository),
     providers: ProviderManager = Depends(get_provider_manager),
