@@ -421,6 +421,46 @@ class WorkspaceManager:
             status=WorkspaceStatus.ACTIVE,
         )
 
+    def get_changed_files(self, workspace: WorkspaceInfo, base_commit_sha: str | None = None) -> list[str]:
+        """
+        Return the actual files changed in the autonomous worktree.
+
+        The result is derived from Git, never from an agent-reported file list.
+        It includes tracked changes relative to the verified base commit and
+        untracked files, while excluding the internal ownership marker.
+        """
+        wt_path = self._validated_autonomous_path(workspace)
+        base_sha = base_commit_sha or workspace.base_commit_sha
+        runner = GitRunner(cwd=wt_path, timeout=self._git_timeout)
+
+        tracked = runner.run(
+            ["diff", "--name-only", f"{base_sha}..HEAD"],
+            check=False,
+        )
+        if tracked.returncode != 0:
+            raise CheckpointError(
+                f"Failed to inspect tracked changes from base {base_sha!r}: {tracked.stderr.strip()}"
+            )
+
+        untracked = runner.run(
+            ["ls-files", "--others", "--exclude-standard"],
+            check=False,
+        )
+        if untracked.returncode != 0:
+            raise CheckpointError(
+                f"Failed to inspect untracked changes: {untracked.stderr.strip()}"
+            )
+
+        files = {
+            line.strip().replace("\\", "/")
+            for line in (
+                tracked.stdout.splitlines() + untracked.stdout.splitlines()
+            )
+            if line.strip()
+        }
+        files.discard(".ai_operator_ownership")
+        return sorted(files)
+
     def inspect_workspace_status(self, workspace: WorkspaceInfo) -> WorkspaceStatus:
         """
         Inspect the current status of an autonomous worktree.
