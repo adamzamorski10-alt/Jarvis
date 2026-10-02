@@ -342,12 +342,16 @@ async def get_execution_bridge(
         audit_service=audit_service,
     )
 
+    from app.services.plan_service import PlanService
+    plan_service = PlanService(task_repository)
+
     return ExecutionBridge(
         planning_service=manager_planning_service,
         plan_execution_service=plan_execution_service,
         autonomous_executor=autonomous_executor,
         capability_gate=PolicyCapabilityGate(),
         approval_service=capability_approval_service,
+        plan_service=plan_service,
         audit_service=audit_service,
     )
 
