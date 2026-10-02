@@ -678,6 +678,60 @@ def test_valid_autonomous_worktree_context_accepted(tmp_path: Path) -> None:
     assert len(report.results) == 1
 
 
+def test_gate_canonicalizes_changed_files_from_git(tmp_path: Path) -> None:
+    """Security: checks receive the real Git change set, not caller/agent claims."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    base_sha = _init_real_git_repo(repo_root)
+
+    mgr = WorkspaceManager(repo_root=repo_root)
+    info = mgr.create_workspace("task-change-set", base_commit_sha=base_sha, execution_token="exec_task-change-set")
+    wt = Path(info.autonomous_worktree_path)
+
+    (wt / "tracked.py").write_text("print('tracked')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.py"], cwd=str(wt), check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "change"],
+        cwd=str(wt),
+        check=True,
+        capture_output=True,
+        env={**os.environ, "GIT_AUTHOR_NAME": "Test User", "GIT_AUTHOR_EMAIL": "test@example.com",
+             "GIT_COMMITTER_NAME": "Test User", "GIT_COMMITTER_EMAIL": "test@example.com",
+             "HOME": str(wt), "GIT_CONFIG_NOSYSTEM": "1"},
+    )
+    (wt / "untracked.py").write_text("print('untracked')\n", encoding="utf-8")
+
+    observed: list[str] = []
+
+    class CaptureCheck(BaseVerificationCheck):
+        check_id = "capture"
+        check_name = "Capture changed files"
+        required = True
+
+        def _run(self, context: VerificationContext) -> tuple[CheckStatus, dict[str, Any]]:
+            observed.extend(context.changed_files)
+            return CheckStatus.PASS, {}
+
+    registry = CheckRegistry()
+    registry.register(CaptureCheck())
+    gate = VerificationGate(registry=registry, primary_worktree_path=repo_root)
+
+    ctx = VerificationContext(
+        task_id="task-change-set",
+        workspace_path=str(wt),
+        repository_root=str(repo_root),
+        expected_base_commit=base_sha,
+        current_commit=mgr.get_current_head(wt),
+        changed_files=["agent-invented.py"],
+    )
+    report = gate.run(ctx)
+
+    assert report.passed is True
+    assert observed == ["untracked.py", "tracked.py"]
+    assert "agent-invented.py" not in observed
+    assert ".ai_operator_ownership" not in observed
+
+
 def test_repository_identity_mismatch_rejected(tmp_path: Path) -> None:
     """Item 19: Repository identity mismatch (common-dir mismatch) -> FAIL report."""
     repo1 = tmp_path / "repo1"
