@@ -40,17 +40,22 @@ class OperatorCapabilityExecutor:
         tool_execution_service: Any = None,
         task_repository: Any = None,
         task_state_machine: Any = None,
+        manager_planning_service: Any = None,
+        plan_service: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
         self._task_repository = task_repository
         self._task_state_machine = task_state_machine
+        self._manager_planning_service = manager_planning_service
+        self._plan_service = plan_service
         self._autonomy_mode = autonomy_mode
 
     async def execute(
         self,
         request: OperatorRequest,
         resolution: CapabilityResolution,
+        manager_result: Any = None,
     ) -> CapabilityExecutionResult:
         """
         Execute a resolved capability.
@@ -84,7 +89,7 @@ class OperatorCapabilityExecutor:
         if resolution.capability_kind == CapabilityKind.TOOL:
             return await self._execute_tool(request, resolution)
         elif resolution.capability_kind == CapabilityKind.SERVICE:
-            return await self._execute_service(request, resolution)
+            return await self._execute_service(request, resolution, manager_result)
         elif resolution.capability_kind == CapabilityKind.ANSWER_ONLY:
             return self._execute_answer_only(request, resolution)
         else:
@@ -204,6 +209,7 @@ class OperatorCapabilityExecutor:
         self,
         request: OperatorRequest,
         resolution: CapabilityResolution,
+        manager_result: Any = None,
     ) -> CapabilityExecutionResult:
         """Execute a service-backed capability via existing application services."""
         capability_id = resolution.capability_id or ""
@@ -214,9 +220,9 @@ class OperatorCapabilityExecutor:
             elif capability_id == "task.update":
                 return await self._execute_task_update(request, resolution)
             elif capability_id == "plan.create":
-                return await self._execute_plan_create(request, resolution)
+                return await self._execute_plan_create(request, resolution, manager_result)
             elif capability_id == "plan.execute":
-                return await self._execute_plan_execute(request, resolution)
+                return await self._execute_plan_execute(request, resolution, manager_result)
             else:
                 return CapabilityExecutionResult(
                     request_id=request.request_id,
@@ -498,23 +504,75 @@ class OperatorCapabilityExecutor:
             service_result=updated.model_dump(mode="json"),
         )
 
-    async def _execute_plan_create(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
-        """Create a plan via existing PlanManager."""
-        return CapabilityExecutionResult(
-            request_id=request.request_id,
-            operation_type=request.operation_type,
-            capability_kind=CapabilityKind.SERVICE,
-            capability_id="plan.create",
-            success=False,
-            state="BLOCKED",
-            user_message="Plan creation requires AI Manager decision.",
-            result_metadata={},
-            error_category="REQUIRES_AI_MANAGER",
-            error_detail="plan.create should be triggered by AI Manager decision",
-        )
+    async def _execute_plan_create(
+        self,
+        request: OperatorRequest,
+        resolution: CapabilityResolution,
+        manager_result: Any = None,
+    ) -> CapabilityExecutionResult:
+        """Create and persist a validated plan from a trusted ManagerResult."""
+        if manager_result is None or self._manager_planning_service is None or self._plan_service is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.create",
+                success=False,
+                state="BLOCKED",
+                user_message="Plan creation is not fully configured.",
+                result_metadata={},
+                error_category="REQUIRES_PLAN_SERVICES",
+                error_detail="ManagerPlanningService and PlanService are required",
+            )
+        try:
+            project_id = request.project_id or "default"
+            planning_result = await self._manager_planning_service.plan_decision(
+                manager_result,
+                project_id=project_id,
+                execution_authorized=False,
+            )
+            tasks = await self._plan_service.persist_manager_plan_result(
+                planning_result.manager_plan_result
+            )
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.create",
+                success=True,
+                state="PLAN_CREATED",
+                user_message="Plan created successfully.",
+                result_metadata={
+                    "plan_id": planning_result.plan_id,
+                    "project_id": planning_result.project_id,
+                    "task_count": len(tasks),
+                },
+                service_result={
+                    "plan_id": planning_result.plan_id,
+                    "tasks": [task.model_dump(mode="json") for task in tasks],
+                },
+            )
+        except Exception as exc:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.create",
+                success=False,
+                state="EXECUTION_FAILED",
+                user_message="Plan creation failed.",
+                result_metadata={},
+                error_category="PLAN_CREATION_FAILED",
+                error_detail=str(exc),
+            )
 
-    async def _execute_plan_execute(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
-        """Execute a plan via existing ExecutionBridge."""
+    async def _execute_plan_execute(
+        self,
+        request: OperatorRequest,
+        resolution: CapabilityResolution,
+        manager_result: Any = None,
+    ) -> CapabilityExecutionResult:
+        """Execution is intentionally fail-closed until the controlled bridge is injected."""
         return CapabilityExecutionResult(
             request_id=request.request_id,
             operation_type=request.operation_type,
@@ -522,10 +580,10 @@ class OperatorCapabilityExecutor:
             capability_id="plan.execute",
             success=False,
             state="BLOCKED",
-            user_message="Plan execution requires ExecutionBridge.",
+            user_message="Plan execution requires the controlled ExecutionBridge.",
             result_metadata={},
             error_category="REQUIRES_EXECUTION_BRIDGE",
-            error_detail="plan.execute should be routed through ExecutionBridge",
+            error_detail="ExecutionBridge is not yet wired into the Operator runtime",
         )
 
     def _execute_answer_only(
