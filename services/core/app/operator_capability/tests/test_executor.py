@@ -237,6 +237,48 @@ class TestOperatorCapabilityExecutor:
         assert result.error_category == "SERVICE_UNAVAILABLE"
 
     @pytest.mark.asyncio
+    async def test_task_update_fails_closed_without_real_service(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+        result = await self.executor.execute(request, resolution)
+        assert result.success is False
+        assert result.state == "BLOCKED"
+        assert result.error_category == "MISSING_TASK_ID"
+
+    @pytest.mark.asyncio
+    async def test_plan_create_fails_closed_without_manager_execution(self):
+        request = _make_request("PLAN_CREATE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="PLAN_CREATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="plan.create",
+        )
+        result = await self.executor.execute(request, resolution)
+        assert result.success is False
+        assert result.state == "BLOCKED"
+        assert result.error_category == "REQUIRES_AI_MANAGER"
+
+    @pytest.mark.asyncio
+    async def test_plan_execute_fails_closed_without_execution_bridge(self):
+        request = _make_request("PLAN_EXECUTE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="PLAN_EXECUTE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="plan.execute",
+        )
+        result = await self.executor.execute(request, resolution)
+        assert result.success is False
+        assert result.state == "BLOCKED"
+        assert result.error_category == "REQUIRES_EXECUTION_BRIDGE"
+
+    @pytest.mark.asyncio
     async def test_service_unsupported_returns_blocked(self):
         """Unsupported service capability returns blocked."""
         request = _make_request()
