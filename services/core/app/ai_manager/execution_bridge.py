@@ -499,12 +499,9 @@ class ExecutionBridge:
                 f"Approval cannot be reused for a different operation."
             )
 
-        try:
-            await self._approval_service.consume(approval_id)
-        except CapabilityApprovalError as exc:
-            raise ExecutionAuthorizationError(
-                f"Approval '{approval_id}' consumption failed: {exc}"
-            ) from exc
+        # Consumption is deliberately performed only after planning and
+        # persistence succeed, immediately before execution.
+        return
 
     async def _safe_audit(self, event_type: str, **kwargs: Any) -> None:
         """Write audit event. Fail-safe: never raises."""
