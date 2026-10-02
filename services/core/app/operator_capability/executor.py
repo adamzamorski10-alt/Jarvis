@@ -37,9 +37,11 @@ class OperatorCapabilityExecutor:
     def __init__(
         self,
         tool_execution_service: Any = None,
+        task_repository: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
+        self._task_repository = task_repository
         self._autonomy_mode = autonomy_mode
 
     async def execute(
@@ -240,27 +242,38 @@ class OperatorCapabilityExecutor:
             )
 
     async def _execute_task_create(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
-        """Create a task via existing TaskRepository."""
-        # Import here to avoid circular imports
-        from app.repositories.task_repository import TaskRepository
-        from app.db.models.task import TaskStatus
+        """Persist a development task through the application-owned repository."""
+        if self._task_repository is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.create",
+                success=False,
+                state="FAILED",
+                user_message="Task service is not available.",
+                result_metadata={},
+                error_category="SERVICE_UNAVAILABLE",
+                error_detail="TaskRepository is not configured",
+            )
 
-        # Build task data from request
-        task_data = {
-            "title": request.user_request[:200],
-            "description": request.user_request,
-            "status": TaskStatus.CREATED,
-            "user_id": request.request_context.user_id if request.request_context else None,
-            "project_id": request.project_id,
-            "conversation_id": request.conversation_id,
-            "request_id": request.request_id,
-            "correlation_id": request.correlation_id,
-            "operation_type": request.operation_type,
-            "constraints": request.constraints,
-        }
+        from app.tasks.models import DevelopmentTask, TaskStatus
 
-        # Create task via repository
-        # This is a simplified version; actual implementation would use proper service
+        task = DevelopmentTask(
+            project_id=request.project_id or "default",
+            title=request.user_request[:200].strip(),
+            description=request.user_request.strip(),
+            status=TaskStatus.PENDING,
+            metadata={
+                "request_id": request.request_id,
+                "conversation_id": request.conversation_id,
+                "correlation_id": request.correlation_id,
+                "operation_type": request.operation_type,
+                "constraints": request.constraints,
+            },
+        )
+        created = await self._task_repository.create_task(task)
+
         return CapabilityExecutionResult(
             request_id=request.request_id,
             operation_type=request.operation_type,
@@ -269,8 +282,8 @@ class OperatorCapabilityExecutor:
             success=True,
             state="TASK_CREATED",
             user_message="Task created successfully.",
-            result_metadata={"task_id": "pending"},
-            service_result=task_data,
+            result_metadata={"task_id": created.task_id},
+            service_result=created.model_dump(mode="json"),
         )
 
     async def _execute_task_update(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
