@@ -195,9 +195,12 @@ async def get_ai_service(
     operator_request_service: OperatorRequestService | None = Depends(get_operator_request_service),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
+    from app.tasks.state_machine import TaskStateMachine
+    task_state_machine = TaskStateMachine(task_repository)
     capability_executor = OperatorCapabilityExecutor(
         tool_execution_service=tool_execution_service,
         task_repository=task_repository,
+        task_state_machine=task_state_machine,
         autonomy_mode=None,
     )
     yield AIService(
