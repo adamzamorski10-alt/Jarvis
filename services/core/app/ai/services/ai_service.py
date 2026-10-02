@@ -851,6 +851,18 @@ class AIService:
         if clarification_result is not None:
             return clarification_result
 
+        # Plan operations require a trusted AI Manager decision before capability execution.
+        # Other operations continue through the normal deterministic capability path.
+        ai_manager_decision = None
+        if (
+            operator_request is not None
+            and operator_request.operation_type in ("PLAN_CREATE", "PLAN_EXECUTE")
+        ):
+            try:
+                ai_manager_decision = await self._run_ai_manager_decision(operator_request)
+            except Exception as exc:
+                logger.warning("AI Manager plan decision failed: %s", exc)
+
         # ── Capability Resolution & Execution ───────────────────────────────────
         capability_result = None
         if (
@@ -863,6 +875,7 @@ class AIService:
                     capability_result = await self._capability_executor.execute(
                         request=operator_request,
                         resolution=resolution,
+                        manager_result=ai_manager_decision,
                     )
             except Exception as exc:
                 logger.warning("Capability resolution/execution failed, continuing with agent loop: %s", exc)
@@ -890,10 +903,10 @@ class AIService:
             }
             return result
 
-        # ── AI Manager Decision (optional, for structured requests) ─────────────
-        ai_manager_decision = None
+        # ── AI Manager Decision (optional, for other structured requests) ───────
         if (
-            self._operator_request_service is not None
+            ai_manager_decision is None
+            and self._operator_request_service is not None
             and operator_request is not None
             and operator_request.operation_type not in ("CHAT", "INFORMATION_REQUEST", "UNKNOWN", "OTHER")
         ):
