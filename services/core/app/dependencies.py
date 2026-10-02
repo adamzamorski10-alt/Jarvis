@@ -181,6 +181,42 @@ async def get_task_repository(
     yield TaskRepository(session)
 
 
+async def get_plan_manager(
+    providers: ProviderManager = Depends(get_provider_manager),
+):
+    from app.manager.plan_manager import PlanManager
+    from app.manager.providers.configured import ConfiguredPlanProvider
+
+    config = await providers.get_config()
+    selected_model = config.get("selected_model")
+    if not selected_model:
+        return None
+    provider = await providers.get_provider()
+    return PlanManager(
+        provider=ConfiguredPlanProvider(provider=provider, model=str(selected_model)),
+    )
+
+
+async def get_manager_planning_service(
+    plan_manager = Depends(get_plan_manager),
+):
+    if plan_manager is None:
+        return None
+    from app.ai_manager.bridge import ManagerPlanningService
+    from app.ai_manager.gate import PolicyCapabilityGate
+    return ManagerPlanningService(
+        plan_manager=plan_manager,
+        policy_gate=PolicyCapabilityGate(),
+    )
+
+
+async def get_plan_service(
+    task_repository = Depends(get_task_repository),
+):
+    from app.services.plan_service import PlanService
+    return PlanService(task_repository)
+
+
 async def get_ai_service(
     task_repository = Depends(get_task_repository),
     providers: ProviderManager = Depends(get_provider_manager),
@@ -193,6 +229,8 @@ async def get_ai_service(
     information_sufficiency_service: InformationSufficiencyService | None = Depends(get_information_sufficiency_service),
     clarification_service: ClarificationService | None = Depends(get_clarification_service),
     operator_request_service: OperatorRequestService | None = Depends(get_operator_request_service),
+    manager_planning_service = Depends(get_manager_planning_service),
+    plan_service = Depends(get_plan_service),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
     from app.tasks.state_machine import TaskStateMachine
@@ -201,6 +239,8 @@ async def get_ai_service(
         tool_execution_service=tool_execution_service,
         task_repository=task_repository,
         task_state_machine=task_state_machine,
+        manager_planning_service=manager_planning_service,
+        plan_service=plan_service,
         autonomy_mode=None,
     )
     yield AIService(
