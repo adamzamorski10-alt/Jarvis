@@ -932,6 +932,35 @@ def test_primary_worktree_status_clean(repo: tuple[Path, str]) -> None:
     assert dirty == []
 
 
+def test_get_changed_files_uses_git_and_excludes_ownership_marker(manager: WorkspaceManager, base_sha: str) -> None:
+    """Changed-file discovery must come from Git and must ignore internal ownership metadata."""
+    info = manager.create_workspace(
+        task_id="task_changes001",
+        base_commit_sha=base_sha,
+        execution_token="exec_task_changes001",
+    )
+    wt = Path(info.autonomous_worktree_path)
+
+    (wt / "tracked.py").write_text("# tracked change\n", encoding="utf-8")
+    (wt / "new.py").write_text("# untracked file\n", encoding="utf-8")
+    assert (wt / ".ai_operator_ownership").exists()
+
+    changed = manager.get_changed_files(info)
+
+    assert changed == ["new.py", "tracked.py"]
+    assert ".ai_operator_ownership" not in changed
+
+
+def test_get_changed_files_returns_empty_for_clean_workspace(manager: WorkspaceManager, base_sha: str) -> None:
+    """A fresh autonomous workspace has no development changes."""
+    info = manager.create_workspace(
+        task_id="task_changes002",
+        base_commit_sha=base_sha,
+        execution_token="exec_task_changes002",
+    )
+    assert manager.get_changed_files(info) == []
+
+
 def test_checkpoint_fails_if_index_already_dirty(manager: WorkspaceManager, base_sha: str) -> None:
     """create_checkpoint raises CheckpointError if index contains pre-existing staged changes."""
     info = manager.create_workspace(
