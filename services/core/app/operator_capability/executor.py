@@ -42,6 +42,7 @@ class OperatorCapabilityExecutor:
         task_state_machine: Any = None,
         manager_planning_service: Any = None,
         plan_service: Any = None,
+        execution_bridge: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
@@ -49,6 +50,7 @@ class OperatorCapabilityExecutor:
         self._task_state_machine = task_state_machine
         self._manager_planning_service = manager_planning_service
         self._plan_service = plan_service
+        self._execution_bridge = execution_bridge
         self._autonomy_mode = autonomy_mode
 
     async def execute(
@@ -585,18 +587,138 @@ class OperatorCapabilityExecutor:
         resolution: CapabilityResolution,
         manager_result: Any = None,
     ) -> CapabilityExecutionResult:
-        """Execution is intentionally fail-closed until the controlled bridge is injected."""
+        """Execute through the single application-owned AI Manager bridge."""
+        if manager_result is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.execute",
+                success=False,
+                state="BLOCKED",
+                user_message="Plan execution requires a trusted AI Manager decision.",
+                result_metadata={},
+                error_category="REQUIRES_AI_MANAGER",
+                error_detail="No ManagerResult was supplied by the Operator runtime",
+            )
+
+        if self._execution_bridge is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.execute",
+                success=False,
+                state="BLOCKED",
+                user_message="Plan execution is not fully configured.",
+                result_metadata={},
+                error_category="REQUIRES_EXECUTION_BRIDGE",
+                error_detail="ExecutionBridge is not configured",
+            )
+
+        project_id = request.project_id or "default"
+        approval_id = None
+        if request.constraints:
+            candidate = request.constraints.get("approval_id")
+            if isinstance(candidate, str) and candidate.strip():
+                approval_id = candidate.strip()
+
+        try:
+            execution = await self._execution_bridge.execute(
+                result=manager_result,
+                project_id=project_id,
+                approval_id=approval_id,
+            )
+        except Exception as exc:
+            from app.ai_manager.execution_bridge import (
+                ExecutionAuthorizationError,
+                ExecutionBridgeError,
+                ExecutionNeedsApprovalError,
+            )
+
+            if isinstance(exc, ExecutionNeedsApprovalError):
+                approval = exc.approval
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="plan.execute",
+                    success=False,
+                    state="BLOCKED",
+                    user_message="Plan execution requires user approval before it can start.",
+                    result_metadata={
+                        "approval_required": True,
+                        "approval_id": approval.approval_id,
+                        "intent_id": exc.intent_id,
+                    },
+                    error_category="APPROVAL_REQUIRED",
+                    error_detail=str(exc),
+                )
+
+            if isinstance(exc, ExecutionAuthorizationError):
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="plan.execute",
+                    success=False,
+                    state="BLOCKED",
+                    user_message="Plan execution was blocked by application authorization.",
+                    result_metadata={},
+                    error_category="EXECUTION_NOT_AUTHORIZED",
+                    error_detail=str(exc),
+                )
+
+            if isinstance(exc, ExecutionBridgeError):
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="plan.execute",
+                    success=False,
+                    state="EXECUTION_FAILED",
+                    user_message="Plan execution failed in the controlled execution layer.",
+                    result_metadata={},
+                    error_category="PLAN_EXECUTION_FAILED",
+                    error_detail=str(exc),
+                )
+
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.execute",
+                success=False,
+                state="EXECUTION_FAILED",
+                user_message="Plan execution failed.",
+                result_metadata={},
+                error_category="PLAN_EXECUTION_FAILED",
+                error_detail=str(exc),
+            )
+
+        result = execution.execution_result
         return CapabilityExecutionResult(
             request_id=request.request_id,
             operation_type=request.operation_type,
             capability_kind=CapabilityKind.SERVICE,
             capability_id="plan.execute",
-            success=False,
-            state="BLOCKED",
-            user_message="Plan execution requires the controlled ExecutionBridge.",
-            result_metadata={},
-            error_category="REQUIRES_EXECUTION_BRIDGE",
-            error_detail="ExecutionBridge is not yet wired into the Operator runtime",
+            success=result.terminal_state.value == "COMPLETED",
+            state=f"PLAN_{result.terminal_state.value}",
+            user_message=(
+                "Plan executed successfully."
+                if result.terminal_state.value == "COMPLETED"
+                else f"Plan execution ended with state {result.terminal_state.value}."
+            ),
+            result_metadata={
+                "plan_id": execution.plan_id,
+                "project_id": execution.project_id,
+                "terminal_state": result.terminal_state.value,
+                "total_tasks": result.total_tasks,
+                "committed_tasks": result.committed_tasks,
+                "failed_tasks": result.failed_tasks,
+                "reason": result.reason,
+            },
+            service_result=result.model_dump(mode="json"),
         )
 
     def _execute_answer_only(
