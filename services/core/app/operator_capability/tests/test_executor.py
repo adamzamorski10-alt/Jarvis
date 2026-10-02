@@ -215,6 +215,28 @@ class TestOperatorCapabilityExecutor:
         self.task_repository.create_task.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_task_create_without_repository_fails_closed(self):
+        request = _make_request("TASK_CREATE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="TASK_CREATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.create",
+        )
+
+        executor = OperatorCapabilityExecutor(
+            tool_execution_service=self.tool_execution_service,
+            task_repository=None,
+            autonomy_mode=None,
+        )
+
+        result = await executor.execute(request, resolution)
+
+        assert result.success is False
+        assert result.state == "FAILED"
+        assert result.error_category == "SERVICE_UNAVAILABLE"
+
+    @pytest.mark.asyncio
     async def test_service_unsupported_returns_blocked(self):
         """Unsupported service capability returns blocked."""
         request = _make_request()
