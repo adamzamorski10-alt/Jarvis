@@ -65,10 +65,16 @@ class TestOperatorCapabilityExecutor:
         self.task_repository.get_task = AsyncMock()
         self.task_state_machine = MagicMock()
         self.task_state_machine.transition = AsyncMock()
+        self.manager_planning_service = MagicMock()
+        self.manager_planning_service.plan_decision = AsyncMock()
+        self.plan_service = MagicMock()
+        self.plan_service.persist_manager_plan_result = AsyncMock()
         self.executor = OperatorCapabilityExecutor(
             tool_execution_service=self.tool_execution_service,
             task_repository=self.task_repository,
             task_state_machine=self.task_state_machine,
+            manager_planning_service=self.manager_planning_service,
+            plan_service=self.plan_service,
             autonomy_mode=None,
         )
 
@@ -414,7 +420,7 @@ class TestOperatorCapabilityExecutor:
         self.task_repository.update_task_status.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_plan_create_fails_closed_without_manager_execution(self):
+    async def test_plan_create_fails_closed_without_manager_result(self):
         request = _make_request("PLAN_CREATE")
         request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
         resolution = _make_resolution(
@@ -425,7 +431,44 @@ class TestOperatorCapabilityExecutor:
         result = await self.executor.execute(request, resolution)
         assert result.success is False
         assert result.state == "BLOCKED"
-        assert result.error_category == "REQUIRES_AI_MANAGER"
+        assert result.error_category == "REQUIRES_PLAN_SERVICES"
+
+    @pytest.mark.asyncio
+    async def test_plan_create_persists_real_plan(self):
+        request = _make_request("PLAN_CREATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "project_id": "project_1",
+        })
+        resolution = _make_resolution(
+            operation_type="PLAN_CREATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="plan.create",
+        )
+        manager_result = MagicMock()
+        planning_result = MagicMock()
+        planning_result.plan_id = "plan_123"
+        planning_result.project_id = "project_1"
+        planning_result.manager_plan_result = MagicMock()
+        self.manager_planning_service.plan_decision.return_value = planning_result
+        task = MagicMock()
+        task.model_dump.return_value = {"task_id": "task_1"}
+        self.plan_service.persist_manager_plan_result.return_value = [task]
+
+        result = await self.executor.execute(request, resolution, manager_result=manager_result)
+
+        assert result.success is True
+        assert result.state == "PLAN_CREATED"
+        assert result.result_metadata["plan_id"] == "plan_123"
+        assert result.result_metadata["task_count"] == 1
+        self.manager_planning_service.plan_decision.assert_awaited_once_with(
+            manager_result,
+            project_id="project_1",
+            execution_authorized=False,
+        )
+        self.plan_service.persist_manager_plan_result.assert_awaited_once_with(
+            planning_result.manager_plan_result
+        )
 
     @pytest.mark.asyncio
     async def test_plan_execute_fails_closed_without_execution_bridge(self):
