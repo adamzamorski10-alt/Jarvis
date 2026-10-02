@@ -316,7 +316,7 @@ class OperatorCapabilityExecutor:
             error_detail="plan.create should be triggered by AI Manager decision",
         )
 
-    async def _execute_plan_execute(self, request: OperatorRequest, resolution: CapabilityExecutionResult) -> CapabilityExecutionResult:
+    async def _execute_plan_execute(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
         """Execute a plan via existing ExecutionBridge."""
         return CapabilityExecutionResult(
             request_id=request.request_id,
