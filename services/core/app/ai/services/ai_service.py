@@ -443,6 +443,7 @@ class AIService:
         if sufficiency_result.outcome == SufficiencyOutcome.SUFFICIENT:
             if operator_request is not None and self._operator_request_service is not None:
                 operator_request = await self._operator_request_service.mark_ready(operator_request)
+                return {"__operator_request": operator_request}
             return None
 
         questions = list(sufficiency_result.questions)
@@ -864,7 +865,11 @@ class AIService:
             operator_request=operator_request,
         )
         if clarification_result is not None:
-            return clarification_result
+            internal_request = clarification_result.pop("__operator_request", None)
+            if internal_request is not None:
+                operator_request = internal_request
+            else:
+                return clarification_result
 
         # Plan operations require a trusted AI Manager decision before capability execution.
         # Other operations continue through the normal deterministic capability path.
