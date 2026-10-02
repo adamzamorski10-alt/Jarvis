@@ -64,6 +64,34 @@ class TestCapabilityResolver:
         assert resolution.requires_approval is True
         assert resolution.requires_permission is True
 
+
+    def test_generic_information_request_is_answer_only(self):
+        request = _make_request("INFORMATION_REQUEST")
+        request = request.model_copy(update={"user_request": "What is Python?"})
+        resolution = self.resolver.resolve(request)
+        assert resolution.capability_kind == CapabilityKind.ANSWER_ONLY
+        assert resolution.capability_id is None
+        assert resolution.requires_permission is False
+
+    def test_time_information_request_maps_to_time_tool(self):
+        request = _make_request("INFORMATION_REQUEST")
+        request = request.model_copy(update={"user_request": "What time is it?"})
+        resolution = self.resolver.resolve(request)
+        assert resolution.capability_kind == CapabilityKind.TOOL
+        assert resolution.capability_id == "system.get_time"
+
+    def test_file_read_uses_only_explicit_constraint_parameter(self):
+        request = _make_request("FILE_READ")
+        request = request.model_copy(update={"constraints": {"path": "config.json"}})
+        resolution = self.resolver.resolve(request)
+        assert resolution.parameters == {"path": "config.json"}
+
+    def test_file_read_does_not_emit_placeholder_parameters(self):
+        request = _make_request("FILE_READ")
+        resolution = self.resolver.resolve(request)
+        assert resolution.parameters == {}
+        assert "string (required)" not in str(resolution.parameters)
+
     # ── Service-backed operations ──────────────────────────────────────────────
 
     def test_task_create_maps_to_task_service(self):
