@@ -102,6 +102,20 @@ class TestOperatorCapabilityExecutor:
         assert result.state == "BLOCKED"
 
     # ── Tool execution ─────────────────────────────────────────────────────────
+    @pytest.mark.asyncio
+    async def test_file_read_missing_path_is_blocked_before_tool_execution(self):
+        request = _make_request()
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution()
+        resolution = resolution.model_copy(update={"parameters": {}})
+
+        result = await self.executor.execute(request, resolution)
+
+        assert result.success is False
+        assert result.state == "BLOCKED"
+        assert result.error_category == "MISSING_CAPABILITY_PARAMETERS"
+        self.tool_execution_service.execute_tool_call.assert_not_called()
+
 
     @pytest.mark.asyncio
     async def test_tool_execution_success(self):
