@@ -38,10 +38,12 @@ class OperatorCapabilityExecutor:
         self,
         tool_execution_service: Any = None,
         task_repository: Any = None,
+        task_state_machine: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
         self._task_repository = task_repository
+        self._task_state_machine = task_state_machine
         self._autonomy_mode = autonomy_mode
 
     async def execute(
@@ -318,6 +320,7 @@ class OperatorCapabilityExecutor:
             )
 
         status_value = request.constraints.get("status")
+        expected_status_value = request.constraints.get("expected_status")
         if not isinstance(status_value, str) or not status_value.strip():
             return CapabilityExecutionResult(
                 request_id=request.request_id,
@@ -331,12 +334,39 @@ class OperatorCapabilityExecutor:
                 error_category="MISSING_TASK_STATUS",
                 error_detail="task.update requires constraints.status",
             )
+        if not isinstance(expected_status_value, str) or not expected_status_value.strip():
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED",
+                user_message="Task update requires the current task status.",
+                result_metadata={},
+                error_category="MISSING_EXPECTED_TASK_STATUS",
+                error_detail="task.update requires constraints.expected_status for an atomic state transition",
+            )
+        if self._task_state_machine is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="FAILED",
+                user_message="Task state service is not available.",
+                result_metadata={},
+                error_category="SERVICE_UNAVAILABLE",
+                error_detail="TaskStateMachine is not configured",
+            )
 
         from app.tasks.models import TaskStatus
 
         try:
             status = TaskStatus(status_value.strip().upper())
-        except ValueError:
+            expected_status = TaskStatus(expected_status_value.strip().upper())
+        except ValueError as exc:
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -345,13 +375,13 @@ class OperatorCapabilityExecutor:
                 success=False,
                 state="BLOCKED",
                 user_message="Task update contains an invalid status.",
-                result_metadata={"status": status_value},
+                result_metadata={"status": status_value, "expected_status": expected_status_value},
                 error_category="INVALID_TASK_STATUS",
-                error_detail=f"Unsupported task status: {status_value}",
+                error_detail=str(exc),
             )
 
-        updated = await self._task_repository.update_task_status(task_id, status)
-        if updated is None:
+        current = await self._task_repository.get_task(task_id)
+        if current is None:
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -365,6 +395,69 @@ class OperatorCapabilityExecutor:
                 error_detail=f"No task found for task_id={task_id}",
             )
 
+        if request.project_id and current.project_id != request.project_id:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED",
+                user_message="Task does not belong to the requested project.",
+                result_metadata={"task_id": task_id},
+                error_category="PROJECT_SCOPE_MISMATCH",
+                error_detail="Task project does not match request project",
+            )
+
+        try:
+            transition = await self._task_state_machine.transition(
+                task_id=task_id,
+                expected_status=expected_status,
+                new_status=status,
+                reason=request.constraints.get("reason") if isinstance(request.constraints.get("reason"), str) else None,
+            )
+        except Exception as exc:
+            from app.tasks.exceptions import (
+                InvalidStateTransitionError,
+                StaleStateTransitionError,
+                TaskNotFoundError,
+            )
+            if isinstance(exc, TaskNotFoundError):
+                category = "TASK_NOT_FOUND"
+            elif isinstance(exc, StaleStateTransitionError):
+                category = "STALE_TASK_STATE"
+            elif isinstance(exc, InvalidStateTransitionError):
+                category = "INVALID_TASK_TRANSITION"
+            else:
+                category = "TASK_TRANSITION_FAILED"
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED" if category in {"STALE_TASK_STATE", "INVALID_TASK_TRANSITION"} else "FAILED",
+                user_message="Task status could not be updated safely.",
+                result_metadata={"task_id": task_id, "expected_status": expected_status.value, "status": status.value},
+                error_category=category,
+                error_detail=str(exc),
+            )
+
+        updated = transition.task
+        if updated is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="FAILED",
+                user_message="Task transition produced no updated task.",
+                result_metadata={"task_id": task_id},
+                error_category="TASK_TRANSITION_INCOMPLETE",
+                error_detail="State transition reported success without a task",
+            )
+
         return CapabilityExecutionResult(
             request_id=request.request_id,
             operation_type=request.operation_type,
@@ -373,7 +466,11 @@ class OperatorCapabilityExecutor:
             success=True,
             state="EXECUTION_COMPLETED",
             user_message="Task updated successfully.",
-            result_metadata={"task_id": updated.task_id, "status": updated.status.value},
+            result_metadata={
+                "task_id": updated.task_id,
+                "previous_status": transition.previous_status.value,
+                "status": updated.status.value,
+            },
             service_result=updated.model_dump(mode="json"),
         )
 
