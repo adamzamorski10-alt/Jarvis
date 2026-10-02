@@ -9,6 +9,7 @@ The model may propose intent, but the application decides the capability.
 from __future__ import annotations
 
 from typing import Any
+import re
 
 from app.operator_capability.models import (
     CapabilityCategory,
@@ -128,7 +129,13 @@ class CapabilityResolver:
 
         # 1. Check tool-backed operations
         if operation_type in self._TOOL_OPERATIONS:
+            # Generic information requests are not automatically tool calls.
+            # Only an explicit time/date question may resolve to system.get_time.
+            if operation_type == "INFORMATION_REQUEST" and not self._is_time_request(request.user_request):
+                return self._answer_only(request, operation_type)
+
             tool_def = self._TOOL_OPERATIONS[operation_type]
+            parameters = self._extract_parameters(request, operation_type)
             return CapabilityResolution(
                 request_id=request.request_id,
                 operation_type=operation_type,
@@ -136,7 +143,7 @@ class CapabilityResolver:
                 capability_id=tool_def["capability_id"],
                 capability_category=tool_def["category"],
                 description=tool_def["description"],
-                parameters=tool_def.get("parameters", {}),
+                parameters=parameters,
                 requires_approval=tool_def.get("requires_approval", False),
                 requires_permission=tool_def.get("requires_permission", True),
                 confidence=1.0,
@@ -180,6 +187,49 @@ class CapabilityResolver:
         raise UnsupportedCapabilityError(
             operation_type=operation_type,
             reason="No capability mapping defined for this operation type",
+        )
+
+    @staticmethod
+    def _is_time_request(user_request: str) -> bool:
+        """Return True only for explicit requests for the current time/date."""
+        return bool(
+            re.search(
+                r"\b(what\s+time|current\s+time|time\s+is\s+it|current\s+date|today'?s\s+date)\b",
+                user_request,
+                re.IGNORECASE,
+            )
+        )
+
+    @staticmethod
+    def _extract_parameters(request: OperatorRequest, operation_type: str) -> dict[str, Any]:
+        """Extract only allowlisted execution parameters from application-owned constraints."""
+        allowed = {
+            "FILE_READ": {"path"},
+            "FILE_WRITE": {"path", "content"},
+            "FILE_DELETE": {"path"},
+        }.get(operation_type, set())
+
+        return {
+            key: request.constraints[key]
+            for key in allowed
+            if key in request.constraints
+            and isinstance(request.constraints[key], (str, int, float, bool))
+        }
+
+    @staticmethod
+    def _answer_only(request: OperatorRequest, operation_type: str) -> CapabilityResolution:
+        return CapabilityResolution(
+            request_id=request.request_id,
+            operation_type=operation_type,
+            capability_kind=CapabilityKind.ANSWER_ONLY,
+            capability_id=None,
+            capability_category=CapabilityCategory.INFORMATION,
+            description="No capability execution required",
+            parameters={},
+            requires_approval=False,
+            requires_permission=False,
+            confidence=1.0,
+            reason="generic-information-request",
         )
 
     def is_supported(self, operation_type: str) -> bool:
