@@ -14,6 +14,7 @@ from app.clarification.models import (
     ClarificationSession,
     ClarificationStatus,
 )
+from app.information_sufficiency.models import ClarifyingQuestion
 from app.db.models.pending_clarification import PendingClarificationModel
 
 
