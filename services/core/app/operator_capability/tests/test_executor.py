@@ -62,9 +62,13 @@ class TestOperatorCapabilityExecutor:
         self.tool_execution_service.execute_tool_call = AsyncMock()
         self.task_repository = MagicMock()
         self.task_repository.create_task = AsyncMock()
+        self.task_repository.get_task = AsyncMock()
+        self.task_state_machine = MagicMock()
+        self.task_state_machine.transition = AsyncMock()
         self.executor = OperatorCapabilityExecutor(
             tool_execution_service=self.tool_execution_service,
             task_repository=self.task_repository,
+            task_state_machine=self.task_state_machine,
             autonomy_mode=None,
         )
 
@@ -256,7 +260,8 @@ class TestOperatorCapabilityExecutor:
         request = request.model_copy(update={
             "readiness_state": ReadinessState.SUFFICIENT,
             "task_id": "task_123",
-            "constraints": {"status": "RUNNING"},
+            "project_id": "project_1",
+            "constraints": {"expected_status": "PENDING", "status": "RUNNING"},
         })
         resolution = _make_resolution(
             operation_type="TASK_UPDATE",
@@ -264,20 +269,108 @@ class TestOperatorCapabilityExecutor:
             capability_id="task.update",
         )
 
+        current_task = MagicMock()
+        current_task.project_id = "project_1"
+        self.task_repository.get_task.return_value = current_task
         updated_task = MagicMock()
         updated_task.task_id = "task_123"
         updated_task.status.value = "RUNNING"
         updated_task.model_dump.return_value = {"task_id": "task_123", "status": "RUNNING"}
-        self.task_repository.update_task_status = AsyncMock(return_value=updated_task)
+        transition = MagicMock()
+        transition.task = updated_task
+        transition.previous_status.value = "PENDING"
+        self.task_state_machine.transition.return_value = transition
 
         result = await self.executor.execute(request, resolution)
 
         assert result.success is True
         assert result.state == "EXECUTION_COMPLETED"
-        assert result.result_metadata == {"task_id": "task_123", "status": "RUNNING"}
-        self.task_repository.update_task_status.assert_awaited_once()
+        assert result.result_metadata == {
+            "task_id": "task_123",
+            "previous_status": "PENDING",
+            "status": "RUNNING",
+        }
+        self.task_state_machine.transition.assert_awaited_once()
+        self.task_repository.update_task_status.assert_not_called() if hasattr(self.task_repository, "update_task_status") else None
 
     @pytest.mark.asyncio
+    @pytest.mark.asyncio
+    async def test_task_update_requires_expected_status(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "task_id": "task_123",
+            "constraints": {"status": "RUNNING"},
+        })
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+        result = await self.executor.execute(request, resolution)
+        assert result.success is False
+        assert result.error_category == "MISSING_EXPECTED_TASK_STATUS"
+        self.task_state_machine.transition.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_task_update_rejects_project_scope_mismatch(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "task_id": "task_123",
+            "project_id": "project_request",
+            "constraints": {"expected_status": "PENDING", "status": "RUNNING"},
+        })
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+        current_task = MagicMock()
+        current_task.project_id = "different_project"
+        self.task_repository.get_task.return_value = current_task
+
+        result = await self.executor.execute(request, resolution)
+        assert result.success is False
+        assert result.error_category == "PROJECT_SCOPE_MISMATCH"
+        self.task_state_machine.transition.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_task_update_uses_atomic_state_transition(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "task_id": "task_123",
+            "project_id": "project_1",
+            "constraints": {"expected_status": "PENDING", "status": "RUNNING"},
+        })
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+        current_task = MagicMock(project_id="project_1")
+        self.task_repository.get_task.return_value = current_task
+        updated_task = MagicMock(
+            task_id="task_123",
+            status=MagicMock(value="RUNNING"),
+        )
+        updated_task.model_dump.return_value = {"task_id": "task_123", "status": "RUNNING"}
+        transition = MagicMock(
+            task=updated_task,
+            previous_status=MagicMock(value="PENDING"),
+        )
+        self.task_state_machine.transition.return_value = transition
+
+        result = await self.executor.execute(request, resolution)
+        assert result.success is True
+        self.task_state_machine.transition.assert_awaited_once_with(
+            task_id="task_123",
+            expected_status=__import__("app.tasks.models", fromlist=["TaskStatus"]).TaskStatus.PENDING,
+            new_status=__import__("app.tasks.models", fromlist=["TaskStatus"]).TaskStatus.RUNNING,
+            reason=None,
+        )
+
     async def test_task_update_missing_status_is_blocked(self):
         request = _make_request("TASK_UPDATE")
         request = request.model_copy(update={
