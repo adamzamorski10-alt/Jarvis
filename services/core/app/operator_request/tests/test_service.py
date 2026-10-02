@@ -17,7 +17,7 @@ from app.operator_request.models import (
     OperatorResponseState,
     ReadinessState,
 )
-from app.operator_request.service import OperatorRequestService
+from app.operator_request.service import OperatorRequestService, OperatorRequestStateError
 
 
 def _make_request_context() -> RequestContext:
@@ -150,6 +150,51 @@ class TestOperatorRequestService:
         update = OperatorRequestUpdate()  # no fields set
         result = await self.service.update_request(req, update)
         assert result.request_id == req.request_id
+
+    @pytest.mark.asyncio
+    async def test_invalid_terminal_state_transition_is_rejected(self):
+        req = OperatorRequest(
+            request_id="req_terminal",
+            user_request="Hello",
+            correlation_id="corr_terminal",
+            request_context=_make_request_context(),
+            state=OperatorRequestState.COMPLETED,
+        )
+        with pytest.raises(OperatorRequestStateError):
+            await self.service.update_request(
+                req,
+                OperatorRequestUpdate(state=OperatorRequestState.READY),
+            )
+
+    @pytest.mark.asyncio
+    async def test_execution_cannot_start_before_ready(self):
+        req = OperatorRequest(
+            request_id="req_execution",
+            user_request="Run task",
+            correlation_id="corr_execution",
+            request_context=_make_request_context(),
+            state=OperatorRequestState.CLASSIFIED,
+        )
+        with pytest.raises(OperatorRequestStateError):
+            await self.service.update_request(
+                req,
+                OperatorRequestUpdate(state=OperatorRequestState.EXECUTION_STARTED),
+            )
+
+    @pytest.mark.asyncio
+    async def test_approval_flow_transition_is_allowed(self):
+        req = OperatorRequest(
+            request_id="req_approval",
+            user_request="Execute plan",
+            correlation_id="corr_approval",
+            request_context=_make_request_context(),
+            state=OperatorRequestState.READY,
+        )
+        result = await self.service.update_request(
+            req,
+            OperatorRequestUpdate(state=OperatorRequestState.APPROVAL_REQUIRED),
+        )
+        assert result.state == OperatorRequestState.APPROVAL_REQUIRED
 
     # ── Readiness State Management ──────────────────────────────────────────────
 
