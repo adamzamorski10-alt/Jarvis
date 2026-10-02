@@ -251,6 +251,54 @@ class TestOperatorCapabilityExecutor:
         assert result.error_category == "MISSING_TASK_ID"
 
     @pytest.mark.asyncio
+    async def test_task_update_persists_status(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "task_id": "task_123",
+            "constraints": {"status": "RUNNING"},
+        })
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+
+        updated_task = MagicMock()
+        updated_task.task_id = "task_123"
+        updated_task.status.value = "RUNNING"
+        updated_task.model_dump.return_value = {"task_id": "task_123", "status": "RUNNING"}
+        self.task_repository.update_task_status = AsyncMock(return_value=updated_task)
+
+        result = await self.executor.execute(request, resolution)
+
+        assert result.success is True
+        assert result.state == "EXECUTION_COMPLETED"
+        assert result.result_metadata == {"task_id": "task_123", "status": "RUNNING"}
+        self.task_repository.update_task_status.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_task_update_missing_status_is_blocked(self):
+        request = _make_request("TASK_UPDATE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "task_id": "task_123",
+            "constraints": {},
+        })
+        resolution = _make_resolution(
+            operation_type="TASK_UPDATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.update",
+        )
+
+        result = await self.executor.execute(request, resolution)
+
+        assert result.success is False
+        assert result.state == "BLOCKED"
+        assert result.error_category == "MISSING_TASK_STATUS"
+        self.task_repository.update_task_status.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_plan_create_fails_closed_without_manager_execution(self):
         request = _make_request("PLAN_CREATE")
         request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
