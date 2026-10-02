@@ -24,6 +24,8 @@ from app.clarification.service import ClarificationService
 from app.context_assembly.models import AssembledContext, ContextMode, OperationType
 from app.db.database import Base
 from app.identity.models import ActorType, RequestContext
+from app.operator_request.models import OperatorRequest, OperatorRequestState
+from app.operator_request.service import OperatorRequestService
 from app.information_sufficiency.models import (
     InformationSufficiencyRequest,
     MissingInformation,
@@ -154,6 +156,50 @@ def _make_ai_service(
 
 
 # ── 4. Security: Clarification Answers Cannot Manipulate Authority ─────────────
+
+
+class TestOperatorReadinessHandoff:
+    async def test_sufficient_assessment_promotes_operator_request_to_ready(self):
+        sufficiency_result = SufficiencyResult(
+            success=True,
+            outcome=SufficiencyOutcome.SUFFICIENT,
+            missing_information=[],
+            ambiguities=[],
+            conflicts=[],
+            questions=[],
+            assumptions=[],
+        )
+        ai = AIService(
+            providers=AsyncMock(),
+            conversations=AsyncMock(),
+            activity=AsyncMock(),
+            settings=AsyncMock(),
+            tool_execution_service=AsyncMock(),
+            approval_service=AsyncMock(),
+            clarification_service=AsyncMock(),
+            information_sufficiency_service=_CapturingInformationSufficiency(sufficiency_result),
+            operator_request_service=OperatorRequestService(),
+        )
+        request = OperatorRequest(
+            request_id="req_ready_1",
+            user_request="Create a task",
+            correlation_id="corr_ready_1",
+            request_context=_make_request_context(),
+            state=OperatorRequestState.CLASSIFIED,
+        )
+
+        result = await ai._run_sufficiency_and_maybe_clarify(
+            conversation=MagicMock(id="conv_ready"),
+            message="Create a task",
+            request_context=_make_request_context(),
+            assembled_context=_make_assembled_context(),
+            operator_request=request,
+        )
+
+        assert result is not None
+        promoted = result["__operator_request"]
+        assert promoted.state == OperatorRequestState.READY
+        assert promoted.readiness_state.value == "SUFFICIENT"
 
 
 class TestClarificationAnswersUntrusted:
