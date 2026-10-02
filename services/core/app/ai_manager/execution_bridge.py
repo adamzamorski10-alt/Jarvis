@@ -404,10 +404,16 @@ class ExecutionBridge:
         expected_plan_id = planning_result.plan_id
         for task in persisted_tasks:
             task_plan_id = getattr(task, "metadata", {}).get("source_plan_id")
+            task_project_id = getattr(task, "project_id", None)
             if task_plan_id != expected_plan_id:
                 raise ExecutionBridgeError(
                     f"Persisted task '{getattr(task, 'task_id', '<unknown>')}' "
                     f"does not belong to authoritative plan '{expected_plan_id}'."
+                )
+            if task_project_id != planning_result.project_id:
+                raise ExecutionBridgeError(
+                    f"Persisted task '{getattr(task, 'task_id', '<unknown>')}' "
+                    f"does not belong to authoritative project '{planning_result.project_id}'."
                 )
 
         # 5. Consume approval only after planning + persistence succeeded.
