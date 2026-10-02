@@ -175,6 +175,7 @@ async def get_operator_request_service(
 
 
 async def get_ai_service(
+    task_repository = Depends(get_task_repository),
     providers: ProviderManager = Depends(get_provider_manager),
     conversations: ConversationService = Depends(get_conversation_service),
     activity: ActivityService = Depends(get_activity_service),
@@ -189,6 +190,7 @@ async def get_ai_service(
     capability_resolver = CapabilityResolver()
     capability_executor = OperatorCapabilityExecutor(
         tool_execution_service=tool_execution_service,
+        task_repository=task_repository,
         autonomy_mode=None,
     )
     yield AIService(
