@@ -246,7 +246,11 @@ def _make_execution_bridge(
         approval_service = _make_approval_service()
     if plan_service is None:
         plan_service = AsyncMock()
-        plan_service.persist_manager_plan_result.return_value = []
+
+        async def _persist(plan_result):
+            return list(plan_result.tasks)
+
+        plan_service.persist_manager_plan_result.side_effect = _persist
     return ExecutionBridge(
         planning_service=planning_service,
         plan_execution_service=plan_execution_service,
