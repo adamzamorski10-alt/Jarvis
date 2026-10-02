@@ -287,18 +287,94 @@ class OperatorCapabilityExecutor:
         )
 
     async def _execute_task_update(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
-        """Update a task via existing TaskRepository."""
+        """Update a task status through the application-owned repository."""
+        if self._task_repository is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="FAILED",
+                user_message="Task service is not available.",
+                result_metadata={},
+                error_category="SERVICE_UNAVAILABLE",
+                error_detail="TaskRepository is not configured",
+            )
+
+        task_id = request.task_id
+        if not task_id:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED",
+                user_message="Task update requires explicit task_id.",
+                result_metadata={},
+                error_category="MISSING_TASK_ID",
+                error_detail="task.update requires request.task_id to be set",
+            )
+
+        status_value = request.constraints.get("status")
+        if not isinstance(status_value, str) or not status_value.strip():
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED",
+                user_message="Task update requires an explicit status.",
+                result_metadata={},
+                error_category="MISSING_TASK_STATUS",
+                error_detail="task.update requires constraints.status",
+            )
+
+        from app.tasks.models import TaskStatus
+
+        try:
+            status = TaskStatus(status_value.strip().upper())
+        except ValueError:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="BLOCKED",
+                user_message="Task update contains an invalid status.",
+                result_metadata={"status": status_value},
+                error_category="INVALID_TASK_STATUS",
+                error_detail=f"Unsupported task status: {status_value}",
+            )
+
+        updated = await self._task_repository.update_task_status(task_id, status)
+        if updated is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.update",
+                success=False,
+                state="FAILED",
+                user_message="Task was not found.",
+                result_metadata={"task_id": task_id},
+                error_category="TASK_NOT_FOUND",
+                error_detail=f"No task found for task_id={task_id}",
+            )
+
         return CapabilityExecutionResult(
             request_id=request.request_id,
             operation_type=request.operation_type,
             capability_kind=CapabilityKind.SERVICE,
             capability_id="task.update",
-            success=False,
-            state="BLOCKED",
-            user_message="Task update requires explicit task_id.",
-            result_metadata={},
-            error_category="MISSING_TASK_ID",
-            error_detail="task.update requires request.task_id to be set",
+            success=True,
+            state="EXECUTION_COMPLETED",
+            user_message="Task updated successfully.",
+            result_metadata={"task_id": updated.task_id, "status": updated.status.value},
+            service_result=updated.model_dump(mode="json"),
         )
 
     async def _execute_plan_create(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
