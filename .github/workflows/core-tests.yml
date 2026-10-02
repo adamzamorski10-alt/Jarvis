@@ -10,6 +10,7 @@ on:
 jobs:
   core-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: services/core
@@ -28,4 +29,12 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
       - name: Run core test suite
-        run: python -m pytest -q
+        run: python -m pytest -q --junitxml=junit/test-results.xml
+
+      - name: Upload pytest results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-pytest-results
+          path: services/core/junit/test-results.xml
+          if-no-files-found: ignore
