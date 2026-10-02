@@ -387,13 +387,28 @@ class ExecutionBridge:
         # only on persisted DevelopmentTask records. Persistence is idempotent,
         # so this is safe when plan.create already ran.
         try:
-            await self._plan_service.persist_manager_plan_result(
+            persisted_tasks = await self._plan_service.persist_manager_plan_result(
                 planning_result.manager_plan_result
             )
         except ManagerInvalidPlanError:
             raise
         except Exception as exc:
             raise ExecutionBridgeError(f"Plan persistence failed: {exc}") from exc
+
+        if not persisted_tasks:
+            raise ExecutionBridgeError(
+                f"Plan '{planning_result.plan_id}' produced no persisted tasks; "
+                "execution is blocked."
+            )
+
+        expected_plan_id = planning_result.plan_id
+        for task in persisted_tasks:
+            task_plan_id = getattr(task, "metadata", {}).get("source_plan_id")
+            if task_plan_id != expected_plan_id:
+                raise ExecutionBridgeError(
+                    f"Persisted task '{getattr(task, 'task_id', '<unknown>')}' "
+                    f"does not belong to authoritative plan '{expected_plan_id}'."
+                )
 
         # 5. Consume approval only after planning + persistence succeeded.
         # This prevents a failed planning/persistence attempt from burning a
@@ -413,6 +428,20 @@ class ExecutionBridge:
             )
         except Exception as exc:
             raise ExecutionBridgeError(f"Plan execution failed: {exc}") from exc
+
+        if execution_result.plan_id != planning_result.plan_id:
+            raise ExecutionBridgeError(
+                f"Execution returned unexpected plan_id '{execution_result.plan_id}', "
+                f"expected '{planning_result.plan_id}'."
+            )
+
+        if execution_result.terminal_state.value == "COMPLETED":
+            if execution_result.total_tasks <= 0 or (
+                execution_result.committed_tasks != execution_result.total_tasks
+            ):
+                raise ExecutionBridgeError(
+                    "Execution reported COMPLETED without every persisted task committed."
+                )
 
         await self._safe_audit(
             "EXECUTION_COMPLETED",
