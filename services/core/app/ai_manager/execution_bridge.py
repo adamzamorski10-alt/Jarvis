@@ -429,12 +429,6 @@ class ExecutionBridge:
         except Exception as exc:
             raise ExecutionBridgeError(f"Plan execution failed: {exc}") from exc
 
-        if execution_result.plan_id != planning_result.plan_id:
-            raise ExecutionBridgeError(
-                f"Execution returned unexpected plan_id '{execution_result.plan_id}', "
-                f"expected '{planning_result.plan_id}'."
-            )
-
         if execution_result.terminal_state.value == "COMPLETED":
             if execution_result.total_tasks <= 0 or (
                 execution_result.committed_tasks != execution_result.total_tasks
