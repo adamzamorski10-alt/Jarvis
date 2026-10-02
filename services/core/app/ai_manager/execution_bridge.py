@@ -189,6 +189,7 @@ class ExecutionBridge:
         autonomous_executor: AutonomousPlanExecutor,
         capability_gate: PolicyCapabilityGate,
         approval_service: CapabilityApprovalService,
+        plan_service: Any,
         audit_service: Any = None,
     ) -> None:
         self._planning_service = planning_service
@@ -196,6 +197,7 @@ class ExecutionBridge:
         self._autonomous_executor = autonomous_executor
         self._capability_gate = capability_gate
         self._approval_service = approval_service
+        self._plan_service = plan_service
         self._audit_service = audit_service
         self._logger = logging.getLogger(__name__)
 
@@ -380,7 +382,31 @@ class ExecutionBridge:
         except Exception as exc:
             raise ExecutionBridgeError(f"Planning failed: {exc}") from exc
 
-        # 4. Execute the plan via existing autonomous execution core
+        # 4. Persist the authoritative plan before execution.
+        # Planning produces an in-memory ManagerPlanResult; execution operates
+        # only on persisted DevelopmentTask records. Persistence is idempotent,
+        # so this is safe when plan.create already ran.
+        try:
+            await self._plan_service.persist_manager_plan_result(
+                planning_result.manager_plan_result
+            )
+        except ManagerInvalidPlanError:
+            raise
+        except Exception as exc:
+            raise ExecutionBridgeError(f"Plan persistence failed: {exc}") from exc
+
+        # 5. Consume approval only after planning + persistence succeeded.
+        # This prevents a failed planning/persistence attempt from burning a
+        # valid user approval.
+        if auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL:
+            try:
+                await self._approval_service.consume(approval_id)  # type: ignore[arg-type]
+            except CapabilityApprovalError as exc:
+                raise ExecutionAuthorizationError(
+                    f"Approval '{approval_id}' consumption failed: {exc}"
+                ) from exc
+
+        # 6. Execute the persisted plan via existing autonomous execution core
         try:
             execution_result = await self._autonomous_executor.execute_plan(
                 planning_result.plan_id
