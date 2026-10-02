@@ -857,6 +857,9 @@ class FailingCheckpointWorkspaceManager(WorkspaceManager):
     def create_workspace(self, task_id: str, base_commit_sha: str, execution_token: str = "") -> Any:
         return self._delegate.create_workspace(task_id, base_commit_sha, execution_token=execution_token)
 
+    def get_changed_files(self, workspace, base_commit_sha=None):
+        return self._delegate.get_changed_files(workspace, base_commit_sha)
+
     def get_current_head(self, worktree_path=None):
         return self._delegate.get_current_head(worktree_path)
 
