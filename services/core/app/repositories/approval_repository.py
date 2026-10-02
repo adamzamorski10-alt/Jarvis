@@ -3,6 +3,7 @@ Repository — Pending Approvals
 Data access layer for ASK_USER approval requests awaiting user decision.
 """
 import json
+from typing import Any
 from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
