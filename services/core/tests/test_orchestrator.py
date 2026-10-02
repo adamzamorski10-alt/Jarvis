@@ -895,6 +895,51 @@ async def test_abort_race_cannot_continue_to_commit(tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_post_verification_workspace_mutation_is_not_committed(tmp_path: Path, db_session: AsyncSession):
+    """A change introduced after verification must invalidate the commit instead of being silently included."""
+    repo_root = tmp_path / "primary_repo"
+    repo_root.mkdir()
+    base_sha = _init_real_git_repo(repo_root)
+
+    repo = TaskRepository(db_session)
+    sm = TaskStateMachine(repo)
+    wm = WorkspaceManager(repo_root=repo_root, worktree_base_dir=tmp_path / "worktrees")
+
+    registry = CheckRegistry()
+    registry.register(FakeCheck("check1", status=CheckStatus.PASS))
+
+    class MutatingGate(VerificationGate):
+        def run(self, context: VerificationContext):
+            Path(context.workspace_path, "post_verification.py").write_text(
+                "# mutation after verification snapshot\n", encoding="utf-8"
+            )
+            return super().run(context)
+
+    gate = MutatingGate(registry=registry, primary_worktree_path=repo_root)
+    agent = FakeDevelopmentAgent(file_to_create="README.md")
+    orchestrator = AutonomousTaskOrchestrator(repo, sm, wm, gate, agent)
+
+    task = await repo.create_task(DevelopmentTask(
+        project_id="proj_toc_tou",
+        title="TOCTOU",
+        description="Reject post-verification mutation",
+    ))
+    await db_session.commit()
+
+    res = await orchestrator.start_task(
+        task.task_id,
+        OrchestrationOptions(base_commit_sha=base_sha),
+    )
+
+    assert res.committed is False
+    assert res.final_status == TaskStatus.FAILED
+    assert res.checkpoint_sha is None
+
+    db_task = await repo.get_task(task.task_id)
+    assert db_task.status == TaskStatus.FAILED
+
+
+@pytest.mark.asyncio
 async def test_checkpoint_failure_prevents_commit(tmp_path: Path, db_session: AsyncSession):
     """Exception during WorkspaceManager.create_checkpoint causes task to fail and committed == False."""
     repo_root = tmp_path / "primary_repo"
