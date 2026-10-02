@@ -1,4 +1,5 @@
 """Approval flow routes."""
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.api.schemas.ai import ApprovalApproveRequest, ApprovalRejectRequest, ApprovalResponse, PendingApprovalListResponse
