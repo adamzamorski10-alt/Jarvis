@@ -727,6 +727,35 @@ class AutonomousTaskOrchestrator:
             checkpoint_id=cp_info.checkpoint_id,
         )
 
+        # 14. Re-read and validate the task before the terminal transition.
+        # This closes the TOCTOU window between checkpoint creation and
+        # COMMITTED: the task must still belong to the same project and
+        # execution ownership must still match the run that created the workspace.
+        current_task = await self._task_repo.get_task(task_id)
+        if current_task is None:
+            raise TaskNotFoundError(task_id=task_id)
+        if current_task.project_id != claimed_task.project_id:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Task project changed during execution; refusing COMMITTED transition",
+            )
+        if current_task.execution_token != execution_token:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Task execution ownership changed before commit; refusing COMMITTED transition",
+            )
+
+        # Verify the checkpoint is the actual current HEAD of the autonomous
+        # worktree and is still based on the commit that was verified.
+        post_checkpoint_head = self._workspace_manager.get_current_head(
+            Path(workspace.autonomous_worktree_path)
+        )
+        if post_checkpoint_head != cp_info.commit_sha:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Checkpoint SHA does not match autonomous worktree HEAD",
+            )
+
         # 14. Transition PASSED -> COMMITTED via TaskStateMachine
         await self._state_machine.transition(
             task_id=task_id,
