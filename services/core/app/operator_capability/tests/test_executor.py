@@ -219,6 +219,28 @@ class TestOperatorCapabilityExecutor:
         self.task_repository.create_task.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_task_create_is_idempotent_for_same_request(self):
+        request = _make_request("TASK_CREATE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="TASK_CREATE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="task.create",
+        )
+
+        existing = MagicMock()
+        existing.task_id = "task_existing"
+        existing.model_dump.return_value = {"task_id": "task_existing"}
+        self.task_repository.get_task.return_value = existing
+
+        result = await self.executor.execute(request, resolution)
+
+        assert result.success is True
+        assert result.state == "TASK_ALREADY_EXISTS"
+        assert result.result_metadata["idempotent_replay"] is True
+        self.task_repository.create_task.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_task_create_without_repository_fails_closed(self):
         request = _make_request("TASK_CREATE")
         request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
