@@ -921,7 +921,7 @@ class TestPersistedPlanBoundary:
                 title="foreign",
                 description="foreign",
                 status=TaskStatus.PENDING,
-                metadata={"source_plan_id": "wrong_plan"},
+                metadata={"source_plan_id": ManagerPlanningService._generate_plan_id(decision)},
             )]
 
         plan_service = AsyncMock()
