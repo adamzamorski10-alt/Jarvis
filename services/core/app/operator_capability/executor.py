@@ -11,6 +11,7 @@ SECURITY:
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from app.operator_capability.models import (
@@ -261,7 +262,30 @@ class OperatorCapabilityExecutor:
 
         from app.tasks.models import DevelopmentTask, TaskStatus
 
+        # Request IDs are application-owned and stable for retries. Reusing a
+        # request must not silently create duplicate development tasks.
+        deterministic_task_id = "task_" + hashlib.sha256(
+            f"operator-request:{request.request_id}".encode("utf-8")
+        ).hexdigest()
+        existing = await self._task_repository.get_task(deterministic_task_id)
+        if existing is not None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="task.create",
+                success=True,
+                state="TASK_ALREADY_EXISTS",
+                user_message="Task already exists for this request.",
+                result_metadata={
+                    "task_id": existing.task_id,
+                    "idempotent_replay": True,
+                },
+                service_result=existing.model_dump(mode="json"),
+            )
+
         task = DevelopmentTask(
+            task_id=deterministic_task_id,
             project_id=request.project_id or "default",
             title=request.user_request[:200].strip(),
             description=request.user_request.strip(),
