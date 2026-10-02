@@ -392,6 +392,31 @@ class AIService:
             "clarification_questions": remaining_questions[:5],
         }
 
+    async def _promote_operator_request_to_ready(
+        self,
+        operator_request: Any,
+        assembled_context: Any,
+    ) -> Any | None:
+        """
+        Complete the application-owned readiness handoff after sufficiency passes.
+
+        The capability executor intentionally fails closed unless the request is
+        READY/SUFFICIENT. Information Sufficiency therefore has to explicitly
+        promote the transient request before capability resolution.
+        """
+        if self._operator_request_service is None:
+            return None
+
+        try:
+            operator_request = await self._operator_request_service.update_request(
+                operator_request,
+                OperatorRequestUpdate(assembled_context=assembled_context),
+            )
+            return await self._operator_request_service.mark_ready(operator_request)
+        except Exception as exc:
+            logger.warning("Operator request readiness handoff failed: %s", exc)
+            return None
+
     async def _run_sufficiency_and_maybe_clarify(
         self,
         conversation: Any,
@@ -847,15 +872,10 @@ class AIService:
         # resolution. Without this handoff, the capability executor correctly
         # fails closed because newly classified requests remain UNKNOWN.
         if operator_request is not None and self._operator_request_service is not None:
-            try:
-                operator_request = await self._operator_request_service.update_request(
-                    operator_request,
-                    OperatorRequestUpdate(assembled_context=assembled_context),
-                )
-                operator_request = await self._operator_request_service.mark_ready(operator_request)
-            except Exception as exc:
-                logger.warning("Operator request readiness handoff failed: %s", exc)
-                operator_request = None
+            operator_request = await self._promote_operator_request_to_ready(
+                operator_request,
+                assembled_context,
+            )
 
         # ── Capability Resolution & Execution ───────────────────────────────────
         capability_result = None
