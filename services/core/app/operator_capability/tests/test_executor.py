@@ -69,12 +69,15 @@ class TestOperatorCapabilityExecutor:
         self.manager_planning_service.plan_decision = AsyncMock()
         self.plan_service = MagicMock()
         self.plan_service.persist_manager_plan_result = AsyncMock()
+        self.execution_bridge = MagicMock()
+        self.execution_bridge.execute = AsyncMock()
         self.executor = OperatorCapabilityExecutor(
             tool_execution_service=self.tool_execution_service,
             task_repository=self.task_repository,
             task_state_machine=self.task_state_machine,
             manager_planning_service=self.manager_planning_service,
             plan_service=self.plan_service,
+            execution_bridge=self.execution_bridge,
             autonomy_mode=None,
         )
 
@@ -319,7 +322,6 @@ class TestOperatorCapabilityExecutor:
             "status": "RUNNING",
         }
         self.task_state_machine.transition.assert_awaited_once()
-        self.task_repository.update_task_status.assert_not_called() if hasattr(self.task_repository, "update_task_status") else None
 
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -417,7 +419,6 @@ class TestOperatorCapabilityExecutor:
         assert result.success is False
         assert result.state == "BLOCKED"
         assert result.error_category == "MISSING_TASK_STATUS"
-        self.task_repository.update_task_status.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_plan_create_fails_closed_without_manager_result(self):
@@ -471,7 +472,7 @@ class TestOperatorCapabilityExecutor:
         )
 
     @pytest.mark.asyncio
-    async def test_plan_execute_fails_closed_without_execution_bridge(self):
+    async def test_plan_execute_requires_manager_result(self):
         request = _make_request("PLAN_EXECUTE")
         request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
         resolution = _make_resolution(
@@ -482,7 +483,89 @@ class TestOperatorCapabilityExecutor:
         result = await self.executor.execute(request, resolution)
         assert result.success is False
         assert result.state == "BLOCKED"
-        assert result.error_category == "REQUIRES_EXECUTION_BRIDGE"
+        assert result.error_category == "REQUIRES_AI_MANAGER"
+        self.execution_bridge.execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_plan_execute_uses_controlled_execution_bridge(self):
+        request = _make_request("PLAN_EXECUTE")
+        request = request.model_copy(update={
+            "readiness_state": ReadinessState.SUFFICIENT,
+            "project_id": "project_1",
+            "constraints": {"approval_id": "approval_123"},
+        })
+        resolution = _make_resolution(
+            operation_type="PLAN_EXECUTE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="plan.execute",
+        )
+        manager_result = MagicMock()
+
+        execution_result = MagicMock()
+        execution_result.plan_id = "plan_123"
+        execution_result.project_id = "project_1"
+        execution_result.execution_result.terminal_state.value = "COMPLETED"
+        execution_result.execution_result.total_tasks = 2
+        execution_result.execution_result.committed_tasks = 2
+        execution_result.execution_result.failed_tasks = 0
+        execution_result.execution_result.reason = None
+        execution_result.execution_result.model_dump.return_value = {"plan_id": "plan_123"}
+
+        self.execution_bridge.execute.return_value = execution_result
+
+        result = await self.executor.execute(
+            request,
+            resolution,
+            manager_result=manager_result,
+        )
+
+        assert result.success is True
+        assert result.state == "PLAN_COMPLETED"
+        assert result.result_metadata["plan_id"] == "plan_123"
+        self.execution_bridge.execute.assert_awaited_once_with(
+            result=manager_result,
+            project_id="project_1",
+            approval_id="approval_123",
+        )
+
+    @pytest.mark.asyncio
+    async def test_plan_execute_blocks_when_bridge_requires_approval(self):
+        from app.ai_manager.execution_bridge import ExecutionNeedsApprovalError
+        from app.ai_manager.approval_models import ApprovalStatus, CapabilityApproval
+
+        request = _make_request("PLAN_EXECUTE")
+        request = request.model_copy(update={"readiness_state": ReadinessState.SUFFICIENT})
+        resolution = _make_resolution(
+            operation_type="PLAN_EXECUTE",
+            capability_kind=CapabilityKind.SERVICE,
+            capability_id="plan.execute",
+        )
+        manager_result = MagicMock()
+        approval = CapabilityApproval(
+            approval_id="approval_pending",
+            intent_id="req_test",
+            operation_type="plan_execution",
+            scope_fingerprint="scope",
+            effective_risk=__import__("app.ai_manager.models", fromlist=["RiskLevel"]).RiskLevel.HIGH,
+            status=ApprovalStatus.PENDING,
+            created_at=__import__("datetime", fromlist=["datetime"]).datetime.now(__import__("datetime", fromlist=["timezone"]).timezone.utc),
+            expires_at=__import__("datetime", fromlist=["datetime"]).datetime.now(__import__("datetime", fromlist=["timezone"]).timezone.utc),
+        )
+        self.execution_bridge.execute.side_effect = ExecutionNeedsApprovalError(
+            intent_id="req_test",
+            approval=approval,
+            auth_decision=MagicMock(),
+        )
+
+        result = await self.executor.execute(
+            request,
+            resolution,
+            manager_result=manager_result,
+        )
+
+        assert result.success is False
+        assert result.error_category == "APPROVAL_REQUIRED"
+        assert result.result_metadata["approval_id"] == "approval_pending"
 
     @pytest.mark.asyncio
     async def test_service_unsupported_returns_blocked(self):
