@@ -511,7 +511,20 @@ class OperatorCapabilityExecutor:
         manager_result: Any = None,
     ) -> CapabilityExecutionResult:
         """Create and persist a validated plan from a trusted ManagerResult."""
-        if manager_result is None or self._manager_planning_service is None or self._plan_service is None:
+        if manager_result is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="plan.create",
+                success=False,
+                state="BLOCKED",
+                user_message="Plan creation requires a trusted AI Manager decision.",
+                result_metadata={},
+                error_category="REQUIRES_AI_MANAGER",
+                error_detail="No ManagerResult was supplied by the Operator runtime",
+            )
+        if self._manager_planning_service is None or self._plan_service is None:
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
