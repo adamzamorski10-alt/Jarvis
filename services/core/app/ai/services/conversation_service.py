@@ -1,4 +1,5 @@
 """Conversation persistence for text-only AI assistant."""
+from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
