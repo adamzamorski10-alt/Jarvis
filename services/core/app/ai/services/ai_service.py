@@ -594,7 +594,7 @@ class AIService:
         """
         try:
             from app.ai_manager.ai_manager import AIManager
-            from app.ai_manager.providers.fake import FakeManagerProvider
+            from app.ai_manager.providers.configured import ConfiguredAIManagerProvider
             from app.ai_manager.models import UserIntent
 
             # Build application-controlled intent
@@ -619,9 +619,18 @@ class AIService:
                 },
             )
 
-            # Use fake provider for now (no actual AI Manager provider configured)
-            provider = FakeManagerProvider()
-            manager = AIManager(provider=provider)
+            config = await self._providers.get_config()
+            selected_model = config.get("selected_model")
+            if not selected_model:
+                logger.info("AI Manager skipped because no model is selected", request_id=operator_request.request_id)
+                return None
+
+            provider = await self._providers.get_provider()
+            manager_provider = ConfiguredAIManagerProvider(
+                provider=provider,
+                model=str(selected_model),
+            )
+            manager = AIManager(provider=manager_provider)
             result = await manager.decide(intent)
 
             logger.info(
