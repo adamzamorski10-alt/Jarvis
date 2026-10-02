@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import hashlib
 from typing import Any
 
 from app.operator_request.errors import NormalizationFailedError
@@ -53,7 +54,7 @@ class RequestNormalizer:
             NormalizationFailedError: If normalization fails.
         """
         try:
-            request_id = self._generate_request_id()
+            request_id = self._generate_request_id(create)
             correlation_id = self._resolve_correlation_id(create)
             causation_id = create.causation_id
 
@@ -82,11 +83,15 @@ class RequestNormalizer:
                 raise
             raise NormalizationFailedError(str(exc)) from exc
 
-    def _generate_request_id(self) -> str:
-        """Generate a unique request ID."""
+    def _generate_request_id(self, create: OperatorRequestCreate) -> str:
+        """Generate a stable request ID when the client supplies an idempotency key."""
+        if create.message_id:
+            scope = f"{create.conversation_id or 'no-conversation'}:{create.message_id}"
+            digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:24]
+            return f"req_{digest}"
+
         import uuid
-        raw = uuid.uuid4().hex
-        return f"req_{raw[:16]}"
+        return f"req_{uuid.uuid4().hex[:16]}"
 
     def _resolve_correlation_id(self, create: OperatorRequestCreate) -> str:
         """Resolve correlation ID from creation input or generate new one."""
