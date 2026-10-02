@@ -30,6 +30,116 @@ from app.operator_request.models import (
 )
 
 
+class OperatorRequestStateError(OperatorRequestError):
+    """Raised when an Operator Request lifecycle transition is not allowed."""
+
+    def __init__(self, current: OperatorRequestState, target: OperatorRequestState) -> None:
+        self.current = current
+        self.target = target
+        super().__init__(
+            f"Invalid operator request state transition: {current.value} -> {target.value}"
+        )
+
+
+_ALLOWED_STATE_TRANSITIONS: dict[OperatorRequestState, frozenset[OperatorRequestState]] = {
+    OperatorRequestState.RECEIVED: frozenset({
+        OperatorRequestState.NORMALIZED,
+        OperatorRequestState.CLASSIFIED,
+        OperatorRequestState.READY,
+        OperatorRequestState.CLARIFICATION_REQUIRED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.NORMALIZED: frozenset({
+        OperatorRequestState.CLASSIFIED,
+        OperatorRequestState.READY,
+        OperatorRequestState.CLARIFICATION_REQUIRED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.CLASSIFIED: frozenset({
+        OperatorRequestState.READY,
+        OperatorRequestState.CLARIFICATION_REQUIRED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.READY: frozenset({
+        OperatorRequestState.TASK_CREATED,
+        OperatorRequestState.PLAN_CREATED,
+        OperatorRequestState.APPROVAL_REQUIRED,
+        OperatorRequestState.EXECUTION_STARTED,
+        OperatorRequestState.CLARIFICATION_REQUIRED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+        OperatorRequestState.COMPLETED,
+    }),
+    OperatorRequestState.TASK_CREATED: frozenset({
+        OperatorRequestState.PLAN_CREATED,
+        OperatorRequestState.EXECUTION_STARTED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.FAILED,
+        OperatorRequestState.COMPLETED,
+    }),
+    OperatorRequestState.PLAN_CREATED: frozenset({
+        OperatorRequestState.APPROVAL_REQUIRED,
+        OperatorRequestState.EXECUTION_STARTED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.FAILED,
+        OperatorRequestState.COMPLETED,
+    }),
+    OperatorRequestState.APPROVAL_REQUIRED: frozenset({
+        OperatorRequestState.EXECUTION_STARTED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.EXECUTION_STARTED: frozenset({
+        OperatorRequestState.EXECUTION_COMPLETED,
+        OperatorRequestState.EXECUTION_FAILED,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.EXECUTION_COMPLETED: frozenset({
+        OperatorRequestState.COMPLETED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.CLARIFICATION_REQUIRED: frozenset({
+        OperatorRequestState.NORMALIZED,
+        OperatorRequestState.CLASSIFIED,
+        OperatorRequestState.READY,
+        OperatorRequestState.BLOCKED,
+        OperatorRequestState.REJECTED,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.BLOCKED: frozenset({
+        OperatorRequestState.READY,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.REJECTED: frozenset(),
+    OperatorRequestState.EXECUTION_FAILED: frozenset({
+        OperatorRequestState.READY,
+        OperatorRequestState.FAILED,
+    }),
+    OperatorRequestState.COMPLETED: frozenset(),
+    OperatorRequestState.FAILED: frozenset(),
+}
+
+
+def _validate_state_transition(
+    current: OperatorRequestState,
+    target: OperatorRequestState,
+) -> None:
+    """Fail closed on impossible Operator Request lifecycle transitions."""
+    if current == target:
+        return
+    if target not in _ALLOWED_STATE_TRANSITIONS.get(current, frozenset()):
+        raise OperatorRequestStateError(current, target)
+
+
 class OperatorRequestService:
     """
     Application-owned service for managing Operator Requests.
@@ -142,6 +252,10 @@ class OperatorRequestService:
         update_data = update.model_dump(exclude_none=True)
         if not update_data:
             return request
+
+        target_state = update_data.get("state")
+        if target_state is not None:
+            _validate_state_transition(request.state, target_state)
 
         updated = request.model_copy(
             update={
@@ -342,4 +456,4 @@ class _DefaultNormalizer:
         return normalizer.normalize(create)
 
 
-__all__ = ["OperatorRequestService"]
+__all__ = ["OperatorRequestService", "OperatorRequestStateError"]
