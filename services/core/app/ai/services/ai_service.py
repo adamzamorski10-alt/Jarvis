@@ -363,6 +363,9 @@ class AIService:
                 ClarificationOutcome.SUFFICIENT,
                 [],
             )
+            if operator_request is not None and self._operator_request_service is not None:
+                operator_request = await self._operator_request_service.mark_ready(operator_request)
+                return {"__operator_request": operator_request}
             return None
 
         remaining_questions = list(sufficiency_result.questions)
