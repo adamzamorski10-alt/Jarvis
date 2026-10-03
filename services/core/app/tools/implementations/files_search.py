@@ -107,24 +107,32 @@ class FilesSearch(BaseTool):
             raise ValueError("workspace_path context is required for files.search execution")
 
         workspace_root = Path(ws_path_str).resolve()
-        root_path = (workspace_root / p).resolve()
+        raw_root_path = workspace_root / p
+
+        # Validate the user-selected root before resolving it. Resolving first
+        # would follow a symlink and could turn an explicitly forbidden root
+        # into an apparently safe directory.
+        if raw_root_path.is_symlink():
+            raise ValueError("Symlinks are not allowed")
+
+        root_path = raw_root_path.resolve()
 
         try:
             root_path.relative_to(workspace_root)
         except ValueError:
             raise ValueError("Search path escapes authorized workspace root")
 
-        if root_path == workspace_root:
-            pass
-        else:
-            if root_path.is_symlink():
-                raise ValueError("Symlinks are not allowed")
-            try:
-                resolved = root_path.resolve()
-                if resolved != root_path:
+        # A non-root search path may not traverse through a symlinked component.
+        # Symlink entries themselves remain visible as results, but are never
+        # followed during recursive descent.
+        if root_path != workspace_root:
+            current = workspace_root
+            for part in p.parts:
+                if part in ("", "."):
+                    continue
+                current = current / part
+                if current.is_symlink():
                     raise ValueError("Symlinks are not allowed")
-            except (OSError, RuntimeError):
-                raise ValueError("Symlinks are not allowed")
 
         if not root_path.exists():
             raise ValueError(f"Directory not found: {rel_root}")
