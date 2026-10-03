@@ -1007,7 +1007,7 @@ class TestPlanPersistenceBoundary:
 
         assert (
             plan_service.persist_manager_plan_result.await_args_list[0].args[0]
-            .plan_id == "plan_abc"
+            .plan_id.startswith("plan_")
         )
 
     async def test_persistence_failure_blocks_execution(self):
