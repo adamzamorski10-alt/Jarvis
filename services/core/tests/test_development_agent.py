@@ -372,6 +372,9 @@ class TestBaseDevelopmentAgent:
             ),
         ]
         provider = FakeCodingProvider(steps=steps)
+        outside = tmp_path / "outside.py"
+        outside.write_text("outside", encoding="utf-8")
+        (tmp_path / "link").symlink_to(outside)
         agent = BaseDevelopmentAgent(provider=provider, model="test-model")
         ctx = DevelopmentAgentContext(
             task_id="task_9",
