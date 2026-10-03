@@ -360,7 +360,7 @@ class ExecutionBridge:
                         effective_risk=auth_decision.effective_risk,
                         status=ApprovalStatus.PENDING,
                         created_at=datetime.now(timezone.utc),
-                        expires_at=datetime.now(timezone.utc),
+                        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
                     ),
                     auth_decision=auth_decision,
                 )
