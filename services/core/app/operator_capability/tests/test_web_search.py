@@ -32,3 +32,26 @@ def test_web_search_resolves_to_service():
 def test_web_search_is_not_answer_only():
     resolution = CapabilityResolver().resolve(make_request())
     assert resolution.capability_kind != CapabilityKind.ANSWER_ONLY
+
+
+import pytest
+from app.operator_capability.executor import OperatorCapabilityExecutor
+
+
+@pytest.mark.asyncio
+async def test_web_search_executes_through_service():
+    class FakeSearch:
+        async def search(self, request, request_id=None):
+            from app.web_search.models import WebSearchResponse, WebSearchResult
+            return WebSearchResponse(
+                query=request.query,
+                provider="fake",
+                results=[WebSearchResult(title="Example", url="https://example.com", rank=1)],
+            )
+
+    request = make_request()
+    resolution = CapabilityResolver().resolve(request)
+    executor = OperatorCapabilityExecutor(web_search_service=FakeSearch())
+    result = await executor.execute(request, resolution)
+    assert result.success is True
+    assert result.service_result["results"][0]["url"] == "https://example.com"
