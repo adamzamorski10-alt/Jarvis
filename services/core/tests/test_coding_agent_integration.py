@@ -28,6 +28,7 @@ from app.ai.providers.coding_base import (
 )
 from app.ai.providers.coding_ollama import OllamaCodingAdapter
 from app.ai.providers.coding_openrouter import OpenRouterCodingAdapter
+from app.ai.providers.coding_kimi import KimiCodingAdapter
 from app.ai.services.provider_manager import ProviderManager
 from app.db.database import Base
 from app.orchestration.agent_factory import (
@@ -491,15 +492,25 @@ async def test_security_context_isolation(tmp_path: Path, db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
+async def test_kimi_coding_provider_is_supported():
+    settings = FakeSettingsService({"ai_provider": "kimi"})
+    pm = ProviderManager(settings)
+
+    provider = await pm.get_coding_provider()
+
+    assert isinstance(provider, KimiCodingAdapter)
+
+
+@pytest.mark.asyncio
 async def test_unsupported_provider_fails_closed():
     """
     Hostile Audit Test:
-    Unsupported provider names (e.g. 'kimi', 'omniroute', 'unknown') MUST fail closed
+    Unsupported provider names (e.g. 'omniroute', 'unknown') MUST fail closed
     by raising AIConfigError, preventing accidental fallback or unauthorized provider execution.
     """
     from app.ai.services.provider_manager import AIConfigError
 
-    for provider_name in ["kimi", "omniroute", "unsupported_xyz"]:
+    for provider_name in ["omniroute", "unsupported_xyz"]:
         settings = FakeSettingsService({"ai_provider": provider_name})
         pm = ProviderManager(settings)
         with pytest.raises(AIConfigError) as exc_info:
