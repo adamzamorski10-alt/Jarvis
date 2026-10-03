@@ -28,14 +28,6 @@ class CapabilityResolver:
 
     # ── Tool-backed operations ──────────────────────────────────────────────────
     _TOOL_OPERATIONS: dict[str, dict[str, Any]] = {
-        "WEB_SEARCH": {
-            "capability_id": "web.search",
-            "category": CapabilityCategory.INFORMATION,
-            "description": "Search the public web for relevant results",
-            "parameters": {"query": "string (required)"},
-            "requires_approval": False,
-            "requires_permission": True,
-        },
         "INFORMATION_REQUEST": {
             "capability_id": "system.get_time",
             "category": CapabilityCategory.SYSTEM,
