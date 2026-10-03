@@ -77,12 +77,13 @@ class BraveSearchProvider(WebSearchProvider):
             url = str(item.get("url") or "").strip()
             if not title or not url or not (url.startswith("http://") or url.startswith("https://")):
                 continue
+            profile = item.get("profile") if isinstance(item.get("profile"), dict) else {}
             results.append(
                 WebSearchResult(
                     title=title[:512],
                     url=url[:4096],
                     snippet=str(item.get("description") or "").strip()[:4096],
-                    source=(str(item.get("profile", {}).get("long_name") or "").strip()[:256] or None),
+                    source=(str(profile.get("long_name") or "").strip()[:256] or None),
                     rank=index,
                 )
             )
