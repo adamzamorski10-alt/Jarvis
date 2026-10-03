@@ -441,7 +441,8 @@ async def test_search_root_dot(tmp_path: Path):
             context={"workspace_path": str(tmp_path)},
         )
         assert res.success is True
-        assert len(res.result["matches"]) == 1
+        assert len(res.result["matches"]) == 2
+        # The real file and its visible symlink both match the target name.
 
     await engine.dispose()
 
@@ -906,7 +907,7 @@ async def test_search_allow_with_grant_executes(tmp_path: Path):
         )
         assert res.success is True
         assert res.status == ToolExecutionStatus.SUCCESS
-        assert len(res.result["matches"]) == 1
+        assert len(res.result["matches"]) == 2
 
     await engine.dispose()
 
