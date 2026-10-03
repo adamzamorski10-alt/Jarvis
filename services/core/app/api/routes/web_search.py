@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.ai.services.provider_manager import AIConfigError, ProviderManager
 from app.api.schemas.web_search import WebSearchConfigRequest, WebSearchConfigResponse
-from app.dependencies import get_provider_manager, get_web_search_service
+from app.dependencies import get_permission_engine, get_provider_manager, get_web_search_service
 from app.identity.auth import require_authenticated
+from app.tools.models import AutonomyMode, PermissionDecisionType, PermissionEvaluationRequest, RiskLevel
+from app.operator_capability.executor import OperatorCapabilityExecutor
 from app.web_search.models import WebSearchRequest, WebSearchResponse
 from app.web_search.service import WebSearchService
 
@@ -23,10 +25,28 @@ async def search_web(
     freshness: str | None = None,
     x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
     service: WebSearchService | None = Depends(get_web_search_service),
+    permission_engine = Depends(get_permission_engine),
 ):
     ctx = require_authenticated(request)
     if service is None:
         raise HTTPException(status_code=503, detail="Web search is not configured")
+    OperatorCapabilityExecutor._ensure_web_search_permission_definition()
+    decision = await permission_engine.evaluate(
+        PermissionEvaluationRequest(
+            tool_id="web.search",
+            risk_level=RiskLevel.SAFE,
+            action="search",
+            autonomy_mode=AutonomyMode.MANUAL,
+            arguments={"query_length": len(q)},
+            context={"request_id": x_request_id} if x_request_id else {},
+            actor_id=ctx.actor_id if getattr(ctx, "actor_id", None) else None,
+        )
+    )
+    if decision.decision != PermissionDecisionType.ALLOW:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "permission_denied", "message": decision.reason, "rule_id": decision.rule_id},
+        )
     try:
         return await service.search(
             WebSearchRequest(
