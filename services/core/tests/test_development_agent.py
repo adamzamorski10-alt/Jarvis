@@ -188,6 +188,8 @@ class TestBaseDevelopmentAgent:
             ),
         ]
         provider = FakeCodingProvider(steps=steps)
+        (tmp_path / "outside.py").write_text("outside", encoding="utf-8")
+        (tmp_path / "link").symlink_to(tmp_path / "outside.py")
         agent = BaseDevelopmentAgent(provider=provider, model="test-model")
         ctx = DevelopmentAgentContext(
             task_id="task_2",
@@ -360,7 +362,7 @@ class TestBaseDevelopmentAgent:
             CodingStepResult(
                 operations=(
                     CodingOperation(type=CodingOperationType.WRITE, path="good.py", content="ok"),
-                    CodingOperation(type=CodingOperationType.WRITE, path="/etc/bad", content="evil"),
+                    CodingOperation(type=CodingOperationType.WRITE, path="link/bad.py", content="evil"),
                 ),
                 finished=False,
             ),
