@@ -45,6 +45,7 @@ class OperatorCapabilityExecutor:
         execution_bridge: Any = None,
         execution_bridge_factory: Callable[[], Awaitable[Any]] | None = None,
         web_search_service: Any = None,
+        permission_engine: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
@@ -55,7 +56,29 @@ class OperatorCapabilityExecutor:
         self._execution_bridge = execution_bridge
         self._execution_bridge_factory = execution_bridge_factory
         self._web_search_service = web_search_service
+        self._permission_engine = permission_engine
         self._autonomy_mode = autonomy_mode
+        self._ensure_web_search_permission_definition()
+
+    @staticmethod
+    def _ensure_web_search_permission_definition() -> None:
+        from app.tools.models import RiskLevel, ToolCategory, ToolDefinition
+        from app.tools.registry import tool_registry
+        if not tool_registry.exists("web.search"):
+            tool_registry.register(
+                ToolDefinition(
+                    tool_id="web.search",
+                    action="search",
+                    name="Web Search",
+                    description="Search the public web and return ranked links and snippets.",
+                    category=ToolCategory.NETWORK,
+                    risk_level=RiskLevel.SAFE,
+                    requires_confirmation=False,
+                    enabled=True,
+                    parameters_schema={"type": "object", "properties": {"query": {"type": "string", "maxLength": 600}}},
+                    result_schema={"type": "object"},
+                )
+            )
 
     async def execute(
         self,
@@ -289,6 +312,33 @@ class OperatorCapabilityExecutor:
                 error_category="MISSING_CAPABILITY_PARAMETERS",
                 error_detail="Missing search query",
             )
+        if self._permission_engine is not None:
+            from app.tools.models import AutonomyMode, PermissionDecisionType, PermissionEvaluationRequest, RiskLevel
+            mode = self._autonomy_mode if isinstance(self._autonomy_mode, AutonomyMode) else AutonomyMode.MANUAL
+            decision = await self._permission_engine.evaluate(
+                PermissionEvaluationRequest(
+                    tool_id="web.search",
+                    risk_level=RiskLevel.SAFE,
+                    action="search",
+                    autonomy_mode=mode,
+                    arguments={"query_length": len(query)},
+                    context={"request_id": request.request_id},
+                    actor_id=request.request_context.actor_id if request.request_context else None,
+                )
+            )
+            if decision.decision != PermissionDecisionType.ALLOW:
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="web.search",
+                    success=False,
+                    state="BLOCKED",
+                    user_message="Web search is not currently permitted.",
+                    result_metadata={"permission_decision": decision.decision.value, "rule_id": decision.rule_id},
+                    error_category="PERMISSION_DENIED",
+                    error_detail=decision.reason,
+                )
         try:
             result = await self._web_search_service.search(
                 WebSearchRequest(query=query),
