@@ -806,21 +806,30 @@ class AIService:
             except Exception as exc:
                 logger.warning("Context assembly failed for chat: %s", exc)
 
-        # Information Sufficiency + Clarification Loop
-        clarification_result = await self._process_clarification_if_needed(
-            conversation=conversation,
-            message=message,
-            request_context=request_context,
-            assembled_context=assembled_context,
-            context_messages=context_messages,
-            operator_request=operator_request,
-        )
-        if clarification_result is not None:
-            internal_request = clarification_result.pop("__operator_request", None)
-            if internal_request is not None:
-                operator_request = internal_request
-            else:
-                return clarification_result
+        # Web search has a concrete, bounded query contract and does not need
+        # an LLM-backed clarification round before deterministic execution.
+        if (
+            operator_request is not None
+            and operator_request.operation_type == "WEB_SEARCH"
+            and self._operator_request_service is not None
+        ):
+            operator_request = await self._operator_request_service.mark_ready(operator_request)
+        else:
+            # Information Sufficiency + Clarification Loop
+            clarification_result = await self._process_clarification_if_needed(
+                conversation=conversation,
+                message=message,
+                request_context=request_context,
+                assembled_context=assembled_context,
+                context_messages=context_messages,
+                operator_request=operator_request,
+            )
+            if clarification_result is not None:
+                internal_request = clarification_result.pop("__operator_request", None)
+                if internal_request is not None:
+                    operator_request = internal_request
+                else:
+                    return clarification_result
 
         # Plan operations require a trusted AI Manager decision before capability execution.
         # Other operations continue through the normal deterministic capability path.
