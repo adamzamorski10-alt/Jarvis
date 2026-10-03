@@ -356,6 +356,24 @@ async def get_execution_bridge(
     )
 
 
+async def get_execution_bridge_factory(
+    session: AsyncSession = Depends(get_db),
+    task_repository = Depends(get_task_repository),
+    manager_planning_service = Depends(get_manager_planning_service),
+    approval_service: ApprovalService = Depends(get_approval_service),
+):
+    """Return a lazy factory so read-only AI endpoints do not build the coding stack."""
+    async def factory():
+        return await get_execution_bridge(
+            session=session,
+            task_repository=task_repository,
+            manager_planning_service=manager_planning_service,
+            approval_service=approval_service,
+        )
+
+    return factory
+
+
 async def get_ai_service(
     task_repository = Depends(get_task_repository),
     providers: ProviderManager = Depends(get_provider_manager),
@@ -370,7 +388,7 @@ async def get_ai_service(
     operator_request_service: OperatorRequestService | None = Depends(get_operator_request_service),
     manager_planning_service = Depends(get_manager_planning_service),
     plan_service = Depends(get_plan_service),
-    execution_bridge = Depends(get_execution_bridge),
+    execution_bridge_factory = Depends(get_execution_bridge_factory),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
     from app.tasks.state_machine import TaskStateMachine
@@ -381,7 +399,7 @@ async def get_ai_service(
         task_state_machine=task_state_machine,
         manager_planning_service=manager_planning_service,
         plan_service=plan_service,
-        execution_bridge=execution_bridge,
+        execution_bridge_factory=execution_bridge_factory,
         autonomy_mode=None,
     )
     yield AIService(
