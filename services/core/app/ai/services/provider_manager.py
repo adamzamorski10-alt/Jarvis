@@ -60,12 +60,26 @@ class ProviderManager:
         effective_ollama_url = ollama_url or all_settings.get("ai_ollama_url") or "http://127.0.0.1:11434"
         if provider == "ollama" and not effective_ollama_url:
             raise AIConfigError("Ollama URL is required")
-        if effective_ollama_url:
-            self._validate_url(effective_ollama_url, "Ollama URL")
         kimi_url = kimi_base_url or all_settings.get("ai_kimi_base_url") or DEFAULT_KIMI_BASE_URL
-        self._validate_url(kimi_url, "Kimi base URL")
         openrouter_url = openrouter_base_url or all_settings.get("ai_openrouter_base_url") or DEFAULT_OPENROUTER_BASE_URL
-        self._validate_url(openrouter_url, "OpenRouter base URL")
+
+        # Validate the provider URL that will actually be used. Other provider
+        # settings may be stale (for example from an older installation) and
+        # must not prevent switching to a different provider. Explicit URLs are
+        # still validated before they are persisted below.
+        if provider == "ollama":
+            self._validate_url(effective_ollama_url, "Ollama URL")
+        elif provider == "kimi":
+            self._validate_url(kimi_url, "Kimi base URL")
+        elif provider == "openrouter":
+            self._validate_url(openrouter_url, "OpenRouter base URL")
+
+        if ollama_url is not None and provider != "ollama":
+            self._validate_url(effective_ollama_url, "Ollama URL")
+        if kimi_base_url is not None and provider != "kimi":
+            self._validate_url(kimi_url, "Kimi base URL")
+        if openrouter_base_url is not None and provider != "openrouter":
+            self._validate_url(openrouter_url, "OpenRouter base URL")
 
         updates: dict[str, str | None] = {
             "ai_provider": provider,
