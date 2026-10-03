@@ -747,45 +747,6 @@ class AIService:
 
         provider = await self._providers.get_provider()
 
-        if provider_name == "ollama":
-            health = await provider.health_check()
-            if health.status == "not_installed":
-                raise AIUnavailable(
-                    health.message or "Ollama is not installed on this computer.",
-                    code="ollama_not_installed",
-                    provider="ollama",
-                    retryable=False,
-                )
-            if health.status == "stopped":
-                raise AIUnavailable(
-                    health.message or "Ollama service is not running on 127.0.0.1:11434.",
-                    code="ollama_service_stopped",
-                    provider="ollama",
-                    retryable=True,
-                )
-            if health.status == "no_models":
-                raise AIUnavailable(
-                    health.message or "No AI models are installed in Ollama.",
-                    code="ollama_no_models",
-                    provider="ollama",
-                    retryable=False,
-                )
-            if health.status in ("online", "ready"):
-                models = await provider.list_models()
-                model_names = {m.name for m in models}
-                model_found = (
-                    selected_model in model_names
-                    or f"{selected_model}:latest" in model_names
-                    or any(m.name.startswith(f"{selected_model}:") for m in models)
-                )
-                if not model_found:
-                    raise AIUnavailable(
-                        f"Selected model '{selected_model}' is not installed in Ollama. Run 'ollama pull {selected_model}' to download it.",
-                        code="ollama_model_missing",
-                        provider="ollama",
-                        retryable=False,
-                    )
-
         # Get or create conversation
         if conversation_id:
             conversation = await self._conversations.get(conversation_id)
@@ -940,6 +901,45 @@ class AIService:
             raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
         if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
             raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
+
+        if provider_name == "ollama":
+            health = await provider.health_check()
+            if health.status == "not_installed":
+                raise AIUnavailable(
+                    health.message or "Ollama is not installed on this computer.",
+                    code="ollama_not_installed",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status == "stopped":
+                raise AIUnavailable(
+                    health.message or "Ollama service is not running on 127.0.0.1:11434.",
+                    code="ollama_service_stopped",
+                    provider="ollama",
+                    retryable=True,
+                )
+            if health.status == "no_models":
+                raise AIUnavailable(
+                    health.message or "No AI models are installed in Ollama.",
+                    code="ollama_no_models",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status in ("online", "ready"):
+                models = await provider.list_models()
+                model_names = {m.name for m in models}
+                model_found = (
+                    selected_model in model_names
+                    or f"{selected_model}:latest" in model_names
+                    or any(m.name.startswith(f"{selected_model}:") for m in models)
+                )
+                if not model_found:
+                    raise AIUnavailable(
+                        f"Selected model '{selected_model}' is not installed in Ollama. Run 'ollama pull {selected_model}' to download it.",
+                        code="ollama_model_missing",
+                        provider="ollama",
+                        retryable=False,
+                    )
 
         autonomy_mode = await self._get_autonomy_mode()
         request_id = conversation.id
