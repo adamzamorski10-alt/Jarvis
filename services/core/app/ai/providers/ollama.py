@@ -233,6 +233,12 @@ def get_ollama_models_path() -> Path:
 
 
 def get_ollama_storage_drive(path: Path) -> str:
+    # pathlib parses Windows drive letters only on Windows. OLLAMA_MODELS can
+    # legitimately contain a Windows path even when this code is tested/run
+    # on another OS, so detect the drive explicitly as well.
+    raw = str(path)
+    if len(raw) >= 2 and raw[1] == ":" and raw[0].isalpha():
+        return raw[:2].upper()
     if path.drive:
         return path.drive
     parts = path.parts
