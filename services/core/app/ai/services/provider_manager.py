@@ -132,6 +132,11 @@ class ProviderManager:
             ai_provider = OpenRouterProvider(str(config["openrouter_base_url"]), api_key)
             from app.ai.providers.coding_openrouter import OpenRouterCodingAdapter
             return OpenRouterCodingAdapter(ai_provider)
+        if provider_type == "kimi":
+            api_key = await self.get_kimi_api_key()
+            ai_provider = KimiProvider(str(config["kimi_base_url"]), api_key)
+            from app.ai.providers.coding_kimi import KimiCodingAdapter
+            return KimiCodingAdapter(ai_provider)
         raise AIConfigError(f"Coding provider is not supported for provider type: '{provider_type}'")
 
     async def list_supported_providers(self) -> list[dict[str, str | bool]]:
