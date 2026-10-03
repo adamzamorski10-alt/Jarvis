@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from urllib.parse import urlsplit, urlunsplit
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse
 from app.web_search.providers.base import WebSearchProvider
@@ -26,6 +27,17 @@ class WebSearchService:
             )
         try:
             result = await self._provider.search(request)
+            seen = set()
+            deduped = []
+            for item in result.results:
+                parts = urlsplit(item.url)
+                normalized_url = urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/", parts.query, ""))
+                if normalized_url in seen:
+                    continue
+                seen.add(normalized_url)
+                deduped.append(item.model_copy(update={"rank": len(deduped) + 1}))
+            if len(deduped) != len(result.results):
+                result = result.model_copy(update={"results": deduped})
         except Exception as exc:
             if request_id and self._audit is not None:
                 from app.tools.audit_models import AuditEventType
