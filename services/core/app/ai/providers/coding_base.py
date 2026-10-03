@@ -11,6 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
+import re
 from typing import Any, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -63,7 +64,7 @@ class CodingOperation(BaseModel):
     def _validate_path(cls, v: str) -> str:
         if v == "":
             return v
-        if Path(v).is_absolute() or Path(v).drive != "":
+        if Path(v).is_absolute() or Path(v).drive != "" or re.match(r"^[A-Za-z]:", v):
             raise ValueError("Absolute paths or drive specifiers not allowed")
         if any(part == ".." for part in Path(v).parts):
             raise ValueError("Path traversal not allowed")
