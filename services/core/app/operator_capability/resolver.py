@@ -72,6 +72,14 @@ class CapabilityResolver:
 
     # ── Service-backed operations ──────────────────────────────────────────────
     _SERVICE_OPERATIONS: dict[str, dict[str, Any]] = {
+        "WEB_SEARCH": {
+            "capability_id": "web.search",
+            "category": CapabilityCategory.INFORMATION,
+            "description": "Search the public web for relevant results",
+            "parameters": {},
+            "requires_approval": False,
+            "requires_permission": True,
+        },
         "TASK_CREATE": {
             "capability_id": "task.create",
             "category": CapabilityCategory.TASK,
@@ -215,6 +223,7 @@ class CapabilityResolver:
             "FILE_READ": {"path"},
             "FILE_WRITE": {"path", "content"},
             "FILE_DELETE": {"path"},
+            "WEB_SEARCH": {"query"},
         }.get(operation_type, set())
 
         return {
