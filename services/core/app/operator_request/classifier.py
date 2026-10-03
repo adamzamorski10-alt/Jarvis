@@ -39,6 +39,9 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "MEMORY_CREATE": [
         re.compile(r"\b(remember|save\s+this|store\s+this|memorize)\b", re.IGNORECASE),
     ],
+    "WEB_SEARCH": [
+        re.compile(r"\b(search|look\s+up|find|find\s+me|research|google|search\s+the\s+web|internet|online)\b", re.IGNORECASE),
+    ],
     "INFORMATION_REQUEST": [
         re.compile(r"^\s*(what|who|where|when|why|how|explain|describe|tell\s+me|can\s+you\s+explain)\b", re.IGNORECASE),
         re.compile(r"\?$"),  # ends with question mark
@@ -174,7 +177,7 @@ class OperationClassifier:
         # Validate AI-proposed operation type
         allowed = {
             "DECISION", "PLANNING", "CODING", "CHAT",
-            "INFORMATION_REQUEST", "FILE_READ", "FILE_WRITE", "FILE_DELETE",
+            "INFORMATION_REQUEST", "WEB_SEARCH", "FILE_READ", "FILE_WRITE", "FILE_DELETE",
             "DEVELOPMENT", "TASK_CREATE", "TASK_UPDATE",
             "PLAN_CREATE", "PLAN_EXECUTE",
             "SCHEDULE_CREATE",
