@@ -1701,7 +1701,7 @@ async def test_timeout_does_not_delete_active_workspace(sqlite_db):
 
         ws_mgr = WorkspaceManager(repo_root=repo_root, worktree_base_dir=tmp_path / "worktrees")
         ready = asyncio.Event()
-        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=200, ready_event=ready, work_per_iteration=True)
+        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=1000, ready_event=ready, work_per_iteration=True)
         gate = FakeVerificationGate(decision=GateDecision.PASS)
 
         remove_called = False
