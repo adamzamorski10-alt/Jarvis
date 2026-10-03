@@ -180,7 +180,10 @@ class FilesSearch(BaseTool):
                 search_text = child.name.lower() + " " + rel_child.lower()
                 if child.is_symlink():
                     try:
-                        search_text += " " + str(child.readlink()).lower()
+                        # Match only the symlink target's final name. Never
+                        # expose or search the target's parent path.
+                        target_name = Path(child.readlink()).name
+                        search_text += " " + target_name.lower()
                     except OSError:
                         pass
                 if query_lower in search_text:
