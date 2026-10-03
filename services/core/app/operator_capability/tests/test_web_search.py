@@ -55,3 +55,30 @@ async def test_web_search_executes_through_service():
     result = await executor.execute(request, resolution)
     assert result.success is True
     assert result.service_result["results"][0]["url"] == "https://example.com"
+
+
+@pytest.mark.asyncio
+async def test_web_search_fails_closed_when_permission_denied():
+    from app.tools.models import PermissionDecision, PermissionDecisionType
+
+    class DenyPermission:
+        async def evaluate(self, request):
+            return PermissionDecision(
+                decision=PermissionDecisionType.DENY,
+                reason="denied by test policy",
+                rule_id="TEST_DENY",
+            )
+
+    class ShouldNotRun:
+        async def search(self, *args, **kwargs):
+            raise AssertionError("search provider must not run after permission denial")
+
+    request = make_request()
+    resolution = CapabilityResolver().resolve(request)
+    executor = OperatorCapabilityExecutor(
+        web_search_service=ShouldNotRun(),
+        permission_engine=DenyPermission(),
+    )
+    result = await executor.execute(request, resolution)
+    assert result.success is False
+    assert result.error_category == "PERMISSION_DENIED"
