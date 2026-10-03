@@ -933,7 +933,7 @@ class TestPersistedPlanBoundary:
             plan_service=plan_service,
         )
 
-        with pytest.raises(ExecutionBridgeError, match="does not belong to authoritative plan"):
+        with pytest.raises(ExecutionBridgeError, match="does not belong to authoritative project"):
             await bridge.execute(result, project_id="proj")
 
         autonomous_executor.execute_plan.assert_not_awaited()
@@ -999,10 +999,11 @@ class TestPlanPersistenceBoundary:
             plan_service=plan_service,
         )
 
-        await bridge.execute(result, project_id="proj")
+        with pytest.raises(ExecutionBridgeError, match="produced no persisted tasks"):
+            await bridge.execute(result, project_id="proj")
 
         plan_service.persist_manager_plan_result.assert_awaited_once()
-        autonomous_executor.execute_plan.assert_awaited_once_with("plan_abc")
+        autonomous_executor.execute_plan.assert_not_awaited()
 
         assert (
             plan_service.persist_manager_plan_result.await_args_list[0].args[0]
