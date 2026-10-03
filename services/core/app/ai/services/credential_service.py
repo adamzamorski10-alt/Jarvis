@@ -15,6 +15,7 @@ import secrets
 import sys
 from ctypes import wintypes
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
@@ -119,7 +120,7 @@ def _unix_decrypt(value: str) -> str:
         key = _load_unix_key()
         plaintext = AESGCM(key).decrypt(nonce, ciphertext, b"ai-operator-credential-v2")
         return plaintext.decode("utf-8")
-    except (ValueError, UnicodeDecodeError, OSError) as exc:
+    except (InvalidTag, ValueError, UnicodeDecodeError, OSError) as exc:
         raise CredentialStoreError("Could not decrypt securely stored credential") from exc
 
 
