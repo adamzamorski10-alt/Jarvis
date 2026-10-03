@@ -401,6 +401,14 @@ class WorkspaceManager:
             wt_runner.run([
                 "config", "ai-operator.execution-token", execution_token,
             ])
+            # Autonomous checkpoints must work even when the host/CI runner
+            # has no global Git identity configured.
+            wt_runner.run([
+                "config", "user.name", "AI Operator",
+            ])
+            wt_runner.run([
+                "config", "user.email", "ai-operator@localhost",
+            ])
         except (GitCommandError, Exception) as exc:
             self._try_remove_worktree(runner, autonomous_path_resolved)
             self._try_cleanup_path(autonomous_path_resolved)
