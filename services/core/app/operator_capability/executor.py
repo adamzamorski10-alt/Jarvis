@@ -44,6 +44,7 @@ class OperatorCapabilityExecutor:
         plan_service: Any = None,
         execution_bridge: Any = None,
         execution_bridge_factory: Callable[[], Awaitable[Any]] | None = None,
+        web_search_service: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
@@ -53,6 +54,7 @@ class OperatorCapabilityExecutor:
         self._plan_service = plan_service
         self._execution_bridge = execution_bridge
         self._execution_bridge_factory = execution_bridge_factory
+        self._web_search_service = web_search_service
         self._autonomy_mode = autonomy_mode
 
     async def execute(
@@ -227,6 +229,8 @@ class OperatorCapabilityExecutor:
                 return await self._execute_plan_create(request, resolution, manager_result)
             elif capability_id == "plan.execute":
                 return await self._execute_plan_execute(request, resolution, manager_result)
+            elif capability_id == "web.search":
+                return await self._execute_web_search(request, resolution)
             else:
                 return CapabilityExecutionResult(
                     request_id=request.request_id,
@@ -253,6 +257,81 @@ class OperatorCapabilityExecutor:
                 error_category="EXECUTION_ERROR",
                 error_detail=str(exc),
             )
+
+    async def _execute_web_search(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
+        if self._web_search_service is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=False,
+                state="FAILED",
+                user_message="Web search is not configured.",
+                result_metadata={},
+                error_category="SERVICE_UNAVAILABLE",
+                error_detail="WebSearchService is not configured",
+            )
+
+        from app.web_search.models import WebSearchRequest
+
+        query = str(resolution.parameters.get("query") or request.user_request).strip()
+        if not query:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=False,
+                state="BLOCKED",
+                user_message="A search query is required.",
+                result_metadata={},
+                error_category="MISSING_CAPABILITY_PARAMETERS",
+                error_detail="Missing search query",
+            )
+        try:
+            result = await self._web_search_service.search(
+                WebSearchRequest(query=query),
+                request_id=request.request_id,
+            )
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=True,
+                state="EXECUTION_COMPLETED",
+                user_message=self._format_web_search_message(result),
+                result_metadata={
+                    "provider": result.provider,
+                    "result_count": len(result.results),
+                    "more_results_available": result.more_results_available,
+                },
+                service_result=result.model_dump(mode="json"),
+            )
+        except Exception as exc:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=False,
+                state="EXECUTION_FAILED",
+                user_message="Web search failed. Please try again.",
+                result_metadata={},
+                error_category=getattr(exc, "code", exc.__class__.__name__),
+                error_detail=str(exc),
+            )
+
+    @staticmethod
+    def _format_web_search_message(result: Any) -> str:
+        if not result.results:
+            return f"No web results found for: {result.query}"
+        lines = [f"Search results for: {result.query}"]
+        for item in result.results:
+            snippet = f" — {item.snippet}" if item.snippet else ""
+            lines.append(f"{item.rank}. {item.title} — {item.url}{snippet}")
+        return "\n".join(lines)
 
     async def _execute_task_create(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
         """Persist a development task through the application-owned repository."""
