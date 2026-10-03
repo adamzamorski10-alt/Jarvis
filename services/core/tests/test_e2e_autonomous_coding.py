@@ -98,7 +98,6 @@ def session_factory(sqlite_engine: AsyncEngine):
     return async_sessionmaker(bind=sqlite_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest.mark.skipif(shutil.which("ollama") is None, reason="Ollama CLI is not installed in CI")
 @pytest.fixture(autouse=True)
 async def _init_db(sqlite_engine: AsyncEngine):
     async with sqlite_engine.begin() as conn:
