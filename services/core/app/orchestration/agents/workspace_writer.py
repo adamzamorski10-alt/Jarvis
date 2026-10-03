@@ -11,6 +11,7 @@ checks, or orchestration. It is a pure filesystem abstraction.
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Tuple
@@ -160,7 +161,11 @@ class WorkspaceWriter:
         Raises:
             ValueError: If path is unsafe or escapes the workspace.
         """
-        if Path(relative_path).is_absolute() or Path(relative_path).drive != "":
+        if (
+            Path(relative_path).is_absolute()
+            or Path(relative_path).drive != ""
+            or re.match(r"^[A-Za-z]:", relative_path)
+        ):
             raise ValueError(f"Absolute paths or drive specifiers not allowed: {relative_path}")
 
         if any(part == ".." for part in Path(relative_path).parts):
@@ -173,7 +178,17 @@ class WorkspaceWriter:
                     f"File extension '{ext}' is not allowed by constraints: {relative_path}"
                 )
 
-        target = (self._workspace_path / relative_path).resolve()
+        raw_target = self._workspace_path / relative_path
+
+        # Never follow symlinks supplied by an untrusted coding agent, even
+        # when the symlink target itself remains inside the workspace.
+        current = self._workspace_path
+        for part in Path(relative_path).parts:
+            current = current / part
+            if current.exists() and current.is_symlink():
+                raise ValueError(f"Symlink path component not allowed: {relative_path}")
+
+        target = raw_target.resolve()
 
         if not str(target).startswith(str(self._workspace_path) + os.sep) and target != self._workspace_path:
             raise ValueError(
