@@ -12,7 +12,7 @@ SECURITY:
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from app.operator_capability.models import (
     CapabilityExecutionError,
@@ -43,6 +43,7 @@ class OperatorCapabilityExecutor:
         manager_planning_service: Any = None,
         plan_service: Any = None,
         execution_bridge: Any = None,
+        execution_bridge_factory: Callable[[], Awaitable[Any]] | None = None,
         autonomy_mode: Any = None,
     ) -> None:
         self._tool_execution_service = tool_execution_service
@@ -51,6 +52,7 @@ class OperatorCapabilityExecutor:
         self._manager_planning_service = manager_planning_service
         self._plan_service = plan_service
         self._execution_bridge = execution_bridge
+        self._execution_bridge_factory = execution_bridge_factory
         self._autonomy_mode = autonomy_mode
 
     async def execute(
@@ -602,7 +604,25 @@ class OperatorCapabilityExecutor:
                 error_detail="No ManagerResult was supplied by the Operator runtime",
             )
 
-        if self._execution_bridge is None:
+        execution_bridge = self._execution_bridge
+        if execution_bridge is None and self._execution_bridge_factory is not None:
+            try:
+                execution_bridge = await self._execution_bridge_factory()
+            except Exception as exc:
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="plan.execute",
+                    success=False,
+                    state="FAILED",
+                    user_message="Plan execution could not initialize the controlled execution layer.",
+                    result_metadata={},
+                    error_category="EXECUTION_BRIDGE_INITIALIZATION_FAILED",
+                    error_detail=str(exc),
+                )
+
+        if execution_bridge is None:
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -624,7 +644,7 @@ class OperatorCapabilityExecutor:
                 approval_id = candidate.strip()
 
         try:
-            execution = await self._execution_bridge.execute(
+            execution = await execution_bridge.execute(
                 result=manager_result,
                 project_id=project_id,
                 approval_id=approval_id,
