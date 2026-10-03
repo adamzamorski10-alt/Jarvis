@@ -19,6 +19,8 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "ai_selected_model": "",
     "kilo_executable_path": "",
     "kilo_auto_approve": "false",
+    "web_search_provider": "brave",
+    "web_search_api_key_encrypted": "",
 }
 
 
