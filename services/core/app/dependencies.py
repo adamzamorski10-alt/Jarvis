@@ -217,6 +217,18 @@ async def get_plan_service(
     return PlanService(task_repository)
 
 
+async def get_web_search_service(
+    providers: ProviderManager = Depends(get_provider_manager),
+    audit_service: AuditLogService = Depends(get_audit_log_service),
+):
+    from app.web_search.service import WebSearchService
+    try:
+        provider = await providers.get_web_search_provider()
+    except Exception:
+        provider = None
+    return WebSearchService(provider=provider, audit_service=audit_service) if provider is not None else None
+
+
 async def get_execution_bridge(
     session: AsyncSession = Depends(get_db),
     task_repository = Depends(get_task_repository),
@@ -389,6 +401,7 @@ async def get_ai_service(
     manager_planning_service = Depends(get_manager_planning_service),
     plan_service = Depends(get_plan_service),
     execution_bridge_factory = Depends(get_execution_bridge_factory),
+    web_search_service = Depends(get_web_search_service),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
     from app.tasks.state_machine import TaskStateMachine
@@ -400,6 +413,7 @@ async def get_ai_service(
         manager_planning_service=manager_planning_service,
         plan_service=plan_service,
         execution_bridge_factory=execution_bridge_factory,
+        web_search_service=web_search_service,
         autonomy_mode=None,
     )
     yield AIService(
