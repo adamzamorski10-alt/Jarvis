@@ -186,7 +186,9 @@ class WorkspaceWriter:
         for part in Path(relative_path).parts:
             current = current / part
             if current.exists() and current.is_symlink():
-                raise ValueError(f"Symlink path component not allowed: {relative_path}")
+                raise ValueError(
+                    f"Path '{relative_path}' escapes workspace: symlink path component is not allowed"
+                )
 
         target = raw_target.resolve()
 
