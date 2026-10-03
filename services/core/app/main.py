@@ -19,6 +19,7 @@ from app.api.routes import approvals as approvals_routes
 from app.api.routes import plans as plans_routes
 from app.api.routes import history as history_routes
 from app.api.routes import scheduler as scheduler_routes
+from app.api.routes import web_search as web_search_routes
 
 app_settings = get_settings()
 
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(plans_routes.router, prefix=prefix, tags=["Plans Execution"])
     app.include_router(history_routes.router, prefix=prefix, tags=["History"])
     app.include_router(scheduler_routes.router, prefix=prefix, tags=["Scheduler"])
+    app.include_router(web_search_routes.router, prefix=prefix, tags=["Web Search"])
 
     from app.api.routes import auth as auth_routes
     app.include_router(auth_routes.router, prefix=prefix, tags=["Auth"])
