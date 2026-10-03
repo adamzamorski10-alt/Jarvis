@@ -174,10 +174,15 @@ class FilesSearch(BaseTool):
                 except ValueError:
                     continue
 
-                # Search only the safe, non-resolved entry name and relative
-                # workspace path. Symlink targets are intentionally excluded so
-                # matching never requires inspecting or trusting the target.
+                # Search the entry name and relative path. For symlinks,
+                # include only the link text itself (readlink) so target-name
+                # matching works without resolving or opening the target.
                 search_text = child.name.lower() + " " + rel_child.lower()
+                if child.is_symlink():
+                    try:
+                        search_text += " " + str(child.readlink()).lower()
+                    except OSError:
+                        pass
                 if query_lower in search_text:
                     entry = _describe_entry(child, rel_child)
                     matches.append(entry)
