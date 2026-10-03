@@ -1,6 +1,8 @@
 """Application-owned Web Search service."""
 from __future__ import annotations
 
+import hashlib
+
 from app.web_search.models import WebSearchRequest, WebSearchResponse
 from app.web_search.providers.base import WebSearchProvider
 
@@ -20,7 +22,7 @@ class WebSearchService:
                 tool_id="web.search",
                 action="search",
                 success=None,
-                arguments={"query": request.query, "count": request.count, "country": request.country},
+                arguments={"query_sha256": hashlib.sha256(request.query.encode("utf-8")).hexdigest(), "query_length": len(request.query), "count": request.count, "country": request.country},
             )
         try:
             result = await self._provider.search(request)
