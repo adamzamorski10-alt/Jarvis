@@ -174,7 +174,14 @@ class FilesSearch(BaseTool):
                 except ValueError:
                     continue
 
-                if query_lower in child.name.lower() or query_lower in rel_child.lower():
+                search_text = child.name.lower() + " " + rel_child.lower()
+                if child.is_symlink():
+                    # Inspect only the link text; never resolve or open its target.
+                    try:
+                        search_text += " " + str(child.readlink()).lower()
+                    except OSError:
+                        pass
+                if query_lower in search_text:
                     entry = _describe_entry(child, rel_child)
                     matches.append(entry)
 
