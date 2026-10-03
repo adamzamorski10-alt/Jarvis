@@ -745,21 +745,7 @@ class AIService:
         provider_name = str(config["provider"])
         selected_model = config.get("selected_model")
 
-        if not selected_model:
-            raise AIUnavailable(
-                "No AI model selected. Please select a model in Settings.",
-                code="ai_not_ready",
-                provider=provider_name,
-                retryable=False,
-            )
-
         provider = await self._providers.get_provider()
-
-        # Validate provider-specific configuration & status
-        if provider_name == "kimi" and not config.get("kimi_api_key_configured"):
-            raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
-        if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
-            raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
 
         if provider_name == "ollama":
             health = await provider.health_check()
@@ -806,7 +792,7 @@ class AIService:
             await self._conversations.add_message(conversation, "user", message, client_message_id=client_message_id)
             conversation = await self._conversations.get(conversation.id)
         else:
-            conversation = await self._conversations.create(provider_name, str(selected_model))
+            conversation = await self._conversations.create(provider_name, selected_model)
             await self._activity.create_event("AI conversation created", category="ai", details={"provider": provider_name, "model": selected_model})
             await self._conversations.add_message(conversation, "user", message, client_message_id=client_message_id)
             conversation = await self._conversations.get(conversation.id)
@@ -938,6 +924,22 @@ class AIService:
                 ai_manager_decision = await self._run_ai_manager_decision(operator_request)
             except Exception as exc:
                 logger.warning("AI Manager decision failed, continuing with agent loop: %s", exc)
+
+        # Web-backed capability execution does not require an AI model.
+        # Only the fallback conversational/agent path requires a configured model
+        # and provider credentials.
+        if not selected_model:
+            raise AIUnavailable(
+                "No AI model selected. Please select a model in Settings.",
+                code="ai_not_ready",
+                provider=provider_name,
+                retryable=False,
+            )
+
+        if provider_name == "kimi" and not config.get("kimi_api_key_configured"):
+            raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
+        if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
+            raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
 
         autonomy_mode = await self._get_autonomy_mode()
         request_id = conversation.id
