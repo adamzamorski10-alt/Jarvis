@@ -1,9 +1,9 @@
 """Local credential storage helpers.
 
 Windows uses DPAPI. On Unix-like systems, credentials use a per-user local key
-file (0600) plus authenticated encryption built from HMAC-SHA256. This keeps
-secrets out of SQLite plaintext while remaining usable on development/CI
-machines that do not provide a desktop keyring.
+file (0600) plus authenticated AES-GCM encryption. Existing unix-v1 values
+remain decryptable for backwards compatibility; all newly encrypted values use
+unix-v2 and the standard AEAD primitive.
 """
 import base64
 import ctypes
@@ -15,23 +15,31 @@ import secrets
 import sys
 from ctypes import wintypes
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+
 class CredentialStoreError(RuntimeError):
     pass
 
+
 class DATA_BLOB(ctypes.Structure):
     _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
+
 
 def _blob_from_bytes(data: bytes) -> tuple[DATA_BLOB, ctypes.Array]:
     buffer = ctypes.create_string_buffer(data)
     blob = DATA_BLOB(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_char)))
     return blob, buffer
 
+
 def _bytes_from_blob(blob: DATA_BLOB) -> bytes:
     return ctypes.string_at(blob.pbData, blob.cbData)
+
 
 def _unix_key_path() -> Path:
     override = os.environ.get("AI_OPERATOR_CREDENTIAL_KEY_PATH")
     return Path(override).expanduser() if override else Path.home() / ".ai_operator" / "credential.key"
+
 
 def _load_unix_key() -> bytes:
     path = _unix_key_path()
@@ -63,7 +71,11 @@ def _load_unix_key() -> bytes:
     except OSError as exc:
         raise CredentialStoreError("Could not access local credential key") from exc
 
-def _keystream(key: bytes, nonce: bytes, length: int) -> bytes:
+
+# Legacy unix-v1 helpers are retained only so existing installations can
+# decrypt credentials written before the AES-GCM migration. New credentials
+# never use this construction.
+def _legacy_keystream(key: bytes, nonce: bytes, length: int) -> bytes:
     out = bytearray()
     counter = 0
     while len(out) < length:
@@ -71,15 +83,8 @@ def _keystream(key: bytes, nonce: bytes, length: int) -> bytes:
         counter += 1
     return bytes(out[:length])
 
-def _unix_encrypt(secret: str) -> str:
-    key = _load_unix_key()
-    nonce = secrets.token_bytes(16)
-    plaintext = secret.encode("utf-8")
-    ciphertext = bytes(a ^ b for a, b in zip(plaintext, _keystream(key, nonce, len(plaintext))))
-    tag = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
-    return "unix-v1:" + base64.b64encode(nonce + ciphertext + tag).decode("ascii")
 
-def _unix_decrypt(value: str) -> str:
+def _legacy_unix_decrypt(value: str) -> str:
     try:
         raw = base64.b64decode(value.removeprefix("unix-v1:"), validate=True)
         if len(raw) < 48:
@@ -89,10 +94,34 @@ def _unix_decrypt(value: str) -> str:
         expected = hmac.new(key, nonce + ciphertext, hashlib.sha256).digest()
         if not hmac.compare_digest(tag, expected):
             raise ValueError("authentication failed")
-        plaintext = bytes(a ^ b for a, b in zip(ciphertext, _keystream(key, nonce, len(ciphertext))))
+        plaintext = bytes(a ^ b for a, b in zip(ciphertext, _legacy_keystream(key, nonce, len(ciphertext))))
         return plaintext.decode("utf-8")
     except (ValueError, UnicodeDecodeError, OSError) as exc:
         raise CredentialStoreError("Could not decrypt securely stored credential") from exc
+
+
+def _unix_encrypt(secret: str) -> str:
+    key = _load_unix_key()
+    nonce = secrets.token_bytes(12)
+    ciphertext = AESGCM(key).encrypt(nonce, secret.encode("utf-8"), b"ai-operator-credential-v2")
+    return "unix-v2:" + base64.b64encode(nonce + ciphertext).decode("ascii")
+
+
+def _unix_decrypt(value: str) -> str:
+    if value.startswith("unix-v1:"):
+        return _legacy_unix_decrypt(value)
+
+    try:
+        raw = base64.b64decode(value.removeprefix("unix-v2:"), validate=True)
+        if len(raw) < 28:
+            raise ValueError("ciphertext too short")
+        nonce, ciphertext = raw[:12], raw[12:]
+        key = _load_unix_key()
+        plaintext = AESGCM(key).decrypt(nonce, ciphertext, b"ai-operator-credential-v2")
+        return plaintext.decode("utf-8")
+    except (ValueError, UnicodeDecodeError, OSError) as exc:
+        raise CredentialStoreError("Could not decrypt securely stored credential") from exc
+
 
 class CredentialService:
     def encrypt(self, secret: str) -> str:
@@ -100,6 +129,7 @@ class CredentialService:
             return ""
         if sys.platform != "win32":
             return _unix_encrypt(secret)
+
         crypt32 = ctypes.windll.crypt32
         kernel32 = ctypes.windll.kernel32
         input_blob, _buffer = _blob_from_bytes(secret.encode("utf-8"))
@@ -119,6 +149,7 @@ class CredentialService:
             return None
         if sys.platform != "win32":
             return _unix_decrypt(encrypted)
+
         crypt32 = ctypes.windll.crypt32
         kernel32 = ctypes.windll.kernel32
         data = base64.b64decode(encrypted.encode("ascii"))
