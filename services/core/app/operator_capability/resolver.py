@@ -218,12 +218,15 @@ class CapabilityResolver:
             "WEB_SEARCH": {"query"},
         }.get(operation_type, set())
 
-        return {
+        extracted = {
             key: request.constraints[key]
             for key in allowed
             if key in request.constraints
             and isinstance(request.constraints[key], (str, int, float, bool))
         }
+        if operation_type == "WEB_SEARCH" and "query" not in extracted:
+            extracted["query"] = request.normalized_request or request.user_request
+        return extracted
 
     @staticmethod
     def _answer_only(request: OperatorRequest, operation_type: str) -> CapabilityResolution:
