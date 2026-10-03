@@ -727,7 +727,7 @@ def test_gate_canonicalizes_changed_files_from_git(tmp_path: Path) -> None:
     report = gate.run(ctx)
 
     assert report.passed is True
-    assert observed == ["untracked.py", "tracked.py"]
+    assert observed == ["tracked.py", "untracked.py"]
     assert "agent-invented.py" not in observed
     assert ".ai_operator_ownership" not in observed
 
