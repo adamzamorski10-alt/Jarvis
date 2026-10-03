@@ -402,6 +402,7 @@ async def get_ai_service(
     plan_service = Depends(get_plan_service),
     execution_bridge_factory = Depends(get_execution_bridge_factory),
     web_search_service = Depends(get_web_search_service),
+    permission_engine: PermissionEngine = Depends(get_permission_engine),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
     from app.tasks.state_machine import TaskStateMachine
@@ -414,6 +415,7 @@ async def get_ai_service(
         plan_service=plan_service,
         execution_bridge_factory=execution_bridge_factory,
         web_search_service=web_search_service,
+        permission_engine=permission_engine,
         autonomy_mode=None,
     )
     yield AIService(
