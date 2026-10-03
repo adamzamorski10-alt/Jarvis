@@ -1,7 +1,7 @@
 """Authenticated Web Search API."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.ai.services.provider_manager import AIConfigError, ProviderManager
 from app.api.schemas.web_search import WebSearchConfigRequest, WebSearchConfigResponse
@@ -21,6 +21,7 @@ async def search_web(
     country: str = "PL",
     search_lang: str = "pl",
     freshness: str | None = None,
+    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
     service: WebSearchService | None = Depends(get_web_search_service),
 ):
     ctx = require_authenticated(request)
@@ -35,7 +36,7 @@ async def search_web(
                 search_lang=search_lang,
                 freshness=freshness,
             ),
-            request_id=getattr(ctx, "request_id", None),
+            request_id=x_request_id,
         )
     except Exception as exc:
         code = getattr(exc, "code", "web_search_failed")
