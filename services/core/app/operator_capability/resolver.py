@@ -168,7 +168,7 @@ class CapabilityResolver:
                 capability_id=svc_def["capability_id"],
                 capability_category=svc_def["category"],
                 description=svc_def["description"],
-                parameters=svc_def.get("parameters", {}),
+                parameters=self._extract_parameters(request, operation_type),
                 requires_approval=svc_def.get("requires_approval", False),
                 requires_permission=svc_def.get("requires_permission", True),
                 confidence=1.0,
