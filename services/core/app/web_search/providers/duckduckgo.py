@@ -7,7 +7,7 @@ be selected later without changing the Operator capability.
 from __future__ import annotations
 
 from html.parser import HTMLParser
-from urllib.parse import parse_qs, unquote, urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import httpx
 
@@ -124,7 +124,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         if parts.netloc == "html.duckduckgo.com":
             target = parse_qs(parts.query).get("uddg", [None])[0]
             if target:
-                parts = urlsplit(unquote(target))
+                parts = urlsplit(target)
             else:
                 return None
         if parts.scheme not in {"http", "https"} or not parts.netloc:
