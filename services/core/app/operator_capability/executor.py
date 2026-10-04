@@ -58,10 +58,10 @@ class OperatorCapabilityExecutor:
         self._web_search_service = web_search_service
         self._permission_engine = permission_engine
         self._autonomy_mode = autonomy_mode
-        self._ensure_web_search_permission_definition()
+        self.ensure_web_search_permission_definition()
 
     @staticmethod
-    def _ensure_web_search_permission_definition() -> None:
+    def ensure_web_search_permission_definition() -> None:
         from app.tools.models import RiskLevel, ToolCategory, ToolDefinition
         from app.tools.registry import tool_registry
         if not tool_registry.exists("web.search"):
