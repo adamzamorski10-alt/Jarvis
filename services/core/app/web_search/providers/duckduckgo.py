@@ -72,16 +72,17 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                     params={"q": request.query},
                 )
         except httpx.TimeoutException as exc:
-            raise WebSearchProviderError("provider_timeout", True) from exc
+            raise WebSearchProviderError("provider_timeout", "Web search timed out.", True) from exc
         except httpx.RequestError as exc:
-            raise WebSearchProviderError("provider_unavailable", True) from exc
+            raise WebSearchProviderError("provider_unavailable", "Web search provider is unavailable.", True) from exc
 
         if len(response.content) > self.max_response_bytes:
-            raise WebSearchProviderError("provider_response_too_large", False)
+            raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
         if response.status_code != 200:
             retryable = response.status_code == 429 or response.status_code >= 500
             raise WebSearchProviderError(
                 f"provider_http_{response.status_code}",
+                "Web search provider returned an HTTP error.",
                 retryable,
             )
 
@@ -89,7 +90,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         try:
             parser.feed(response.text)
         except Exception as exc:
-            raise WebSearchProviderError("invalid_provider_response", False) from exc
+            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned invalid HTML.", False) from exc
 
         results: list[WebSearchResult] = []
         for raw in parser.results:
@@ -133,9 +134,3 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
             return None
         return parts._replace(fragment="").geturl()
 
-
-class WebSearchProviderError(RuntimeError):
-    def __init__(self, code: str, retryable: bool) -> None:
-        super().__init__(code)
-        self.code = code
-        self.retryable = retryable
