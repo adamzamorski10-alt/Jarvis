@@ -49,7 +49,7 @@ class WebSearchService:
                     action="search",
                     success=False,
                     error_code=getattr(exc, "code", exc.__class__.__name__),
-                    error_message=str(exc),
+                    error_message="Web search provider request failed.",
                 )
             raise
         if request_id and self._audit is not None:
