@@ -39,7 +39,15 @@ class _DuckDuckGoParser(HTMLParser):
             self._current[self._field] += data
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "a" and self._current is not None and self._field == "title":
+        if self._current is None:
+            return
+        if tag == "a" and self._field == "title":
+            self._field = None
+            return
+        if tag == "div" and self._field == "snippet":
+            if self._current.get("title", "").strip() and self._current.get("url", "").strip():
+                self.results.append(self._current)
+            self._current = None
             self._field = None
 
 
