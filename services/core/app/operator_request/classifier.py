@@ -40,7 +40,8 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\b(remember|save\s+this|store\s+this|memorize)\b", re.IGNORECASE),
     ],
     "WEB_SEARCH": [
-        re.compile(r"\b(search|look\s+up|find|find\s+me|research|google|search\s+the\s+web|internet|online)\b", re.IGNORECASE),
+        re.compile(r"\b(search|look\s+up|find|find\s+me|research|google|search\s+the\s+web)\b", re.IGNORECASE),
+        re.compile(r"\b(?:latest|current|today|recent)\b.*\b(?:news|information|price|score|results|status)\b.*\b(?:online|web|internet)\b", re.IGNORECASE),
     ],
     "INFORMATION_REQUEST": [
         re.compile(r"^\s*(what|who|where|when|why|how|explain|describe|tell\s+me|can\s+you\s+explain)\b", re.IGNORECASE),
