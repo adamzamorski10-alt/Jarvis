@@ -6,14 +6,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse, WebSearchResult
-from app.web_search.providers.base import WebSearchProvider
-
-
-class WebSearchProviderError(RuntimeError):
-    def __init__(self, code: str, message: str, retryable: bool = False) -> None:
-        self.code = code
-        self.retryable = retryable
-        super().__init__(message)
+from app.web_search.providers.base import WebSearchProvider, WebSearchProviderError
 
 
 class BraveSearchProvider(WebSearchProvider):
