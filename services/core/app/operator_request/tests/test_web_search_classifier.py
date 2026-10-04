@@ -45,3 +45,8 @@ def test_ai_classifier_cannot_force_web_search_without_explicit_web_intent():
     )
     result = classifier.classify(make_request("What is photosynthesis?"))
     assert result.operation_type != "WEB_SEARCH"
+
+
+def test_generic_find_request_does_not_force_web_search():
+    result = OperationClassifier().classify(make_request("Find my task 123"))
+    assert result.operation_type != "WEB_SEARCH"
