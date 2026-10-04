@@ -1,6 +1,8 @@
 """Brave Search API adapter."""
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 import httpx
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse, WebSearchResult
@@ -17,6 +19,7 @@ class WebSearchProviderError(RuntimeError):
 class BraveSearchProvider(WebSearchProvider):
     name = "brave"
     endpoint = "https://api.search.brave.com/res/v1/web/search"
+    max_response_bytes = 2_000_000
 
     def __init__(self, api_key: str, timeout_seconds: float = 10.0) -> None:
         key = api_key.strip() if isinstance(api_key, str) else ""
@@ -64,18 +67,46 @@ class BraveSearchProvider(WebSearchProvider):
         if response.status_code >= 400:
             raise WebSearchProviderError("provider_request_failed", "Web search request was rejected.", False)
 
+        content_length = response.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > self.max_response_bytes:
+                    raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
+            except ValueError:
+                pass
+
+        if len(response.content) > self.max_response_bytes:
+            raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
+
         try:
             data = response.json()
-        except ValueError as exc:
-            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned invalid JSON.") from exc
+        except (ValueError, TypeError) as exc:
+            raise WebSearchProviderError(
+                "invalid_provider_response",
+                "Web search provider returned invalid JSON.",
+            ) from exc
 
-        web = data.get("web") or {}
-        raw_results = web.get("results") or []
+        if not isinstance(data, dict):
+            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned an invalid response shape.")
+
+        web = data.get("web")
+        if web is None:
+            raw_results = []
+        elif isinstance(web, dict):
+            raw_results = web.get("results") or []
+        else:
+            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned an invalid web result shape.")
+
+        if not isinstance(raw_results, list):
+            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned an invalid result list.")
+
         results: list[WebSearchResult] = []
-        for index, item in enumerate(raw_results[:request.count], 1):
+        for item in raw_results:
+            if not isinstance(item, dict):
+                continue
             title = str(item.get("title") or "").strip()
             url = str(item.get("url") or "").strip()
-            if not title or not url or not (url.startswith("http://") or url.startswith("https://")):
+            if not title or not self._is_safe_result_url(url):
                 continue
             profile = item.get("profile") if isinstance(item.get("profile"), dict) else {}
             results.append(
@@ -84,13 +115,34 @@ class BraveSearchProvider(WebSearchProvider):
                     url=url[:4096],
                     snippet=str(item.get("description") or "").strip()[:4096],
                     source=(str(profile.get("long_name") or "").strip()[:256] or None),
-                    rank=index,
+                    rank=len(results) + 1,
                 )
             )
+            if len(results) >= request.count:
+                break
+
+        query_meta = data.get("query")
+        more_results = bool(query_meta.get("more_results_available")) if isinstance(query_meta, dict) else False
 
         return WebSearchResponse(
             query=request.query,
             provider=self.name,
             results=results,
-            more_results_available=bool((data.get("query") or {}).get("more_results_available")),
+            more_results_available=more_results,
         )
+
+    @staticmethod
+    def _is_safe_result_url(url: str) -> bool:
+        if not url or len(url) > 4096:
+            return False
+        try:
+            parsed = urlsplit(url)
+        except ValueError:
+            return False
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            return False
+        # Userinfo makes displayed URLs deceptive and must never become a
+        # trusted navigation target later.
+        if parsed.username is not None or parsed.password is not None:
+            return False
+        return True
