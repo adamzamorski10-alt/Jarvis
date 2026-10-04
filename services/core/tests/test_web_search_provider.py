@@ -146,3 +146,56 @@ def test_web_search_request_is_bounded():
         WebSearchRequest(query="x", count=21)
     with pytest.raises(ValueError):
         WebSearchRequest(query="   ")
+
+
+@pytest.mark.asyncio
+async def test_duckduckgo_search_maps_snippet_and_unwraps_redirect(monkeypatch):
+    from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
+
+    provider = DuckDuckGoSearchProvider()
+    target = "https://example.com/article?q=1"
+    html = f"""
+    <div class="result">
+      <h2><a class="result__a" href="/l/?uddg={target}">Example result</a></h2>
+      <div class="result__snippet">Useful snippet.</div>
+    </div>
+    <div class="result">
+      <h2><a class="result__a" href="https://example.org/second#fragment">Second</a></h2>
+      <div class="result__snippet">Second snippet.</div>
+    </div>
+    """
+
+    class FakeClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def get(self, *args, **kwargs):
+            return httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    result = await provider.search(WebSearchRequest(query="test", count=2))
+    assert [item.url for item in result.results] == [target, "https://example.org/second"]
+    assert result.results[0].snippet == "Useful snippet."
+    assert result.results[1].snippet == "Second snippet."
+
+
+@pytest.mark.asyncio
+async def test_duckduckgo_search_rejects_unsafe_and_duplicate_urls(monkeypatch):
+    from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
+
+    provider = DuckDuckGoSearchProvider()
+    html = """
+    <div class="result"><a class="result__a" href="javascript:alert(1)">Bad</a><div class="result__snippet">bad</div></div>
+    <div class="result"><a class="result__a" href="https://user:pass@example.com/a">Bad2</a><div class="result__snippet">bad</div></div>
+    <div class="result"><a class="result__a" href="https://example.com/a#x">Good</a><div class="result__snippet">good</div></div>
+    <div class="result"><a class="result__a" href="https://example.com/a#y">Duplicate</a><div class="result__snippet">dup</div></div>
+    """
+
+    class FakeClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def get(self, *args, **kwargs):
+            return httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    result = await provider.search(WebSearchRequest(query="test"))
+    assert [item.url for item in result.results] == ["https://example.com/a"]
