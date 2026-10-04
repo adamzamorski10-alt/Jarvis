@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class WebSearchConfigRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    provider: str = Field(default="brave", min_length=1, max_length=32)
+    provider: str = Field(default="duckduckgo", min_length=1, max_length=32)
     api_key: str | None = Field(default=None, min_length=1, max_length=512)
 
 
