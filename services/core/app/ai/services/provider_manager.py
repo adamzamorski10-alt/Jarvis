@@ -13,7 +13,7 @@ from app.services.settings_service import SettingsService
 SUPPORTED_PROVIDERS = ("ollama", "openrouter", "kimi", "kilo", "omniroute")
 DEFAULT_KIMI_BASE_URL = "https://api.moonshot.ai/v1"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-SUPPORTED_WEB_SEARCH_PROVIDERS = ("brave",)
+SUPPORTED_WEB_SEARCH_PROVIDERS = ("duckduckgo", "brave")
 
 
 class AIConfigError(ValueError):
@@ -41,7 +41,7 @@ class ProviderManager:
             "selected_model": all_settings.get("ai_selected_model") or None,
             "kilo_executable_path": all_settings.get("kilo_executable_path") or "",
             "kilo_auto_approve": all_settings.get("kilo_auto_approve") or "false",
-            "web_search_provider": all_settings.get("web_search_provider") or "brave",
+            "web_search_provider": all_settings.get("web_search_provider") or "duckduckgo",
             "web_search_api_key_configured": bool(all_settings.get("web_search_api_key_encrypted")),
             "web_search_api_key_hint": self._safe_key_hint(all_settings.get("web_search_api_key_encrypted") or ""),
         }
@@ -153,7 +153,10 @@ class ProviderManager:
 
     async def get_web_search_provider(self):
         config = await self.get_config()
-        provider_name = str(config.get("web_search_provider") or "brave")
+        provider_name = str(config.get("web_search_provider") or "duckduckgo")
+        if provider_name == "duckduckgo":
+            from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
+            return DuckDuckGoSearchProvider()
         if provider_name == "brave":
             from app.web_search.providers.brave import BraveSearchProvider
             api_key = await self.get_web_search_api_key()
