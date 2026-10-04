@@ -11,6 +11,7 @@ from app.tools.models import AutonomyMode, PermissionDecisionType, PermissionEva
 from app.operator_capability.executor import OperatorCapabilityExecutor
 from app.web_search.models import WebSearchRequest, WebSearchResponse
 from app.web_search.service import WebSearchService
+from app.web_search.providers.base import WebSearchProviderError
 
 router = APIRouter(prefix="/web")
 
@@ -30,7 +31,7 @@ async def search_web(
     ctx = require_authenticated(request)
     if service is None:
         raise HTTPException(status_code=503, detail="Web search is not configured")
-    OperatorCapabilityExecutor._ensure_web_search_permission_definition()
+    OperatorCapabilityExecutor.ensure_web_search_permission_definition()
     decision = await permission_engine.evaluate(
         PermissionEvaluationRequest(
             tool_id="web.search",
@@ -58,10 +59,14 @@ async def search_web(
             ),
             request_id=x_request_id,
         )
+    except WebSearchProviderError as exc:
+        status = 429 if exc.code == "provider_rate_limited" else 502
+        raise HTTPException(status_code=status, detail={"code": exc.code, "message": str(exc)}) from exc
     except Exception as exc:
-        code = getattr(exc, "code", "web_search_failed")
-        status = 429 if code == "provider_rate_limited" else 502
-        raise HTTPException(status_code=status, detail={"code": code, "message": str(exc)}) from exc
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "web_search_failed", "message": "Web search failed."},
+        ) from exc
 
 
 @router.get("/search/config", response_model=WebSearchConfigResponse)
