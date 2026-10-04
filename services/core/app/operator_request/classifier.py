@@ -38,7 +38,9 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\b(remember|save\s+this|store\s+this|memorize)\b", re.IGNORECASE),
     ],
     "WEB_SEARCH": [
-        re.compile(r"\b(search|look\s+up|find|find\s+me|research|google|search\s+the\s+web)\b", re.IGNORECASE),
+        re.compile(r"\b(search|look\s+up|research|google|search\s+the\s+web)\b", re.IGNORECASE),
+        re.compile(r"\bfind(?:\s+me)?\b.*\b(information|sources?|articles?|news|results?|details?)\b", re.IGNORECASE),
+        re.compile(r"\bfind(?:\s+me)?\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b", re.IGNORECASE),
         re.compile(r"\b(check|look)\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b", re.IGNORECASE),
         re.compile(r"\b(?:latest|current|today|recent)\b.*\b(?:news|information|price|score|results|status)\b.*\b(?:online|web|internet)\b", re.IGNORECASE),
     ],
@@ -62,9 +64,10 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
 }
 
 _WEB_SEARCH_INTENT = re.compile(
-    r"(?:\b(search|look\s+up|find|find\s+me|research|google)\b|"
+    r"(?:\b(search|look\s+up|research|google)\b|"
     r"\b(check|look)\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b|"
-    r"\b(?:search|check|look\s+up|find|research)\b.*\b(?:web|internet|online)\b)",
+    r"\b(?:search|check|look\s+up|find|research)\b.*\b(?:web|internet|online)\b|"
+    r"\bfind(?:\s+me)?\b.*\b(?:information|sources?|articles?|news|results?|details?)\b)",
     re.IGNORECASE,
 )
 
