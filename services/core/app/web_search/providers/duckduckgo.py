@@ -26,8 +26,8 @@ class _DuckDuckGoParser(HTMLParser):
         attrs_dict = dict(attrs)
         classes = set((attrs_dict.get("class") or "").split())
         if tag == "a" and "result__a" in classes:
-            if self._current is None:
-                self._current = {"title": "", "url": attrs_dict.get("href", ""), "snippet": ""}
+            self._finalize_current()
+            self._current = {"title": "", "url": attrs_dict.get("href", ""), "snippet": ""}
             self._field = "title"
         elif tag in {"a", "div"} and self._current is not None and (
             "result__snippet" in classes or "result__snippet" in (attrs_dict.get("class") or "")
@@ -38,6 +38,18 @@ class _DuckDuckGoParser(HTMLParser):
         if self._current is not None and self._field:
             self._current[self._field] += data
 
+    def _finalize_current(self) -> None:
+        if self._current is None:
+            return
+        if self._current.get("title", "").strip() and self._current.get("url", "").strip():
+            self.results.append(self._current)
+        self._current = None
+        self._field = None
+
+    def close(self) -> None:
+        super().close()
+        self._finalize_current()
+
     def handle_endtag(self, tag: str) -> None:
         if self._current is None:
             return
@@ -45,10 +57,7 @@ class _DuckDuckGoParser(HTMLParser):
             self._field = None
             return
         if tag == "div" and self._field == "snippet":
-            if self._current.get("title", "").strip() and self._current.get("url", "").strip():
-                self.results.append(self._current)
-            self._current = None
-            self._field = None
+            self._finalize_current()
 
 
 class DuckDuckGoSearchProvider(WebSearchProvider):
