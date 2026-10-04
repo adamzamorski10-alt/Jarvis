@@ -2,7 +2,8 @@ import httpx
 import pytest
 
 from app.web_search.models import WebSearchRequest
-from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider, WebSearchProviderError
+from app.web_search.providers.base import WebSearchProviderError
+from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
 
 
 @pytest.mark.asyncio
