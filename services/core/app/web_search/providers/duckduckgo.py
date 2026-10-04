@@ -7,12 +7,12 @@ be selected later without changing the Operator capability.
 from __future__ import annotations
 
 from html.parser import HTMLParser
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
 import httpx
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse, WebSearchResult
-from app.web_search.providers.base import WebSearchProvider
+from app.web_search.providers.base import WebSearchProvider, WebSearchProviderError
 
 
 class _DuckDuckGoParser(HTMLParser):
@@ -26,7 +26,8 @@ class _DuckDuckGoParser(HTMLParser):
         attrs_dict = dict(attrs)
         classes = set((attrs_dict.get("class") or "").split())
         if tag == "a" and "result__a" in classes:
-            self._current = {"title": "", "url": attrs_dict.get("href", "")}
+            if self._current is None:
+                self._current = {"title": "", "url": attrs_dict.get("href", ""), "snippet": ""}
             self._field = "title"
         elif tag in {"a", "div"} and self._current is not None and (
             "result__snippet" in classes or "result__snippet" in (attrs_dict.get("class") or "")
@@ -39,9 +40,6 @@ class _DuckDuckGoParser(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "a" and self._current is not None and self._field == "title":
-            if self._current.get("title", "").strip():
-                self.results.append(self._current)
-            self._current = None
             self._field = None
 
 
@@ -118,7 +116,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         if parts.netloc == "html.duckduckgo.com":
             target = parse_qs(parts.query).get("uddg", [None])[0]
             if target:
-                parts = urlsplit(target)
+                parts = urlsplit(unquote(target))
             else:
                 return None
         if parts.scheme not in {"http", "https"} or not parts.netloc:
