@@ -21,58 +21,63 @@ from app.operator_request.models import OperatorRequest, OperatorRequestState
 
 _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "FILE_READ": [
-        re.compile(r"\b(read|show|display|cat|view|open|get)\b.*\b(file|content|text)\b", re.IGNORECASE),
-        re.compile(r"\bwhat('?s| is)\b.*\b(in|inside)\b.*\b(file|document)\b", re.IGNORECASE),
+        re.compile(r"(read|show|display|cat|view|open|get).*(file|content|text)", re.IGNORECASE),
+        re.compile(r"what('?s| is).*(in|inside).*(file|document)", re.IGNORECASE),
     ],
     "FILE_WRITE": [
-        re.compile(r"\b(write|create|save|generate|edit|modify|append)\b.*\b(file|document)\b", re.IGNORECASE),
-        re.compile(r"\bput\b.*\b(this|the)\b.*\b(in|into)\b.*\b(file|document)\b", re.IGNORECASE),
+        re.compile(r"(write|create|save|generate|edit|modify|append).*(file|document)", re.IGNORECASE),
+        re.compile(r"put.*(this|the).*(in|into).*(file|document)", re.IGNORECASE),
     ],
     "FILE_DELETE": [
-        re.compile(r"\b(delete|remove|trash|erase)\b.*\b(file|document)\b", re.IGNORECASE),
+        re.compile(r"(delete|remove|trash|erase).*(file|document)", re.IGNORECASE),
     ],
     "MEMORY_QUERY": [
-        re.compile(r"\b(what\s+do\s+you\s+remember|recall|look\s+up\s+memory|search\s+memory)\b", re.IGNORECASE),
+        re.compile(r"(whats+dos+yous+remember|recall|looks+ups+memory|searchs+memory)", re.IGNORECASE),
     ],
     "MEMORY_CREATE": [
-        re.compile(r"\b(remember|save\s+this|store\s+this|memorize)\b", re.IGNORECASE),
+        re.compile(r"(remember|saves+this|stores+this|memorize)", re.IGNORECASE),
     ],
     "WEB_SEARCH": [
-        re.compile(r"\b(search|look\s+up|research|google|search\s+the\s+web)\b", re.IGNORECASE),
-        re.compile(r"\bfind(?:\s+me)?\b.*\b(information|sources?|articles?|news|results?|details?)\b", re.IGNORECASE),
-        re.compile(r"\bfind(?:\s+me)?\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b", re.IGNORECASE),
-        re.compile(r"\b(check|look)\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b", re.IGNORECASE),
-        re.compile(r"\b(?:latest|current|today|recent)\b.*\b(?:news|information|price|score|results|status)\b.*\b(?:online|web|internet)\b", re.IGNORECASE),
+        re.compile(r"(search|looks+up|research|google|searchs+thes+web)", re.IGNORECASE),
+        re.compile(r"find(?:s+me)?.*(information|sources?|articles?|news|results?|details?)", re.IGNORECASE),
+        re.compile(r"find(?:s+me)?.*(online|ons+thes+web|ons+thes+internet|internet|web)", re.IGNORECASE),
+        re.compile(r"(check|look).*(online|ons+thes+web|ons+thes+internet|internet|web)", re.IGNORECASE),
+        re.compile(r"(?:latest|current|today|recent).*(?:news|information|price|score|results|status).*(?:online|web|internet)", re.IGNORECASE),
+        re.compile(r"(znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj).*(informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|ws+internecie|ws+sieci|internet|sieć)", re.IGNORECASE),
+        re.compile(r"(sprawd[źz]|sprawdz|zobacz).*(ws+internecie|ws+sieci|online|internet)", re.IGNORECASE),
     ],
     "INFORMATION_REQUEST": [
-        re.compile(r"^\s*(what|who|where|when|why|how|explain|describe|tell\s+me|can\s+you\s+explain)\b", re.IGNORECASE),
-        re.compile(r"\?$"),
+        re.compile(r"^s*(what|who|where|when|why|how|explain|describe|tells+me|cans+yous+explain)", re.IGNORECASE),
+        re.compile(r"?$"),
     ],
     "TASK_CREATE": [
-        re.compile(r"\b(create|make|set\s+up|start)\b.*\b(task|ticket|issue)\b", re.IGNORECASE),
-        re.compile(r"\bi\s+need\s+to\b.*\b(implement|build|develop|fix|add)\b", re.IGNORECASE),
+        re.compile(r"(create|make|sets+up|start).*(task|ticket|issue)", re.IGNORECASE),
+        re.compile(r"is+needs+to.*(implement|build|develop|fix|add)", re.IGNORECASE),
     ],
     "PLAN_CREATE": [
-        re.compile(r"\b(create|make|design|draft)\b.*\b(plan|roadmap|strategy)\b", re.IGNORECASE),
+        re.compile(r"(create|make|design|draft).*(plan|roadmap|strategy)", re.IGNORECASE),
     ],
     "PLAN_EXECUTE": [
-        re.compile(r"\b(execute|run|start|implement)\b.*\b(plan|roadmap)\b", re.IGNORECASE),
+        re.compile(r"(execute|run|start|implement).*(plan|roadmap)", re.IGNORECASE),
     ],
     "SCHEDULE_CREATE": [
-        re.compile(r"\b(schedule|set\s+up\s+a\s+reminder|remind\s+me|calendar)\b", re.IGNORECASE),
+        re.compile(r"(schedule|sets+ups+as+reminder|reminds+me|calendar)", re.IGNORECASE),
     ],
 }
 
+
 _WEB_SEARCH_INTENT = re.compile(
-    r"(?:\b(search|look\s+up|research|google)\b|"
-    r"\b(check|look)\b.*\b(online|on\s+the\s+web|on\s+the\s+internet|internet|web)\b|"
-    r"\b(?:search|check|look\s+up|find|research)\b.*\b(?:web|internet|online)\b|"
-    r"\bfind(?:\s+me)?\b.*\b(?:information|sources?|articles?|news|results?|details?)\b)",
+    r"(?:(search|looks+up|research|google)|"
+    r"(check|look).*(online|ons+thes+web|ons+thes+internet|internet|web)|"
+    r"(?:search|check|looks+up|find|research).*(?:web|internet|online)|"
+    r"find(?:s+me)?.*(?:information|sources?|articles?|news|results?|details?)|"
+    r"(?:znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj).*(?:informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|ws+internecie|ws+sieci|internet|sieć)|"
+    r"(?:sprawd[źz]|sprawdz|zobacz).*(?:ws+internecie|ws+sieci|online|internet))",
     re.IGNORECASE,
 )
 
 _DEV_PATTERN = re.compile(
-    r"\b(implement|develop|build|code|refactor|fix\s+(the\s+)?bug|debug|add\s+(a\s+)?feature|write\s+(some\s+)?code)\b",
+    r"(implement|develop|build|code|refactor|fixs+(thes+)?bug|debug|adds+(as+)?feature|writes+(somes+)?code)",
     re.IGNORECASE,
 )
 
