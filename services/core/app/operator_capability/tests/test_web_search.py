@@ -82,3 +82,17 @@ async def test_web_search_fails_closed_when_permission_denied():
     result = await executor.execute(request, resolution)
     assert result.success is False
     assert result.error_category == "PERMISSION_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_web_search_fails_closed_when_permission_engine_is_unavailable():
+    class ShouldNotRun:
+        async def search(self, *args, **kwargs):
+            raise AssertionError("search provider must not run without permission engine")
+
+    request = make_request()
+    resolution = CapabilityResolver().resolve(request)
+    executor = OperatorCapabilityExecutor(web_search_service=ShouldNotRun())
+    result = await executor.execute(request, resolution)
+    assert result.success is False
+    assert result.error_category == "PERMISSION_ENGINE_UNAVAILABLE"
