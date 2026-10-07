@@ -60,7 +60,12 @@ class WebSearchService:
                 if normalized_url in seen:
                     continue
                 seen.add(normalized_url)
-                if item.rank < 1 or item.rank > request.count:\n                    raise WebSearchProviderError("invalid_result_rank", "Web search provider returned an invalid result rank.")\n                deduped.append(item.model_copy(update={"rank": len(deduped) + 1}))
+                if item.rank < 1 or item.rank > request.count:
+                    raise WebSearchProviderError(
+                        "invalid_result_rank",
+                        "Web search provider returned an invalid result rank.",
+                    )
+                deduped.append(item.model_copy(update={"rank": len(deduped) + 1}))
             if len(deduped) != len(result.results):
                 result = result.model_copy(update={"results": deduped})
         except Exception as exc:
