@@ -5,7 +5,7 @@ import hashlib
 from urllib.parse import urlsplit, urlunsplit
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse
-from app.web_search.providers.base import WebSearchProvider
+from app.web_search.providers.base import WebSearchProvider, WebSearchProviderError
 
 
 class WebSearchService:
@@ -27,15 +27,22 @@ class WebSearchService:
             )
         try:
             result = await self._provider.search(request)
+            if result.provider != self._provider.name:
+                raise WebSearchProviderError("provider_identity_mismatch", "Web search provider returned an invalid provider identity.")
+            if result.query != request.query:
+                raise WebSearchProviderError("provider_query_mismatch", "Web search provider returned an invalid query identity.")
+            if len(result.results) > request.count:
+                raise WebSearchProviderError("provider_result_limit_exceeded", "Web search provider returned too many results.")
+
             seen = set()
             deduped = []
             for item in result.results:
                 parts = urlsplit(item.url)
-                normalized_url = urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/", parts.query, ""))
+                if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:\n                    raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")\n                if parts.username is not None or parts.password is not None:\n                    raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")\n                normalized_url = urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/", parts.query, ""))
                 if normalized_url in seen:
                     continue
                 seen.add(normalized_url)
-                deduped.append(item.model_copy(update={"rank": len(deduped) + 1}))
+                if item.rank < 1 or item.rank > request.count:\n                    raise WebSearchProviderError("invalid_result_rank", "Web search provider returned an invalid result rank.")\n                deduped.append(item.model_copy(update={"rank": len(deduped) + 1}))
             if len(deduped) != len(result.results):
                 result = result.model_copy(update={"results": deduped})
         except Exception as exc:
