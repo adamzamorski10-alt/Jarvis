@@ -312,33 +312,46 @@ class OperatorCapabilityExecutor:
                 error_category="MISSING_CAPABILITY_PARAMETERS",
                 error_detail="Missing search query",
             )
-        if self._permission_engine is not None:
-            from app.tools.models import AutonomyMode, PermissionDecisionType, PermissionEvaluationRequest, RiskLevel
-            mode = self._autonomy_mode if isinstance(self._autonomy_mode, AutonomyMode) else AutonomyMode.MANUAL
-            decision = await self._permission_engine.evaluate(
-                PermissionEvaluationRequest(
-                    tool_id="web.search",
-                    risk_level=RiskLevel.SAFE,
-                    action="search",
-                    autonomy_mode=mode,
-                    arguments={"query_length": len(query)},
-                    context={"request_id": request.request_id},
-                    actor_id=request.request_context.actor_id if request.request_context else None,
-                )
+        if self._permission_engine is None:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=False,
+                state="BLOCKED",
+                user_message="Web search is not currently permitted.",
+                result_metadata={},
+                error_category="PERMISSION_ENGINE_UNAVAILABLE",
+                error_detail="PermissionEngine is required for web.search execution",
             )
-            if decision.decision != PermissionDecisionType.ALLOW:
-                return CapabilityExecutionResult(
-                    request_id=request.request_id,
-                    operation_type=request.operation_type,
-                    capability_kind=CapabilityKind.SERVICE,
-                    capability_id="web.search",
-                    success=False,
-                    state="BLOCKED",
-                    user_message="Web search is not currently permitted.",
-                    result_metadata={"permission_decision": decision.decision.value, "rule_id": decision.rule_id},
-                    error_category="PERMISSION_DENIED",
-                    error_detail=decision.reason,
-                )
+
+        from app.tools.models import AutonomyMode, PermissionDecisionType, PermissionEvaluationRequest, RiskLevel
+        mode = self._autonomy_mode if isinstance(self._autonomy_mode, AutonomyMode) else AutonomyMode.MANUAL
+        decision = await self._permission_engine.evaluate(
+            PermissionEvaluationRequest(
+                tool_id="web.search",
+                risk_level=RiskLevel.SAFE,
+                action="search",
+                autonomy_mode=mode,
+                arguments={"query_length": len(query)},
+                context={"request_id": request.request_id},
+                actor_id=request.request_context.actor_id if request.request_context else None,
+            )
+        )
+        if decision.decision != PermissionDecisionType.ALLOW:
+            return CapabilityExecutionResult(
+                request_id=request.request_id,
+                operation_type=request.operation_type,
+                capability_kind=CapabilityKind.SERVICE,
+                capability_id="web.search",
+                success=False,
+                state="BLOCKED",
+                user_message="Web search is not currently permitted.",
+                result_metadata={"permission_decision": decision.decision.value, "rule_id": decision.rule_id},
+                error_category="PERMISSION_DENIED",
+                error_detail=decision.reason,
+            )
         try:
             result = await self._web_search_service.search(
                 WebSearchRequest(query=query),
