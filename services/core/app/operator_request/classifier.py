@@ -48,7 +48,7 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     ],
     "INFORMATION_REQUEST": [
         re.compile(r"^s*(what|who|where|when|why|how|explain|describe|tells+me|cans+yous+explain)", re.IGNORECASE),
-        re.compile(r"?$"),
+        re.compile(r"\?$"),
     ],
     "TASK_CREATE": [
         re.compile(r"(create|make|sets+up|start).*(task|ticket|issue)", re.IGNORECASE),
