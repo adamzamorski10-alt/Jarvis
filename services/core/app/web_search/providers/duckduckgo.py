@@ -29,9 +29,7 @@ class _DuckDuckGoParser(HTMLParser):
             self._finalize_current()
             self._current = {"title": "", "url": attrs_dict.get("href", ""), "snippet": ""}
             self._field = "title"
-        elif tag in {"a", "div"} and self._current is not None and (
-            "result__snippet" in classes or "result__snippet" in (attrs_dict.get("class") or "")
-        ):
+        elif tag in {"a", "div"} and self._current is not None and "result__snippet" in classes:
             self._field = "snippet"
 
     def handle_data(self, data: str) -> None:
@@ -76,10 +74,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                     "Accept": "text/html,application/xhtml+xml",
                 },
             ) as client:
-                response = await client.get(
-                    self.endpoint,
-                    params={"q": request.query},
-                )
+                response = await client.get(self.endpoint, params={"q": request.query})
         except httpx.TimeoutException as exc:
             raise WebSearchProviderError("provider_timeout", "Web search timed out.", True) from exc
         except httpx.RequestError as exc:
@@ -98,14 +93,23 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         parser = _DuckDuckGoParser()
         try:
             parser.feed(response.text)
+            parser.close()
         except Exception as exc:
-            raise WebSearchProviderError("invalid_provider_response", "Web search provider returned invalid HTML.", False) from exc
+            raise WebSearchProviderError(
+                "invalid_provider_response",
+                "Web search provider returned invalid HTML.",
+                False,
+            ) from exc
 
         results: list[WebSearchResult] = []
+        seen: set[str] = set()
         for raw in parser.results:
             target = self._safe_target(raw.get("url", ""))
             if target is None:
                 continue
+            if target in seen:
+                continue
+            seen.add(target)
             results.append(
                 WebSearchResult(
                     title=raw.get("title", "").strip()[:512],
@@ -137,9 +141,12 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                 parts = urlsplit(target)
             else:
                 return None
-        if parts.scheme not in {"http", "https"} or not parts.netloc:
+        if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
             return None
-        if parts.username or parts.password:
+        if parts.username is not None or parts.password is not None:
             return None
-        return parts._replace(fragment="").geturl()
-
+        return parts._replace(
+            scheme=parts.scheme.lower(),
+            netloc=parts.netloc.lower(),
+            fragment="",
+        ).geturl()
