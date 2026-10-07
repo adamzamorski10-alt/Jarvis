@@ -74,3 +74,24 @@ async def test_duckduckgo_maps_http_failure(monkeypatch):
         await provider.search(WebSearchRequest(query="test"))
     assert exc.value.code == "provider_http_429"
     assert exc.value.retryable is True
+
+
+@pytest.mark.asyncio
+async def test_duckduckgo_response_size_header_is_enforced(monkeypatch):
+    provider = DuckDuckGoSearchProvider()
+
+    class FakeClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def get(self, *args, **kwargs):
+            return httpx.Response(
+                200,
+                content=b"x",
+                headers={"content-length": str(provider.max_response_bytes + 1)},
+                request=httpx.Request("GET", provider.endpoint),
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    with pytest.raises(WebSearchProviderError) as exc:
+        await provider.search(WebSearchRequest(query="test"))
+    assert exc.value.code == "provider_response_too_large"
