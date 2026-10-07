@@ -38,7 +38,25 @@ class WebSearchService:
             deduped = []
             for item in result.results:
                 parts = urlsplit(item.url)
-                if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:\n                    raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")\n                if parts.username is not None or parts.password is not None:\n                    raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")\n                normalized_url = urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/") or "/", parts.query, ""))
+                if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
+                    raise WebSearchProviderError(
+                        "invalid_result_url",
+                        "Web search provider returned an invalid result URL.",
+                    )
+                if parts.username is not None or parts.password is not None:
+                    raise WebSearchProviderError(
+                        "invalid_result_url",
+                        "Web search provider returned an invalid result URL.",
+                    )
+                normalized_url = urlunsplit(
+                    (
+                        parts.scheme.lower(),
+                        parts.netloc.lower(),
+                        parts.path.rstrip("/") or "/",
+                        parts.query,
+                        "",
+                    )
+                )
                 if normalized_url in seen:
                     continue
                 seen.add(normalized_url)
