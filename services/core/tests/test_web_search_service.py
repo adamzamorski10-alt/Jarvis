@@ -2,6 +2,7 @@ import pytest
 
 from app.web_search.models import WebSearchRequest, WebSearchResponse, WebSearchResult
 from app.web_search.service import WebSearchService
+from app.web_search.providers.base import WebSearchProviderError
 
 
 class FakeProvider:
