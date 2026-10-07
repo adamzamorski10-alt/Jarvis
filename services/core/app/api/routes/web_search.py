@@ -1,7 +1,7 @@
 """Authenticated Web Search API."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 
 from app.ai.services.provider_manager import AIConfigError, ProviderManager
 from app.api.schemas.web_search import WebSearchConfigRequest, WebSearchConfigResponse
@@ -16,18 +16,31 @@ from app.web_search.providers.base import WebSearchProviderError
 router = APIRouter(prefix="/web")
 
 
+def _no_store(response: Response) -> None:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+
+
 @router.get("/search", response_model=WebSearchResponse)
 async def search_web(
     request: Request,
+    response: Response,
     q: str = Query(..., min_length=1, max_length=600),
     count: int = Query(default=10, ge=1, le=20),
     country: str = Query(default="PL", min_length=2, max_length=2, pattern=r"^[A-Za-z]{2}$"),
     search_lang: str = Query(default="pl", min_length=2, max_length=10, pattern=r"^[A-Za-z-]+$"),
     freshness: str | None = Query(default=None, max_length=32),
-    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+    x_request_id: str | None = Header(
+        default=None,
+        alias="X-Request-ID",
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    ),
     service: WebSearchService | None = Depends(get_web_search_service),
     permission_engine = Depends(get_permission_engine),
 ):
+    _no_store(response)
     ctx = require_authenticated(request)
     if service is None:
         raise HTTPException(status_code=503, detail="Web search is not configured")
@@ -72,8 +85,10 @@ async def search_web(
 @router.get("/search/config", response_model=WebSearchConfigResponse)
 async def get_web_search_config(
     request: Request,
+    response: Response,
     providers: ProviderManager = Depends(get_provider_manager),
 ):
+    _no_store(response)
     require_authenticated(request)
     config = await providers.get_config()
     return WebSearchConfigResponse(
@@ -86,9 +101,11 @@ async def get_web_search_config(
 @router.put("/search/config", response_model=WebSearchConfigResponse)
 async def update_web_search_config(
     request: Request,
+    response: Response,
     body: WebSearchConfigRequest,
     providers: ProviderManager = Depends(get_provider_manager),
 ):
+    _no_store(response)
     require_authenticated(request)
     try:
         config = await providers.update_web_search_config(body.provider, body.api_key)
