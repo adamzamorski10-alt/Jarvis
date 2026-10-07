@@ -57,7 +57,6 @@ class _DuckDuckGoParser(HTMLParser):
         if tag == "div" and self._field == "snippet":
             self._finalize_current()
 
-
 class DuckDuckGoSearchProvider(WebSearchProvider):
     name = "duckduckgo"
     endpoint = "https://html.duckduckgo.com/html/"
@@ -79,6 +78,21 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
             raise WebSearchProviderError("provider_timeout", "Web search timed out.", True) from exc
         except httpx.RequestError as exc:
             raise WebSearchProviderError("provider_unavailable", "Web search provider is unavailable.", True) from exc
+
+        content_length = response.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > self.max_response_bytes:
+                    raise WebSearchProviderError(
+                        "provider_response_too_large",
+                        "Web search provider response is too large.",
+                    )
+            except ValueError as exc:
+                raise WebSearchProviderError(
+                    "invalid_provider_response",
+                    "Web search provider returned an invalid Content-Length.",
+                    False,
+                ) from exc
 
         if len(response.content) > self.max_response_bytes:
             raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
