@@ -30,8 +30,23 @@ def test_online_check_classifies_as_web_search():
     assert result.operation_type == "WEB_SEARCH"
 
 
+def test_polish_search_request_classifies_as_web_search():
+    result = OperationClassifier().classify(make_request("Znajdź mi informacje o najnowszym iPhonie"))
+    assert result.operation_type == "WEB_SEARCH"
+
+
+def test_polish_online_check_classifies_as_web_search():
+    result = OperationClassifier().classify(make_request("Sprawdź w internecie ile kosztuje X"))
+    assert result.operation_type == "WEB_SEARCH"
+
+
 def test_ordinary_information_question_does_not_force_web_search():
     result = OperationClassifier().classify(make_request("What is photosynthesis?"))
+    assert result.operation_type == "INFORMATION_REQUEST"
+
+
+def test_polish_ordinary_information_question_does_not_force_web_search():
+    result = OperationClassifier().classify(make_request("Co to jest fotosynteza?"))
     assert result.operation_type == "INFORMATION_REQUEST"
 
 
@@ -49,4 +64,9 @@ def test_ai_classifier_cannot_force_web_search_without_explicit_web_intent():
 
 def test_generic_find_request_does_not_force_web_search():
     result = OperationClassifier().classify(make_request("Find my task 123"))
+    assert result.operation_type != "WEB_SEARCH"
+
+
+def test_generic_polish_find_request_does_not_force_web_search():
+    result = OperationClassifier().classify(make_request("Znajdź moje zadanie 123"))
     assert result.operation_type != "WEB_SEARCH"
