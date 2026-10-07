@@ -96,12 +96,16 @@ async def test_web_search_service_validates_rank_before_deduplication():
         name = "test"
 
         async def search(self, request):
-            return WebSearchResponse(
+            return WebSearchResponse.model_construct(
                 query=request.query,
                 provider="test",
                 results=[
                     WebSearchResult(title="valid", url="https://example.com/a", rank=1),
-                    WebSearchResult(title="invalid-duplicate", url="https://EXAMPLE.com/a/", rank=99),
+                    WebSearchResult.model_construct(
+                        title="invalid-duplicate",
+                        url="https://EXAMPLE.com/a/",
+                        rank=99,
+                    ),
                 ],
             )
 
