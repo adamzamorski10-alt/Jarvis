@@ -102,17 +102,22 @@ async def test_brave_search_rejects_malformed_response(monkeypatch, payload):
 async def test_brave_search_rejects_oversized_response(monkeypatch):
     provider = BraveSearchProvider("secret")
 
+    class OversizedResponse:
+        status_code = 200
+        headers = {}
+        encoding = "utf-8"
+
+        async def aiter_bytes(self, chunk_size):
+            body = b"x" * (provider.max_response_bytes + 1)
+            for offset in range(0, len(body), chunk_size):
+                yield body[offset:offset + chunk_size]
+
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
         @asynccontextmanager
         async def stream(self, *args, **kwargs):
-            response = httpx.Response(
-                200,
-                content=b"x" * (provider.max_response_bytes + 1),
-                request=httpx.Request("GET", provider.endpoint),
-            )
-            yield response
+            yield OversizedResponse()
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     with pytest.raises(WebSearchProviderError) as exc:
