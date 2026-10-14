@@ -32,19 +32,19 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\b(delete|remove|trash|erase)\b.*\b(file|document)\b", re.IGNORECASE),
     ],
     "MEMORY_QUERY": [
-        re.compile(r"\b(whats+dos+yous+remember|recall|looks+ups+memory|searchs+memory)\b", re.IGNORECASE),
+        re.compile(r"\b(whats+dos+yous+remember|recall|look\\s+ups+memory|searchs+memory)\b", re.IGNORECASE),
     ],
     "MEMORY_CREATE": [
         re.compile(r"\b(remember|saves+this|stores+this|memorize)\b", re.IGNORECASE),
     ],
     "WEB_SEARCH": [
-        re.compile(r"\b(search|looks+up|research|google|searchs+thes+web)\b", re.IGNORECASE),
-        re.compile(r"\bfind(?:s+me)?\b.*\b(information|sources?|articles?|news|results?|details?)\b", re.IGNORECASE),
-        re.compile(r"\bfind(?:s+me)?\b.*\b(online|ons+thes+web|ons+thes+internet|internet|web)\b", re.IGNORECASE),
-        re.compile(r"\b(check|look)\b.*\b(online|ons+thes+web|ons+thes+internet|internet|web)\b", re.IGNORECASE),
+        re.compile(r"\b(search|look\\s+up|research|google|search\\s+the\\s+web)\b", re.IGNORECASE),
+        re.compile(r"\bfind(?:\\s+me)?\b.*\b(information|sources?|articles?|news|results?|details?)\b", re.IGNORECASE),
+        re.compile(r"\bfind(?:\\s+me)?\b.*\b(online|on\\s+the\\s+web|on\\s+the\\s+internet|internet|web)\b", re.IGNORECASE),
+        re.compile(r"\b(check|look)\b.*\b(online|on\\s+the\\s+web|on\\s+the\\s+internet|internet|web)\b", re.IGNORECASE),
         re.compile(r"\b(?:latest|current|today|recent)\b.*\b(?:news|information|price|score|results|status)\b.*\b(?:online|web|internet)\b", re.IGNORECASE),
-        re.compile(r"\b(znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj)\b.*\b(informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|ws+internecie|ws+sieci|internet|sieć)\b", re.IGNORECASE),
-        re.compile(r"\b(sprawd[źz]|sprawdz|zobacz)\b.*\b(ws+internecie|ws+sieci|online|internet)\b", re.IGNORECASE),
+        re.compile(r"\b(znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj)\b.*\b(informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|w\\s+internecie|w\\s+sieci|internet|sieć)\b", re.IGNORECASE),
+        re.compile(r"\b(sprawd[źz]|sprawdz|zobacz)\b.*\b(w\\s+internecie|w\\s+sieci|online|internet)\b", re.IGNORECASE),
     ],
     "INFORMATION_REQUEST": [
         re.compile(r"^s*(what|who|where|when|why|how|explain|describe|tells+me|cans+yous+explain)\b", re.IGNORECASE),
@@ -67,12 +67,12 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
 
 
 _WEB_SEARCH_INTENT = re.compile(
-    r"(?:\b(search|looks+up|research|google)\b|"
-    r"\b(check|look)\b.*\b(online|ons+thes+web|ons+thes+internet|internet|web)\b|"
-    r"\b(?:search|check|looks+up|find|research)\b.*\b(?:web|internet|online)\b|"
-    r"\bfind(?:s+me)?\b.*\b(?:information|sources?|articles?|news|results?|details?)\b|"
-    r"\b(?:znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj)\b.*\b(?:informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|ws+internecie|ws+sieci|internet|sieć)\b|"
-    r"\b(?:sprawd[źz]|sprawdz|zobacz)\b.*\b(?:ws+internecie|ws+sieci|online|internet)\b)",
+    r"(?:\b(search|look\\s+up|research|google)\b|"
+    r"\b(check|look)\b.*\b(online|on\\s+the\\s+web|on\\s+the\\s+internet|internet|web)\b|"
+    r"\b(?:search|check|look\\s+up|find|research)\b.*\b(?:web|internet|online)\b|"
+    r"\bfind(?:\\s+me)?\b.*\b(?:information|sources?|articles?|news|results?|details?)\b|"
+    r"\b(?:znajd[źz]|wyszukaj|poszukaj|researchuj|sprawd[źz]|sprawdz|szukaj)\b.*\b(?:informacj[ei]|źródeł|zródeł|artykuł[uy]|wiadomości|wynik[io]|szczegół[óo]w|online|w\\s+internecie|w\\s+sieci|internet|sieć)\b|"
+    r"\b(?:sprawd[źz]|sprawdz|zobacz)\b.*\b(?:w\\s+internecie|w\\s+sieci|online|internet)\b)",
     re.IGNORECASE,
 )
 
