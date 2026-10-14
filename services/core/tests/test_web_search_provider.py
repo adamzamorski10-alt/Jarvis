@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import httpx
 import pytest
 
@@ -12,8 +14,9 @@ async def test_brave_search_maps_results(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 200,
                 json={
                     "web": {
@@ -44,8 +47,9 @@ async def test_brave_search_maps_auth_failure(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 401,
                 json={},
                 request=httpx.Request("GET", "https://api.search.brave.com/res/v1/web/search"),
@@ -74,8 +78,9 @@ async def test_brave_search_rejects_malformed_response(monkeypatch, payload):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 200,
                 json=payload,
                 request=httpx.Request("GET", provider.endpoint),
@@ -100,13 +105,14 @@ async def test_brave_search_rejects_oversized_response(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
             response = httpx.Response(
                 200,
                 content=b"x" * (provider.max_response_bytes + 1),
                 request=httpx.Request("GET", provider.endpoint),
             )
-            return response
+            yield response
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     with pytest.raises(WebSearchProviderError) as exc:
@@ -121,8 +127,9 @@ async def test_brave_search_rejects_deceptive_urls(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 200,
                 json={
                     "web": {
@@ -168,8 +175,9 @@ async def test_duckduckgo_search_maps_snippet_and_unwraps_redirect(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     result = await provider.search(WebSearchRequest(query="test", count=2))
@@ -193,8 +201,9 @@ async def test_duckduckgo_search_rejects_unsafe_and_duplicate_urls(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     result = await provider.search(WebSearchRequest(query="test"))
