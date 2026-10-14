@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import httpx
 import pytest
 
@@ -9,7 +11,6 @@ from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
 @pytest.mark.asyncio
 async def test_duckduckgo_maps_and_unwraps_results(monkeypatch):
     provider = DuckDuckGoSearchProvider()
-
     html = """
     <html><a class="result__a" href="https://example.com/one">One</a>
     <div class="result__snippet">First result</div>
@@ -20,8 +21,10 @@ async def test_duckduckgo_maps_and_unwraps_results(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 200,
                 text=html,
                 request=httpx.Request("GET", provider.endpoint),
@@ -50,8 +53,14 @@ async def test_duckduckgo_rejects_unsafe_targets(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(200, text=html, request=httpx.Request("GET", provider.endpoint))
+
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
+                200,
+                text=html,
+                request=httpx.Request("GET", provider.endpoint),
+            )
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     result = await provider.search(WebSearchRequest(query="test"))
@@ -66,8 +75,14 @@ async def test_duckduckgo_maps_http_failure(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(429, text="", request=httpx.Request("GET", provider.endpoint))
+
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
+                429,
+                text="",
+                request=httpx.Request("GET", provider.endpoint),
+            )
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     with pytest.raises(WebSearchProviderError) as exc:
@@ -83,11 +98,36 @@ async def test_duckduckgo_response_size_header_is_enforced(monkeypatch):
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
-        async def get(self, *args, **kwargs):
-            return httpx.Response(
+
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
                 200,
                 content=b"x",
                 headers={"content-length": str(provider.max_response_bytes + 1)},
+                request=httpx.Request("GET", provider.endpoint),
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
+    with pytest.raises(WebSearchProviderError) as exc:
+        await provider.search(WebSearchRequest(query="test"))
+    assert exc.value.code == "provider_response_too_large"
+
+
+@pytest.mark.asyncio
+async def test_duckduckgo_streaming_body_size_is_enforced_without_content_length(monkeypatch):
+    provider = DuckDuckGoSearchProvider()
+    oversized_body = b"x" * (provider.max_response_bytes + 1)
+
+    class FakeClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+
+        @asynccontextmanager
+        async def stream(self, *args, **kwargs):
+            yield httpx.Response(
+                200,
+                content=oversized_body,
                 request=httpx.Request("GET", provider.endpoint),
             )
 
