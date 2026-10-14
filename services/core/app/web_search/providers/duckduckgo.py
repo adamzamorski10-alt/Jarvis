@@ -73,40 +73,49 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                     "Accept": "text/html,application/xhtml+xml",
                 },
             ) as client:
-                response = await client.get(self.endpoint, params={"q": request.query})
+                async with client.stream("GET", self.endpoint, params={"q": request.query}) as response:
+                    if response.status_code != 200:
+                        retryable = response.status_code == 429 or response.status_code >= 500
+                        raise WebSearchProviderError(
+                            f"provider_http_{response.status_code}",
+                            "Web search provider returned an HTTP error.",
+                            retryable,
+                        )
+
+                    content_length = response.headers.get("content-length")
+                    if content_length:
+                        try:
+                            if int(content_length) > self.max_response_bytes:
+                                raise WebSearchProviderError(
+                                    "provider_response_too_large",
+                                    "Web search provider response is too large.",
+                                )
+                        except ValueError as exc:
+                            raise WebSearchProviderError(
+                                "invalid_provider_response",
+                                "Web search provider returned an invalid Content-Length.",
+                                False,
+                            ) from exc
+
+                    # Stream bounded chunks instead of buffering an untrusted
+                    # provider response in full before enforcing the size cap.
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                        if len(body) + len(chunk) > self.max_response_bytes:
+                            raise WebSearchProviderError(
+                                "provider_response_too_large",
+                                "Web search provider response is too large.",
+                            )
+                        body.extend(chunk)
+                    html = bytes(body).decode(response.encoding or "utf-8", errors="replace")
         except httpx.TimeoutException as exc:
             raise WebSearchProviderError("provider_timeout", "Web search timed out.", True) from exc
         except httpx.RequestError as exc:
             raise WebSearchProviderError("provider_unavailable", "Web search provider is unavailable.", True) from exc
 
-        content_length = response.headers.get("content-length")
-        if content_length:
-            try:
-                if int(content_length) > self.max_response_bytes:
-                    raise WebSearchProviderError(
-                        "provider_response_too_large",
-                        "Web search provider response is too large.",
-                    )
-            except ValueError as exc:
-                raise WebSearchProviderError(
-                    "invalid_provider_response",
-                    "Web search provider returned an invalid Content-Length.",
-                    False,
-                ) from exc
-
-        if len(response.content) > self.max_response_bytes:
-            raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
-        if response.status_code != 200:
-            retryable = response.status_code == 429 or response.status_code >= 500
-            raise WebSearchProviderError(
-                f"provider_http_{response.status_code}",
-                "Web search provider returned an HTTP error.",
-                retryable,
-            )
-
         parser = _DuckDuckGoParser()
         try:
-            parser.feed(response.text)
+            parser.feed(html)
             parser.close()
         except Exception as exc:
             raise WebSearchProviderError(
