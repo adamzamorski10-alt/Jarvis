@@ -150,11 +150,15 @@ class BraveSearchProvider(WebSearchProvider):
     def _is_safe_result_url(url: str) -> bool:
         if not url or len(url) > 4096:
             return False
+        if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in url):
+            return False
         try:
             parsed = urlsplit(url)
+            hostname = parsed.hostname
+            _ = parsed.port  # Validate malformed/out-of-range ports.
         except ValueError:
             return False
-        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc or not hostname:
             return False
         # Userinfo makes displayed URLs deceptive and must never become a
         # trusted navigation target later.

@@ -52,8 +52,18 @@ class WebSearchService:
             seen = set()
             deduped = []
             for item in result.results:
-                parts = urlsplit(item.url)
-                if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
+                try:
+                    if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in item.url):
+                        raise ValueError("URL contains whitespace or control characters")
+                    parts = urlsplit(item.url)
+                    hostname = parts.hostname
+                    _ = parts.port  # Force validation of malformed/out-of-range ports.
+                except ValueError as exc:
+                    raise WebSearchProviderError(
+                        "invalid_result_url",
+                        "Web search provider returned an invalid result URL.",
+                    ) from exc
+                if parts.scheme.lower() not in {"http", "https"} or not parts.netloc or not hostname:
                     raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")
                 if parts.username is not None or parts.password is not None:
                     raise WebSearchProviderError("invalid_result_url", "Web search provider returned an invalid result URL.")

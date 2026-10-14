@@ -154,22 +154,33 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
 
     @staticmethod
     def _safe_target(raw_url: str) -> str | None:
-        if not raw_url:
+        if (
+            not raw_url
+            or len(raw_url) > 4096
+            or any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw_url)
+        ):
             return None
-        absolute = urljoin("https://html.duckduckgo.com", raw_url)
-        parts = urlsplit(absolute)
-        if parts.netloc == "html.duckduckgo.com":
-            target = parse_qs(parts.query).get("uddg", [None])[0]
-            if target:
+        try:
+            absolute = urljoin("https://html.duckduckgo.com", raw_url)
+            parts = urlsplit(absolute)
+            if parts.netloc.lower() == "html.duckduckgo.com":
+                target = parse_qs(parts.query).get("uddg", [None])[0]
+                if not target or len(target) > 4096:
+                    return None
+                if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in target):
+                    return None
                 parts = urlsplit(target)
-            else:
-                return None
-        if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
+            hostname = parts.hostname
+            _ = parts.port  # Validate malformed/out-of-range ports.
+        except ValueError:
+            return None
+        if parts.scheme.lower() not in {"http", "https"} or not parts.netloc or not hostname:
             return None
         if parts.username is not None or parts.password is not None:
             return None
-        return parts._replace(
+        target = parts._replace(
             scheme=parts.scheme.lower(),
             netloc=parts.netloc.lower(),
             fragment="",
         ).geturl()
+        return target if len(target) <= 4096 else None

@@ -32,6 +32,9 @@ class StaticProvider:
         "https://user:password@evil.example/path",
         "//evil.example/path",
         "file:///etc/passwd",
+        "https://:80/path",
+        "https://[::1/path",
+        "https://example.com/\npath",
     ],
 )
 async def test_service_rejects_deceptive_or_unsafe_result_urls(url):
