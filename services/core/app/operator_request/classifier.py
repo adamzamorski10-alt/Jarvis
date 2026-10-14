@@ -61,7 +61,7 @@ _DETERMINISTIC_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\b(execute|run|start|implement)\b.*\b(plan|roadmap)\b", re.IGNORECASE),
     ],
     "SCHEDULE_CREATE": [
-        re.compile(r"\b(schedule|set\s+ups+as+reminder|remind\s+me|calendar)\b", re.IGNORECASE),
+        re.compile(r"\b(schedule|set\s+up\s+as\s+reminder|remind\s+me|calendar)\b", re.IGNORECASE),
     ],
 }
 
