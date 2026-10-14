@@ -119,17 +119,22 @@ async def test_duckduckgo_streaming_body_size_is_enforced_without_content_length
     provider = DuckDuckGoSearchProvider()
     oversized_body = b"x" * (provider.max_response_bytes + 1)
 
+    class OversizedResponse:
+        status_code = 200
+        headers = {}
+        encoding = "utf-8"
+
+        async def aiter_bytes(self, chunk_size):
+            for offset in range(0, len(oversized_body), chunk_size):
+                yield oversized_body[offset:offset + chunk_size]
+
     class FakeClient:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
 
         @asynccontextmanager
         async def stream(self, *args, **kwargs):
-            yield httpx.Response(
-                200,
-                content=oversized_body,
-                request=httpx.Request("GET", provider.endpoint),
-            )
+            yield OversizedResponse()
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: FakeClient())
     with pytest.raises(WebSearchProviderError) as exc:
