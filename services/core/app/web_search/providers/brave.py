@@ -1,6 +1,7 @@
 """Brave Search API adapter."""
 from __future__ import annotations
 
+import json
 from urllib.parse import urlsplit
 
 import httpx
@@ -35,45 +36,66 @@ class BraveSearchProvider(WebSearchProvider):
             params["freshness"] = request.freshness
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=False) as client:
-                response = await client.get(
+            async with httpx.AsyncClient(
+                timeout=self._timeout,
+                follow_redirects=False,
+            ) as client:
+                async with client.stream(
+                    "GET",
                     self.endpoint,
                     params=params,
                     headers={
                         "Accept": "application/json",
                         "X-Subscription-Token": self._api_key,
                     },
-                )
+                ) as response:
+                    if response.status_code == 401:
+                        raise WebSearchProviderError("provider_unauthorized", "Web search API key is invalid.", False)
+                    if response.status_code == 403:
+                        raise WebSearchProviderError("provider_forbidden", "Web search provider rejected the request.", False)
+                    if response.status_code == 429:
+                        raise WebSearchProviderError("provider_rate_limited", "Web search rate limit was reached.", True)
+                    if response.status_code >= 500:
+                        raise WebSearchProviderError("provider_server_error", "Web search provider returned a server error.", True)
+                    if response.status_code >= 400:
+                        raise WebSearchProviderError("provider_request_failed", "Web search request was rejected.", False)
+                    if response.status_code != 200:
+                        raise WebSearchProviderError("provider_request_failed", "Web search provider returned an unexpected status.", False)
+
+                    content_length = response.headers.get("content-length")
+                    if content_length:
+                        try:
+                            if int(content_length) > self.max_response_bytes:
+                                raise WebSearchProviderError(
+                                    "provider_response_too_large",
+                                    "Web search provider response is too large.",
+                                )
+                        except ValueError as exc:
+                            raise WebSearchProviderError(
+                                "invalid_provider_response",
+                                "Web search provider returned an invalid Content-Length.",
+                                False,
+                            ) from exc
+
+                    # Enforce the response cap while streaming, not after a
+                    # full untrusted response has already been buffered.
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                        if len(body) + len(chunk) > self.max_response_bytes:
+                            raise WebSearchProviderError(
+                                "provider_response_too_large",
+                                "Web search provider response is too large.",
+                            )
+                        body.extend(chunk)
+                    response_text = bytes(body).decode(response.encoding or "utf-8", errors="replace")
         except httpx.TimeoutException as exc:
             raise WebSearchProviderError("provider_timeout", "Web search timed out.", True) from exc
         except httpx.RequestError as exc:
             raise WebSearchProviderError("provider_unreachable", "Web search provider is unreachable.", True) from exc
 
-        if response.status_code == 401:
-            raise WebSearchProviderError("provider_unauthorized", "Web search API key is invalid.", False)
-        if response.status_code == 403:
-            raise WebSearchProviderError("provider_forbidden", "Web search provider rejected the request.", False)
-        if response.status_code == 429:
-            raise WebSearchProviderError("provider_rate_limited", "Web search rate limit was reached.", True)
-        if response.status_code >= 500:
-            raise WebSearchProviderError("provider_server_error", "Web search provider returned a server error.", True)
-        if response.status_code >= 400:
-            raise WebSearchProviderError("provider_request_failed", "Web search request was rejected.", False)
-
-        content_length = response.headers.get("content-length")
-        if content_length:
-            try:
-                if int(content_length) > self.max_response_bytes:
-                    raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
-            except ValueError:
-                pass
-
-        if len(response.content) > self.max_response_bytes:
-            raise WebSearchProviderError("provider_response_too_large", "Web search provider response is too large.")
-
         try:
-            data = response.json()
-        except (ValueError, TypeError) as exc:
+            data = json.loads(response_text)
+        except (ValueError, TypeError, UnicodeError) as exc:
             raise WebSearchProviderError(
                 "invalid_provider_response",
                 "Web search provider returned invalid JSON.",
