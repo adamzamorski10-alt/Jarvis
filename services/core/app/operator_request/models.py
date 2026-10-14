@@ -252,7 +252,7 @@ class OperatorRequest(BaseModel):
         # by the application classifier, not accepted raw.
         allowed = {
             "DECISION", "PLANNING", "CODING", "CHAT",
-            "INFORMATION_REQUEST", "FILE_READ", "FILE_WRITE", "FILE_DELETE",
+            "INFORMATION_REQUEST", "WEB_SEARCH", "FILE_READ", "FILE_WRITE", "FILE_DELETE",
             "DEVELOPMENT", "TASK_CREATE", "TASK_UPDATE",
             "PLAN_CREATE", "PLAN_EXECUTE",
             "SCHEDULE_CREATE",

@@ -215,6 +215,7 @@ class AIService:
         request_context: RequestContext | None,
         assembled_context: Any,
         context_messages: list[dict[str, str]],
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Information Sufficiency + Clarification integration.
@@ -256,6 +257,7 @@ class AIService:
                 request_context=request_context,
                 context_messages=context_messages,
                 conversation=conversation,
+                operator_request=operator_request,
             )
 
         return await self._run_sufficiency_and_maybe_clarify(
@@ -263,6 +265,7 @@ class AIService:
             message=message,
             request_context=request_context,
             assembled_context=assembled_context,
+            operator_request=operator_request,
         )
 
     async def _handle_clarification_answer(
@@ -272,6 +275,7 @@ class AIService:
         request_context: RequestContext,
         context_messages: list[dict[str, str]],
         conversation: Any,
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Process an incoming message as an answer to an active clarification.
@@ -360,6 +364,9 @@ class AIService:
                 ClarificationOutcome.SUFFICIENT,
                 [],
             )
+            if operator_request is not None and self._operator_request_service is not None:
+                operator_request = await self._operator_request_service.mark_ready(operator_request)
+                return {"__operator_request": operator_request}
             return None
 
         remaining_questions = list(sufficiency_result.questions)
@@ -398,6 +405,7 @@ class AIService:
         message: str,
         request_context: RequestContext,
         assembled_context: Any,
+        operator_request: Any = None,
     ) -> dict | None:
         """
         Run Information Sufficiency on the current request.
@@ -428,7 +436,18 @@ class AIService:
                 retryable=True,
             ) from exc
 
-        if not sufficiency_result.success or sufficiency_result.outcome == SufficiencyOutcome.SUFFICIENT:
+        if not sufficiency_result.success:
+            if operator_request is not None and self._operator_request_service is not None:
+                await self._operator_request_service.mark_blocked(
+                    operator_request,
+                    "Information sufficiency assessment did not complete successfully.",
+                )
+            return None
+
+        if sufficiency_result.outcome == SufficiencyOutcome.SUFFICIENT:
+            if operator_request is not None and self._operator_request_service is not None:
+                operator_request = await self._operator_request_service.mark_ready(operator_request)
+                return {"__operator_request": operator_request}
             return None
 
         questions = list(sufficiency_result.questions)
@@ -594,7 +613,7 @@ class AIService:
         """
         try:
             from app.ai_manager.ai_manager import AIManager
-            from app.ai_manager.providers.fake import FakeManagerProvider
+            from app.ai_manager.providers.configured import ConfiguredAIManagerProvider
             from app.ai_manager.models import UserIntent
 
             # Build application-controlled intent
@@ -619,9 +638,18 @@ class AIService:
                 },
             )
 
-            # Use fake provider for now (no actual AI Manager provider configured)
-            provider = FakeManagerProvider()
-            manager = AIManager(provider=provider)
+            config = await self._providers.get_config()
+            selected_model = config.get("selected_model")
+            if not selected_model:
+                logger.info("AI Manager skipped because no model is selected", request_id=operator_request.request_id)
+                return None
+
+            provider = await self._providers.get_provider()
+            manager_provider = ConfiguredAIManagerProvider(
+                provider=provider,
+                model=str(selected_model),
+            )
+            manager = AIManager(provider=manager_provider)
             result = await manager.decide(intent)
 
             logger.info(
@@ -717,60 +745,7 @@ class AIService:
         provider_name = str(config["provider"])
         selected_model = config.get("selected_model")
 
-        if not selected_model:
-            raise AIUnavailable(
-                "No AI model selected. Please select a model in Settings.",
-                code="ai_not_ready",
-                provider=provider_name,
-                retryable=False,
-            )
-
         provider = await self._providers.get_provider()
-
-        # Validate provider-specific configuration & status
-        if provider_name == "kimi" and not config.get("kimi_api_key_configured"):
-            raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
-        if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
-            raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
-
-        if provider_name == "ollama":
-            health = await provider.health_check()
-            if health.status == "not_installed":
-                raise AIUnavailable(
-                    health.message or "Ollama is not installed on this computer.",
-                    code="ollama_not_installed",
-                    provider="ollama",
-                    retryable=False,
-                )
-            if health.status == "stopped":
-                raise AIUnavailable(
-                    health.message or "Ollama service is not running on 127.0.0.1:11434.",
-                    code="ollama_service_stopped",
-                    provider="ollama",
-                    retryable=True,
-                )
-            if health.status == "no_models":
-                raise AIUnavailable(
-                    health.message or "No AI models are installed in Ollama.",
-                    code="ollama_no_models",
-                    provider="ollama",
-                    retryable=False,
-                )
-            if health.status in ("online", "ready"):
-                models = await provider.list_models()
-                model_names = {m.name for m in models}
-                model_found = (
-                    selected_model in model_names
-                    or f"{selected_model}:latest" in model_names
-                    or any(m.name.startswith(f"{selected_model}:") for m in models)
-                )
-                if not model_found:
-                    raise AIUnavailable(
-                        f"Selected model '{selected_model}' is not installed in Ollama. Run 'ollama pull {selected_model}' to download it.",
-                        code="ollama_model_missing",
-                        provider="ollama",
-                        retryable=False,
-                    )
 
         # Get or create conversation
         if conversation_id:
@@ -778,7 +753,7 @@ class AIService:
             await self._conversations.add_message(conversation, "user", message, client_message_id=client_message_id)
             conversation = await self._conversations.get(conversation.id)
         else:
-            conversation = await self._conversations.create(provider_name, str(selected_model))
+            conversation = await self._conversations.create(provider_name, selected_model)
             await self._activity.create_event("AI conversation created", category="ai", details={"provider": provider_name, "model": selected_model})
             await self._conversations.add_message(conversation, "user", message, client_message_id=client_message_id)
             conversation = await self._conversations.get(conversation.id)
@@ -831,16 +806,42 @@ class AIService:
             except Exception as exc:
                 logger.warning("Context assembly failed for chat: %s", exc)
 
-        # Information Sufficiency + Clarification Loop
-        clarification_result = await self._process_clarification_if_needed(
-            conversation=conversation,
-            message=message,
-            request_context=request_context,
-            assembled_context=assembled_context,
-            context_messages=context_messages,
-        )
-        if clarification_result is not None:
-            return clarification_result
+        # Web search has a concrete, bounded query contract and does not need
+        # an LLM-backed clarification round before deterministic execution.
+        if (
+            operator_request is not None
+            and operator_request.operation_type == "WEB_SEARCH"
+            and self._operator_request_service is not None
+        ):
+            operator_request = await self._operator_request_service.mark_ready(operator_request)
+        else:
+            # Information Sufficiency + Clarification Loop
+            clarification_result = await self._process_clarification_if_needed(
+                conversation=conversation,
+                message=message,
+                request_context=request_context,
+                assembled_context=assembled_context,
+                context_messages=context_messages,
+                operator_request=operator_request,
+            )
+            if clarification_result is not None:
+                internal_request = clarification_result.pop("__operator_request", None)
+                if internal_request is not None:
+                    operator_request = internal_request
+                else:
+                    return clarification_result
+
+        # Plan operations require a trusted AI Manager decision before capability execution.
+        # Other operations continue through the normal deterministic capability path.
+        ai_manager_decision = None
+        if (
+            operator_request is not None
+            and operator_request.operation_type in ("PLAN_CREATE", "PLAN_EXECUTE")
+        ):
+            try:
+                ai_manager_decision = await self._run_ai_manager_decision(operator_request)
+            except Exception as exc:
+                logger.warning("AI Manager plan decision failed: %s", exc)
 
         # ── Capability Resolution & Execution ───────────────────────────────────
         capability_result = None
@@ -854,6 +855,7 @@ class AIService:
                     capability_result = await self._capability_executor.execute(
                         request=operator_request,
                         resolution=resolution,
+                        manager_result=ai_manager_decision,
                     )
             except Exception as exc:
                 logger.warning("Capability resolution/execution failed, continuing with agent loop: %s", exc)
@@ -881,10 +883,10 @@ class AIService:
             }
             return result
 
-        # ── AI Manager Decision (optional, for structured requests) ─────────────
-        ai_manager_decision = None
+        # ── AI Manager Decision (optional, for other structured requests) ───────
         if (
-            self._operator_request_service is not None
+            ai_manager_decision is None
+            and self._operator_request_service is not None
             and operator_request is not None
             and operator_request.operation_type not in ("CHAT", "INFORMATION_REQUEST", "UNKNOWN", "OTHER")
         ):
@@ -892,6 +894,61 @@ class AIService:
                 ai_manager_decision = await self._run_ai_manager_decision(operator_request)
             except Exception as exc:
                 logger.warning("AI Manager decision failed, continuing with agent loop: %s", exc)
+
+        # Web-backed capability execution does not require an AI model.
+        # Only the fallback conversational/agent path requires a configured model
+        # and provider credentials.
+        if not selected_model:
+            raise AIUnavailable(
+                "No AI model selected. Please select a model in Settings.",
+                code="ai_not_ready",
+                provider=provider_name,
+                retryable=False,
+            )
+
+        if provider_name == "kimi" and not config.get("kimi_api_key_configured"):
+            raise AIUnavailable("Kimi API key is not configured", code="provider_not_configured", provider="kimi", retryable=False)
+        if provider_name == "openrouter" and not config.get("openrouter_api_key_configured"):
+            raise AIUnavailable("OpenRouter API key is not configured", code="provider_not_configured", provider="openrouter", retryable=False)
+
+        if provider_name == "ollama":
+            health = await provider.health_check()
+            if health.status == "not_installed":
+                raise AIUnavailable(
+                    health.message or "Ollama is not installed on this computer.",
+                    code="ollama_not_installed",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status == "stopped":
+                raise AIUnavailable(
+                    health.message or "Ollama service is not running on 127.0.0.1:11434.",
+                    code="ollama_service_stopped",
+                    provider="ollama",
+                    retryable=True,
+                )
+            if health.status == "no_models":
+                raise AIUnavailable(
+                    health.message or "No AI models are installed in Ollama.",
+                    code="ollama_no_models",
+                    provider="ollama",
+                    retryable=False,
+                )
+            if health.status in ("online", "ready"):
+                models = await provider.list_models()
+                model_names = {m.name for m in models}
+                model_found = (
+                    selected_model in model_names
+                    or f"{selected_model}:latest" in model_names
+                    or any(m.name.startswith(f"{selected_model}:") for m in models)
+                )
+                if not model_found:
+                    raise AIUnavailable(
+                        f"Selected model '{selected_model}' is not installed in Ollama. Run 'ollama pull {selected_model}' to download it.",
+                        code="ollama_model_missing",
+                        provider="ollama",
+                        retryable=False,
+                    )
 
         autonomy_mode = await self._get_autonomy_mode()
         request_id = conversation.id

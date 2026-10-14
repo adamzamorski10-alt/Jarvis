@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.ai_manager.approval_models import (
@@ -189,6 +189,7 @@ class ExecutionBridge:
         autonomous_executor: AutonomousPlanExecutor,
         capability_gate: PolicyCapabilityGate,
         approval_service: CapabilityApprovalService,
+        plan_service: Any,
         audit_service: Any = None,
     ) -> None:
         self._planning_service = planning_service
@@ -196,6 +197,7 @@ class ExecutionBridge:
         self._autonomous_executor = autonomous_executor
         self._capability_gate = capability_gate
         self._approval_service = approval_service
+        self._plan_service = plan_service
         self._audit_service = audit_service
         self._logger = logging.getLogger(__name__)
 
@@ -358,7 +360,7 @@ class ExecutionBridge:
                         effective_risk=auth_decision.effective_risk,
                         status=ApprovalStatus.PENDING,
                         created_at=datetime.now(timezone.utc),
-                        expires_at=datetime.now(timezone.utc),
+                        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
                     ),
                     auth_decision=auth_decision,
                 )
@@ -380,13 +382,66 @@ class ExecutionBridge:
         except Exception as exc:
             raise ExecutionBridgeError(f"Planning failed: {exc}") from exc
 
-        # 4. Execute the plan via existing autonomous execution core
+        # 4. Persist the authoritative plan before execution.
+        # Planning produces an in-memory ManagerPlanResult; execution operates
+        # only on persisted DevelopmentTask records. Persistence is idempotent,
+        # so this is safe when plan.create already ran.
+        try:
+            persisted_tasks = await self._plan_service.persist_manager_plan_result(
+                planning_result.manager_plan_result
+            )
+        except ManagerInvalidPlanError:
+            raise
+        except Exception as exc:
+            raise ExecutionBridgeError(f"Plan persistence failed: {exc}") from exc
+
+        if not persisted_tasks:
+            raise ExecutionBridgeError(
+                f"Plan '{planning_result.plan_id}' produced no persisted tasks; "
+                "execution is blocked."
+            )
+
+        expected_plan_id = planning_result.plan_id
+        for task in persisted_tasks:
+            task_plan_id = getattr(task, "metadata", {}).get("source_plan_id")
+            task_project_id = getattr(task, "project_id", None)
+            if task_plan_id != expected_plan_id:
+                raise ExecutionBridgeError(
+                    f"Persisted task '{getattr(task, 'task_id', '<unknown>')}' "
+                    f"does not belong to authoritative plan '{expected_plan_id}'."
+                )
+            if task_project_id != planning_result.project_id:
+                raise ExecutionBridgeError(
+                    f"Persisted task '{getattr(task, 'task_id', '<unknown>')}' "
+                    f"does not belong to authoritative project '{planning_result.project_id}'."
+                )
+
+        # 5. Consume approval only after planning + persistence succeeded.
+        # This prevents a failed planning/persistence attempt from burning a
+        # valid user approval.
+        if auth_decision.outcome == PolicyDecision.NEEDS_APPROVAL:
+            try:
+                await self._approval_service.consume(approval_id)  # type: ignore[arg-type]
+            except CapabilityApprovalError as exc:
+                raise ExecutionAuthorizationError(
+                    f"Approval '{approval_id}' consumption failed: {exc}"
+                ) from exc
+
+        # 6. Execute the persisted plan via existing autonomous execution core
         try:
             execution_result = await self._autonomous_executor.execute_plan(
                 planning_result.plan_id
             )
         except Exception as exc:
             raise ExecutionBridgeError(f"Plan execution failed: {exc}") from exc
+
+        if execution_result.terminal_state.value == "COMPLETED":
+            if execution_result.total_tasks <= 0 or (
+                execution_result.committed_tasks != execution_result.total_tasks
+            ):
+                raise ExecutionBridgeError(
+                    "Execution reported COMPLETED without every persisted task committed."
+                )
 
         await self._safe_audit(
             "EXECUTION_COMPLETED",
@@ -473,12 +528,9 @@ class ExecutionBridge:
                 f"Approval cannot be reused for a different operation."
             )
 
-        try:
-            await self._approval_service.consume(approval_id)
-        except CapabilityApprovalError as exc:
-            raise ExecutionAuthorizationError(
-                f"Approval '{approval_id}' consumption failed: {exc}"
-            ) from exc
+        # Consumption is deliberately performed only after planning and
+        # persistence succeed, immediately before execution.
+        return
 
     async def _safe_audit(self, event_type: str, **kwargs: Any) -> None:
         """Write audit event. Fail-safe: never raises."""

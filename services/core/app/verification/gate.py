@@ -167,6 +167,19 @@ class VerificationGate:
         if identity_error is not None:
             return self._fail_report(gate_started, context, identity_error, results)
 
+        # Canonicalize the changed-file set from Git. Agent/caller supplied paths
+        # are metadata only and must never define what was actually modified.
+        try:
+            actual_changed_files = self._get_actual_changed_files(context)
+        except Exception as exc:
+            return self._fail_report(
+                gate_started,
+                context,
+                f"Failed to determine authoritative changed files: {type(exc).__name__}: {exc}",
+                results,
+            )
+        context = context.model_copy(update={"changed_files": actual_changed_files})
+
         # Phase 3: Lock registry and retrieve ordered checks
         self._registry.lock()
         checks = self._registry.get_ordered()
@@ -394,6 +407,30 @@ class VerificationGate:
             return proc.returncode
         except Exception:
             return -1
+
+    def _get_actual_changed_files(self, context: VerificationContext) -> list[str]:
+        """Return tracked + untracked changes from Git, excluding the internal ownership marker."""
+        ws_path = Path(context.workspace_path)
+
+        tracked = self._git(ws_path, [
+            "diff", "--name-only", context.expected_base_commit
+        ])
+        if tracked is None:
+            raise RuntimeError("git diff could not determine tracked changes")
+
+        untracked = self._git(ws_path, [
+            "ls-files", "--others", "--exclude-standard"
+        ])
+        if untracked is None:
+            raise RuntimeError("git ls-files could not determine untracked changes")
+
+        files = {
+            line.strip().replace("\\", "/")
+            for line in (tracked.splitlines() + untracked.splitlines())
+            if line.strip()
+        }
+        files.discard(".ai_operator_ownership")
+        return sorted(files)
 
     # ── Check execution ───────────────────────────────────────────────────────
 

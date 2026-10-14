@@ -63,6 +63,7 @@ class OperationType(str, enum.Enum):
     CODING = "coding"
     CHAT = "chat"
     INFORMATION_REQUEST = "information_request"
+    WEB_SEARCH = "web_search"
     FILE_READ = "file_read"
     FILE_WRITE = "file_write"
     FILE_DELETE = "file_delete"

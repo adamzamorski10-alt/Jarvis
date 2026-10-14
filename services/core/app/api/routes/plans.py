@@ -145,19 +145,12 @@ async def _create_executor_context(engine: Any = None) -> tuple[AutonomousPlanEx
     )
     try:
         dev_agent = await factory.create_agent()
-    except Exception:
-        from app.orchestration.agent_interface import DevelopmentAgent
-        from app.orchestration.models import DevelopmentResult, DevelopmentResultStatus
-
-        class _StubDevelopmentAgent(DevelopmentAgent):
-            async def execute(self, context):
-                return DevelopmentResult(
-                    status=DevelopmentResultStatus.SUCCESS,
-                    summary="stub",
-                    changed_files=[],
-                )
-
-        dev_agent = _StubDevelopmentAgent()
+    except Exception as exc:
+        # Never replace a failed development agent with a fake-success stub.
+        # Autonomous execution must fail closed if the real agent cannot start.
+        logger.error("Development agent initialization failed: %s", exc, exc_info=True)
+        await session.close()
+        raise RuntimeError("Development agent could not be initialized") from exc
 
     orch = AutonomousTaskOrchestrator(
         task_repo=task_repo,

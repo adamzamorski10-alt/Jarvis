@@ -1835,6 +1835,7 @@ class TestRealSubprocessLifecycle:
         alive = await _is_process_alive(pid) if pid > 0 else False
         assert not alive or result
 
+    @pytest.mark.skipif(platform.system() != "Windows", reason="Windows cmd output test")
     async def test_real_output_backpressure(self):
         """KILO-LIFE-18: Large output is bounded without deadlock."""
         proc = await asyncio.create_subprocess_exec(

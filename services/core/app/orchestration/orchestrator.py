@@ -509,13 +509,17 @@ class AutonomousTaskOrchestrator:
 
         # 10. Execute VerificationGate
         current_head = self._workspace_manager.get_current_head(Path(workspace.autonomous_worktree_path))
+        # Agent-reported changed_files are untrusted metadata. Derive the authoritative
+        # change set directly from Git before verification.
+        actual_changed_files = self._workspace_manager.get_changed_files(workspace)
         verification_context = VerificationContext(
             task_id=task_id,
             workspace_path=workspace.autonomous_worktree_path,
             repository_root=str(workspace.repository_root),
             expected_base_commit=workspace.base_commit_sha,
             current_commit=current_head,
-            changed_files=list(agent_result.changed_files),
+            changed_files=actual_changed_files,
+            metadata={"agent_reported_changed_files": list(agent_result.changed_files)},
         )
 
         await self._emit_event(
@@ -649,8 +653,60 @@ class AutonomousTaskOrchestrator:
                 finished_at=_utc_now(),
             )
 
-        # 13. Create Git Checkpoint via WorkspaceManager
-        intended_paths = list(agent_result.changed_files) if agent_result.changed_files else ["."]
+        # 13. Reconcile the change set before creating the checkpoint.
+        # A mutation after verification invalidates the verification result and must
+        # never be silently included in the commit.
+        verified_paths = list(verification_context.changed_files)
+        current_paths = self._workspace_manager.get_changed_files(workspace)
+        if current_paths != verified_paths:
+            reason = (
+                "Workspace changed after verification; refusing to commit without re-verification. "
+                f"verified={verified_paths}, current={current_paths}"
+            )
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.PASSED,
+                new_status=TaskStatus.FAILED,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=TaskStatus.FAILED,
+                attempt_count=current_attempt,
+                committed=False,
+                verification_report=verification_report,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
+        if not verified_paths:
+            reason = "Verification passed but the autonomous workspace contains no changes; refusing empty commit"
+            await self._state_machine.transition(
+                task_id=task_id,
+                expected_status=TaskStatus.PASSED,
+                new_status=TaskStatus.FAILED,
+                reason=reason,
+            )
+            if opts.auto_cleanup_workspace:
+                self._safe_remove_workspace(task_id, workspace, execution_token)
+            return OrchestrationResult(
+                task_id=task_id,
+                final_status=TaskStatus.FAILED,
+                attempt_count=current_attempt,
+                committed=False,
+                verification_report=verification_report,
+                agent_result=agent_result,
+                error_message=reason,
+                started_at=started_at,
+                finished_at=_utc_now(),
+            )
+
+        # 14. Create Git Checkpoint via WorkspaceManager using the verified Git change set.
+        intended_paths = verified_paths
         try:
             cp_info = self._workspace_manager.create_checkpoint(
                 task_id=task_id,
@@ -726,6 +782,35 @@ class AutonomousTaskOrchestrator:
             commit_sha=cp_info.commit_sha,
             checkpoint_id=cp_info.checkpoint_id,
         )
+
+        # 14. Re-read and validate the task before the terminal transition.
+        # This closes the TOCTOU window between checkpoint creation and
+        # COMMITTED: the task must still belong to the same project and
+        # execution ownership must still match the run that created the workspace.
+        current_task = await self._task_repo.get_task(task_id)
+        if current_task is None:
+            raise TaskNotFoundError(task_id=task_id)
+        if current_task.project_id != claimed_task.project_id:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Task project changed during execution; refusing COMMITTED transition",
+            )
+        if current_task.execution_token != execution_token:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Task execution ownership changed before commit; refusing COMMITTED transition",
+            )
+
+        # Verify the checkpoint is the actual current HEAD of the autonomous
+        # worktree and is still based on the commit that was verified.
+        post_checkpoint_head = self._workspace_manager.get_current_head(
+            Path(workspace.autonomous_worktree_path)
+        )
+        if post_checkpoint_head != cp_info.commit_sha:
+            raise WorkspaceOrchestrationError(
+                task_id=task_id,
+                reason="Checkpoint SHA does not match autonomous worktree HEAD",
+            )
 
         # 14. Transition PASSED -> COMMITTED via TaskStateMachine
         await self._state_machine.transition(

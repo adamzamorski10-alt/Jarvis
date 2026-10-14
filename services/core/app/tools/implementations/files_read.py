@@ -6,6 +6,7 @@ Reads a file from the authorized workspace with strict security controls.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 from app.tools.base import BaseTool
@@ -69,7 +70,7 @@ class FilesReadFile(BaseTool):
             max_bytes = MAX_READ_BYTES
 
         p = Path(rel_path)
-        if p.is_absolute() or p.drive != "":
+        if p.is_absolute() or p.drive != "" or re.match(r"^[A-Za-z]:", rel_path):
             raise ValueError("Absolute paths or drive specifiers not allowed")
         if any(part == ".." for part in p.parts):
             raise ValueError("Path traversal not allowed")
@@ -79,7 +80,13 @@ class FilesReadFile(BaseTool):
             raise ValueError("workspace_path context is required for files.read_file execution")
 
         workspace_root = Path(ws_path_str).resolve()
-        target_path = (workspace_root / p).resolve()
+        raw_target = workspace_root / p
+        current = workspace_root
+        for part in p.parts:
+            current = current / part
+            if current.is_symlink():
+                raise ValueError("Symlinks are not allowed")
+        target_path = raw_target.resolve()
 
         try:
             target_path.relative_to(workspace_root)

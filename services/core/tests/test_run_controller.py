@@ -857,6 +857,9 @@ class FailingCheckpointWorkspaceManager(WorkspaceManager):
     def create_workspace(self, task_id: str, base_commit_sha: str, execution_token: str = "") -> Any:
         return self._delegate.create_workspace(task_id, base_commit_sha, execution_token=execution_token)
 
+    def get_changed_files(self, workspace, base_commit_sha=None):
+        return self._delegate.get_changed_files(workspace, base_commit_sha)
+
     def get_current_head(self, worktree_path=None):
         return self._delegate.get_current_head(worktree_path)
 
@@ -1486,7 +1489,7 @@ async def test_non_cooperative_agent_timeout(sqlite_db):
 
         ws_mgr = WorkspaceManager(repo_root=repo_root, worktree_base_dir=tmp_path / "worktrees")
         ready = asyncio.Event()
-        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=200, ready_event=ready, work_per_iteration=True)
+        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=1000, ready_event=ready, work_per_iteration=True)
         gate = FakeVerificationGate(decision=GateDecision.PASS)
 
         async with session_factory() as session:
@@ -1698,7 +1701,7 @@ async def test_timeout_does_not_delete_active_workspace(sqlite_db):
 
         ws_mgr = WorkspaceManager(repo_root=repo_root, worktree_base_dir=tmp_path / "worktrees")
         ready = asyncio.Event()
-        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=200, ready_event=ready, work_per_iteration=True)
+        agent = NonCooperativeAgent(delay_seconds=10.0, max_iterations=1000, ready_event=ready, work_per_iteration=True)
         gate = FakeVerificationGate(decision=GateDecision.PASS)
 
         remove_called = False

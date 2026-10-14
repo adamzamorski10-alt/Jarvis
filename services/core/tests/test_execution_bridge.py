@@ -227,6 +227,7 @@ def _make_execution_bridge(
     capability_gate=None,
     approval_service=None,
     audit_service=None,
+    plan_service=None,
 ):
     if planning_service is None:
         planning_service = _make_planning_service()
@@ -243,12 +244,20 @@ def _make_execution_bridge(
         )
     if approval_service is None:
         approval_service = _make_approval_service()
+    if plan_service is None:
+        plan_service = AsyncMock()
+
+        async def _persist(plan_result):
+            return list(plan_result.tasks)
+
+        plan_service.persist_manager_plan_result.side_effect = _persist
     return ExecutionBridge(
         planning_service=planning_service,
         plan_execution_service=plan_execution_service,
         autonomous_executor=autonomous_executor,
         capability_gate=capability_gate,
         approval_service=approval_service,
+        plan_service=plan_service,
         audit_service=audit_service,
     )
 
@@ -866,6 +875,70 @@ class TestAuthoritativePlan:
         assert called_with == exec_result.plan_id
 
 
+# ── EXEC-08B: PERSISTED PLAN BOUNDARY ────────────────────────────────────────
+
+
+class TestPersistedPlanBoundary:
+    async def test_empty_persistence_blocks_execution(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        plan_manager = _fake_plan_manager(proposals=[
+            ProviderTaskProposal(proposal_key="a", title="A", description="d")
+        ])
+        planning_service = _make_planning_service(plan_manager=plan_manager)
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.return_value = []
+
+        bridge = _make_execution_bridge(
+            planning_service=planning_service,
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="no persisted tasks"):
+            await bridge.execute(result, project_id="proj")
+
+        autonomous_executor.execute_plan.assert_not_awaited()
+
+    async def test_foreign_project_task_blocks_execution(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        plan_manager = _fake_plan_manager(proposals=[
+            ProviderTaskProposal(proposal_key="a", title="A", description="d")
+        ])
+        planning_service = _make_planning_service(plan_manager=plan_manager)
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+
+        async def _foreign_persist(_plan_result):
+            from app.tasks.models import DevelopmentTask, TaskStatus
+            return [DevelopmentTask(
+                task_id="task_foreign",
+                task_key="a",
+                project_id="attacker_project",
+                title="foreign",
+                description="foreign",
+                status=TaskStatus.PENDING,
+                metadata={"source_plan_id": ManagerPlanningService._generate_plan_id(decision)},
+            )]
+
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.side_effect = _foreign_persist
+
+        bridge = _make_execution_bridge(
+            planning_service=planning_service,
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="does not belong to authoritative project"):
+            await bridge.execute(result, project_id="proj")
+
+        autonomous_executor.execute_plan.assert_not_awaited()
+
+
 # ── EXEC-09: IDENTITY / SECURITY CONTEXT ──────────────────────────────────────
 
 
@@ -896,6 +969,64 @@ class TestNoIdentityLeakage:
 
 
 # ── EXEC-10: CANCELLATION / FAILURE / RECOVERY ────────────────────────────────
+
+
+class TestPlanPersistenceBoundary:
+    async def test_execute_persists_authoritative_plan_before_executor(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        plan_manager = _fake_plan_manager(proposals=[
+            ProviderTaskProposal(proposal_key="a", title="A", description="d")
+        ])
+        planning_service = _make_planning_service(plan_manager=plan_manager)
+
+        execution_result = PlanExecutionResult(
+            plan_id="plan_abc",
+            terminal_state=PlanExecutionState.COMPLETED,
+            committed_tasks=1,
+            total_tasks=1,
+        )
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+        autonomous_executor.execute_plan.return_value = execution_result
+
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.return_value = []
+
+        bridge = _make_execution_bridge(
+            planning_service=planning_service,
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="produced no persisted tasks"):
+            await bridge.execute(result, project_id="proj")
+
+        plan_service.persist_manager_plan_result.assert_awaited_once()
+        autonomous_executor.execute_plan.assert_not_awaited()
+
+        assert (
+            plan_service.persist_manager_plan_result.await_args_list[0].args[0]
+            .plan_id.startswith("plan_")
+        )
+
+    async def test_persistence_failure_blocks_execution(self):
+        decision = _make_decision(outcome="READY_FOR_PLANNING")
+        result = _make_result(decision=decision, outcome="READY_FOR_PLANNING")
+
+        autonomous_executor = AsyncMock(spec=AutonomousPlanExecutor)
+        plan_service = AsyncMock()
+        plan_service.persist_manager_plan_result.side_effect = RuntimeError("db unavailable")
+
+        bridge = _make_execution_bridge(
+            autonomous_executor=autonomous_executor,
+            plan_service=plan_service,
+        )
+
+        with pytest.raises(ExecutionBridgeError, match="Plan persistence failed"):
+            await bridge.execute(result, project_id="proj")
+
+        autonomous_executor.execute_plan.assert_not_awaited()
 
 
 class TestCancellationFailureRecovery:

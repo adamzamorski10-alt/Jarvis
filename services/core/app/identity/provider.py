@@ -133,10 +133,23 @@ class WindowsIdentityProvider(IdentityProvider):
 
 
 class UnixIdentityProvider(IdentityProvider):
-    """Unix identity provider — not implemented in V1."""
+    """Derive a stable local identity on Linux/macOS without OS-specific APIs."""
 
     def derive(self) -> UserIdentity:
-        raise UnsupportedPlatformError("UnixIdentityProvider is not implemented in V1")
+        import getpass
+        import socket
+
+        os_username = getpass.getuser() or os.environ.get("USER") or "unknown"
+        machine_name = socket.gethostname() or "unknown-machine"
+        composite = f"{machine_name}:{os_username}"
+        identity_hash = hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
+
+        return UserIdentity(
+            user_id=f"local_user_{identity_hash}",
+            display_name=os_username,
+            os_username=os_username,
+            machine_id=hashlib.sha256(machine_name.encode("utf-8")).hexdigest()[:16],
+        )
 
 
 def get_identity_provider() -> IdentityProvider:

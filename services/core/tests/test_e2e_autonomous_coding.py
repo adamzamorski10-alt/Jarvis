@@ -697,6 +697,7 @@ class TestKiloProviderReality:
         # Local Ollama models are rejected with "Model not found"
         pass  # Documented limitation - not a code defect
 
+    @pytest.mark.skipif(shutil.which("ollama") is None, reason="Ollama executable is not installed in CI")
     def test_ollama_is_available_locally(self):
         """Local Ollama is available but cannot be used with Kilo."""
         # Verify Ollama binary exists

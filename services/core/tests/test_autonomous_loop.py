@@ -645,6 +645,15 @@ async def test_loop_17_18_concurrent_claim_and_loop_invocation(db_engine: Any, t
             )
         def get_primary_worktree_path(self) -> Path:
             return self._path
+        def get_changed_files(self, workspace: Any, base_commit_sha: str | None = None) -> list[str]:
+            target = Path(workspace.autonomous_worktree_path)
+            base = base_commit_sha or workspace.base_commit_sha
+            tracked = subprocess.run(["git", "diff", "--name-only", base], cwd=str(target), check=True, capture_output=True, text=True)
+            untracked = subprocess.run(["git", "ls-files", "--others", "--exclude-standard"], cwd=str(target), check=True, capture_output=True, text=True)
+            files = {x.strip().replace("\\\\", "/") for x in (tracked.stdout + untracked.stdout).splitlines() if x.strip()}
+            files.discard(".ai_operator_ownership")
+            return sorted(files)
+
         def get_current_head(self, path: Path | None = None) -> str:
             target = path or self._path
             res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(target), check=True, capture_output=True, text=True)

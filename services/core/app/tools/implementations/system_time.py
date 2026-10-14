@@ -2,6 +2,7 @@
 Tool implementations for AI Operator.
 """
 from datetime import datetime, timezone
+from typing import Any
 
 from app.tools.base import BaseTool
 from app.tools.models import ToolCategory, ToolDefinition, ToolExecutionContext, ToolExecutionResult, ToolExecutionStatus, RiskLevel

@@ -4,6 +4,7 @@ Repository — Pending Clarifications.
 Data access layer for clarification sessions awaiting user response.
 """
 import json
+from typing import Any
 from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from app.clarification.models import (
     ClarificationSession,
     ClarificationStatus,
 )
+from app.information_sufficiency.models import ClarifyingQuestion
 from app.db.models.pending_clarification import PendingClarificationModel
 
 

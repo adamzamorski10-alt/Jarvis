@@ -2,7 +2,7 @@
 import json
 from typing import List, Union
 
-from app.tools.models import ToolCall, ToolDefinition
+from app.tools.models import ToolCall, ToolDefinition, ToolExecutionResult
 
 
 class ToolDefinitionNormalizationError(ValueError):

@@ -13,6 +13,7 @@ from app.services.settings_service import SettingsService
 SUPPORTED_PROVIDERS = ("ollama", "openrouter", "kimi", "kilo", "omniroute")
 DEFAULT_KIMI_BASE_URL = "https://api.moonshot.ai/v1"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+SUPPORTED_WEB_SEARCH_PROVIDERS = ("duckduckgo", "brave")
 
 
 class AIConfigError(ValueError):
@@ -40,6 +41,9 @@ class ProviderManager:
             "selected_model": all_settings.get("ai_selected_model") or None,
             "kilo_executable_path": all_settings.get("kilo_executable_path") or "",
             "kilo_auto_approve": all_settings.get("kilo_auto_approve") or "false",
+            "web_search_provider": all_settings.get("web_search_provider") or "duckduckgo",
+            "web_search_api_key_configured": bool(all_settings.get("web_search_api_key_encrypted")),
+            "web_search_api_key_hint": self._safe_key_hint(all_settings.get("web_search_api_key_encrypted") or ""),
         }
 
     async def update_config(
@@ -60,12 +64,26 @@ class ProviderManager:
         effective_ollama_url = ollama_url or all_settings.get("ai_ollama_url") or "http://127.0.0.1:11434"
         if provider == "ollama" and not effective_ollama_url:
             raise AIConfigError("Ollama URL is required")
-        if effective_ollama_url:
-            self._validate_url(effective_ollama_url, "Ollama URL")
         kimi_url = kimi_base_url or all_settings.get("ai_kimi_base_url") or DEFAULT_KIMI_BASE_URL
-        self._validate_url(kimi_url, "Kimi base URL")
         openrouter_url = openrouter_base_url or all_settings.get("ai_openrouter_base_url") or DEFAULT_OPENROUTER_BASE_URL
-        self._validate_url(openrouter_url, "OpenRouter base URL")
+
+        # Validate the provider URL that will actually be used. Other provider
+        # settings may be stale (for example from an older installation) and
+        # must not prevent switching to a different provider. Explicit URLs are
+        # still validated before they are persisted below.
+        if provider == "ollama":
+            self._validate_url(effective_ollama_url, "Ollama URL")
+        elif provider == "kimi":
+            self._validate_url(kimi_url, "Kimi base URL")
+        elif provider == "openrouter":
+            self._validate_url(openrouter_url, "OpenRouter base URL")
+
+        if ollama_url is not None and provider != "ollama":
+            self._validate_url(effective_ollama_url, "Ollama URL")
+        if kimi_base_url is not None and provider != "kimi":
+            self._validate_url(kimi_url, "Kimi base URL")
+        if openrouter_base_url is not None and provider != "openrouter":
+            self._validate_url(openrouter_url, "OpenRouter base URL")
 
         updates: dict[str, str | None] = {
             "ai_provider": provider,
@@ -118,6 +136,11 @@ class ProviderManager:
             ai_provider = OpenRouterProvider(str(config["openrouter_base_url"]), api_key)
             from app.ai.providers.coding_openrouter import OpenRouterCodingAdapter
             return OpenRouterCodingAdapter(ai_provider)
+        if provider_type == "kimi":
+            api_key = await self.get_kimi_api_key()
+            ai_provider = KimiProvider(str(config["kimi_base_url"]), api_key)
+            from app.ai.providers.coding_kimi import KimiCodingAdapter
+            return KimiCodingAdapter(ai_provider)
         raise AIConfigError(f"Coding provider is not supported for provider type: '{provider_type}'")
 
     async def list_supported_providers(self) -> list[dict[str, str | bool]]:
@@ -127,6 +150,47 @@ class ProviderManager:
             {"id": "kimi", "label": "Kimi", "available": True},
             {"id": "omniroute", "label": "OmniRoute", "available": False},
         ]
+
+    async def get_web_search_provider(self):
+        config = await self.get_config()
+        provider_name = str(config.get("web_search_provider") or "duckduckgo")
+        if provider_name == "duckduckgo":
+            from app.web_search.providers.duckduckgo import DuckDuckGoSearchProvider
+            return DuckDuckGoSearchProvider()
+        if provider_name == "brave":
+            from app.web_search.providers.brave import BraveSearchProvider
+            api_key = await self.get_web_search_api_key()
+            if not api_key:
+                raise AIConfigError("Web search API key is not configured")
+            return BraveSearchProvider(api_key)
+        raise AIConfigError(f"Unsupported web search provider: '{provider_name}'")
+
+    async def get_web_search_api_key(self) -> str | None:
+        encrypted = await self._settings.get_one("web_search_api_key_encrypted")
+        if not encrypted:
+            return None
+        try:
+            return self._credentials.decrypt(encrypted)
+        except CredentialStoreError as exc:
+            raise AIConfigError("Could not read securely stored web search API key") from exc
+
+    async def update_web_search_config(
+        self,
+        provider: str,
+        api_key: str | None = None,
+    ) -> dict[str, str | bool | None]:
+        if provider not in SUPPORTED_WEB_SEARCH_PROVIDERS:
+            raise AIConfigError(f"Unsupported web search provider: {provider}")
+        updates: dict[str, str | None] = {"web_search_provider": provider}
+        if api_key is not None:
+            try:
+                updates["web_search_api_key_encrypted"] = (
+                    self._credentials.encrypt(api_key.strip()) if api_key.strip() else ""
+                )
+            except CredentialStoreError as exc:
+                raise AIConfigError("Could not securely store web search API key") from exc
+        await self._settings.update(updates)
+        return await self.get_config()
 
     async def get_kimi_api_key(self) -> str | None:
         encrypted = await self._settings.get_one("ai_kimi_api_key_encrypted")

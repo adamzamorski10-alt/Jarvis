@@ -7,6 +7,7 @@ Does NOT provide arbitrary shell execution.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import subprocess
 import sys
 from typing import Any
@@ -65,7 +66,7 @@ class DevRunTest(BaseTool):
             raise ValueError("target_file is required")
 
         p = Path(target_file)
-        if p.is_absolute() or p.drive != "":
+        if p.is_absolute() or p.drive != "" or re.match(r"^[A-Za-z]:", target_file):
             raise ValueError("Absolute paths or drive specifiers not allowed")
         if any(part == ".." for part in p.parts):
             raise ValueError("Path traversal not allowed")
