@@ -28,13 +28,13 @@ class _TextParser(HTMLParser):
         self._max_text_chars = max_text_chars
         self._parts: list[str] = []
         self._length = 0
-        self._skip_depth = 0
+        self._skip_stack: list[str] = []
         self._title_depth = 0
         self._title_parts: list[str] = []
         self._title_length = 0
 
     def _append_text(self, data: str) -> None:
-        if not data or self._skip_depth:
+        if not data or self._skip_stack:
             return
         remaining = self._max_text_chars - self._length
         if remaining <= 0:
@@ -46,41 +46,39 @@ class _TextParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         attributes = {key.lower(): (value or "").strip().lower() for key, value in attrs}
+        if self._skip_stack:
+            self._skip_stack.append(tag)
+            return
         if tag in _SKIP_TAGS or "hidden" in attributes or attributes.get("aria-hidden") == "true":
-            self._skip_depth += 1
+            self._skip_stack.append(tag)
             return
         if tag == "title":
             self._title_depth += 1
         if tag in _BLOCK_TAGS:
-            self._append_text("\n")
+            self._append_text("\\n")
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
-        if self._skip_depth:
-            # HTML can be malformed; decrement only on closing a skipped tag.
-            if tag in _SKIP_TAGS:
-                self._skip_depth = max(0, self._skip_depth - 1)
+        if self._skip_stack:
+            # Pop the skipped subtree through its matching close tag. This handles
+            # hidden containers and nested markup, not just script/style elements.
+            if tag in self._skip_stack:
+                matching_index = len(self._skip_stack) - 1 - self._skip_stack[::-1].index(tag)
+                del self._skip_stack[matching_index:]
             return
         if tag == "title" and self._title_depth:
             self._title_depth -= 1
         if tag in _BLOCK_TAGS:
-            self._append_text("\n")
+            self._append_text("\\n")
 
     def handle_data(self, data: str) -> None:
-        if self._skip_depth:
+        if self._skip_stack:
             return
         if self._title_depth and self._title_length < 512:
             chunk = data[: 512 - self._title_length]
             self._title_parts.append(chunk)
             self._title_length += len(chunk)
         self._append_text(data)
-
-    def handle_entityref(self, name: str) -> None:
-        # HTMLParser's convert_charrefs handles ordinary text entities.
-        return
-
-    def handle_charref(self, name: str) -> None:
-        return
 
     def result(self) -> ExtractedPage:
         title = _normalize(" ".join(self._title_parts))[:512]
@@ -89,7 +87,7 @@ class _TextParser(HTMLParser):
 
 
 def _normalize(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip()
+    return re.sub(r"\\s+", " ", value).strip()
 
 
 def extract_html_text(
