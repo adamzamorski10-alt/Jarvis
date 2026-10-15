@@ -55,7 +55,7 @@ class _TextParser(HTMLParser):
         if tag == "title":
             self._title_depth += 1
         if tag in _BLOCK_TAGS:
-            self._append_text("\\n")
+            self._append_text("\n")
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
@@ -69,7 +69,7 @@ class _TextParser(HTMLParser):
         if tag == "title" and self._title_depth:
             self._title_depth -= 1
         if tag in _BLOCK_TAGS:
-            self._append_text("\\n")
+            self._append_text("\n")
 
     def handle_data(self, data: str) -> None:
         if self._skip_stack:
@@ -87,7 +87,7 @@ class _TextParser(HTMLParser):
 
 
 def _normalize(value: str) -> str:
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def extract_html_text(
