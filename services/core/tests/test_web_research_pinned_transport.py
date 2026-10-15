@@ -171,3 +171,74 @@ async def test_network_backend_fails_closed_if_dns_rebinds_before_new_connection
 
     assert resolutions == 2
     assert attempted_hosts == ["93.184.216.34"]
+
+
+@pytest.mark.asyncio
+async def test_real_httpcore_connection_passes_origin_hostname_to_tls_and_host_header(monkeypatch):
+    import ssl
+
+    observed = {}
+    target = SimpleNamespace(public_addresses=("93.184.216.34",))
+
+    def fake_resolve(url):
+        assert url == "https://example.com/"
+        return target
+
+    class FakeTLSStream:
+        def __init__(self):
+            self._response = bytearray(
+                b"HTTP/1.1 200 OK\\r\\n"
+                b"Content-Length: 2\\r\\n"
+                b"Connection: close\\r\\n"
+                b"\\r\\nok"
+            )
+            self._written = bytearray()
+
+        async def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+            observed["server_hostname"] = server_hostname
+            observed["check_hostname"] = ssl_context.check_hostname
+            observed["verify_mode"] = ssl_context.verify_mode
+            return self
+
+        async def write(self, buffer, timeout=None):
+            self._written.extend(buffer)
+            observed["request_bytes"] = bytes(self._written)
+
+        async def read(self, max_bytes, timeout=None):
+            if not self._response:
+                return b""
+            chunk = bytes(self._response[:max_bytes])
+            del self._response[:max_bytes]
+            return chunk
+
+        async def aclose(self):
+            return None
+
+        def get_extra_info(self, info):
+            return None
+
+    stream = FakeTLSStream()
+
+    async def fake_connect(self, **kwargs):
+        observed["socket_host"] = kwargs["host"]
+        observed["socket_port"] = kwargs["port"]
+        return stream
+
+    monkeypatch.setattr(pinned_transport, "validate_and_resolve_research_url", fake_resolve)
+    monkeypatch.setattr(AnyIOBackend, "connect_tcp", fake_connect)
+
+    transport = pinned_transport.PinnedPublicHTTPTransport()
+    client = pinned_transport.httpx.AsyncClient(transport=transport, trust_env=False)
+    try:
+        response = await client.get("https://example.com/")
+        assert response.status_code == 200
+        assert response.text == "ok"
+    finally:
+        await client.aclose()
+
+    assert observed["socket_host"] == "93.184.216.34"
+    assert observed["socket_port"] == 443
+    assert observed["server_hostname"] == "example.com"
+    assert observed["check_hostname"] is True
+    assert observed["verify_mode"] == ssl.CERT_REQUIRED
+    assert b"host: example.com" in observed["request_bytes"].lower()
