@@ -86,6 +86,13 @@ class ResearchSource(BaseModel):
             value = value.split("#", 1)[0]
         return value
 
+    @model_validator(mode="after")
+    def hostname_matches_url(self) -> Self:
+        parsed_hostname = urlsplit(self.url).hostname
+        if parsed_hostname is None or parsed_hostname.rstrip(".").lower() != self.hostname.rstrip(".").lower():
+            raise ValueError("hostname must match the source URL")
+        return self
+
 
 class ResearchCitation(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
