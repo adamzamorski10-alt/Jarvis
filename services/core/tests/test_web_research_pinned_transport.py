@@ -96,3 +96,46 @@ async def test_network_backend_tries_only_validated_addresses_after_connect_fail
 
     assert stream == "connected-stream"
     assert attempted_hosts == ["93.184.216.34", "93.184.216.35"]
+
+
+class FakeCoreStream:
+    async def __aiter__(self):
+        yield b"ok"
+
+    async def aclose(self):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_http_transport_preserves_origin_hostname_and_host_header():
+    captured = {}
+
+    class FakePool:
+        async def handle_async_request(self, request):
+            captured["host"] = request.url.host
+            captured["headers"] = dict(request.headers)
+            return pinned_transport.httpcore.Response(
+                status=200,
+                headers=[(b"content-type", b"text/plain")],
+                stream=FakeCoreStream(),
+                extensions={},
+            )
+
+        async def aclose(self):
+            return None
+
+    transport = pinned_transport.PinnedPublicHTTPTransport()
+    transport._pool = FakePool()
+    request = pinned_transport.httpx.Request("GET", "https://example.com/path?q=1")
+
+    response = await transport.handle_async_request(request)
+    try:
+        # HTTPCore must receive the original DNS hostname, not the pinned socket IP.
+        # It uses the origin hostname for TLS server_hostname/certificate validation.
+        assert captured["host"] == b"example.com"
+        # HTTPX constructs Host from the original request URL before this adapter
+        # passes the request headers through to HTTPCore.
+        assert captured["headers"][b"host"] == b"example.com"
+    finally:
+        await response.aclose()
+        await transport.aclose()
