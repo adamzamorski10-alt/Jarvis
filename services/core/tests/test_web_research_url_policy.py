@@ -65,6 +65,19 @@ def test_url_policy_rejects_mixed_public_and_private_dns_answers():
         )
 
 
+def test_url_policy_rejects_invalid_hostname_labels_before_dns():
+    called = False
+
+    def resolver(hostname, port):
+        nonlocal called
+        called = True
+        return [PUBLIC_IP]
+
+    with pytest.raises(ResearchURLPolicyError, match="invalid_hostname"):
+        validate_and_resolve_research_url("https://bad_host.example/", resolver=resolver)
+    assert called is False
+
+
 def test_url_policy_returns_pinned_candidate_addresses_and_request_target():
     target = validate_and_resolve_research_url(
         "https://Example.com/articles?q=one#ignored",
