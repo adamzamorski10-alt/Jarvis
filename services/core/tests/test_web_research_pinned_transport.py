@@ -187,10 +187,10 @@ async def test_real_httpcore_connection_passes_origin_hostname_to_tls_and_host_h
     class FakeTLSStream:
         def __init__(self):
             self._response = bytearray(
-                b"HTTP/1.1 200 OK\\r\\n"
-                b"Content-Length: 2\\r\\n"
-                b"Connection: close\\r\\n"
-                b"\\r\\nok"
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Length: 2\r\n"
+                b"Connection: close\r\n"
+                b"\r\nok"
             )
             self._written = bytearray()
 
