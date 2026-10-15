@@ -242,3 +242,27 @@ async def test_httpcore_connection_passes_origin_hostname_to_tls_and_host_header
     assert observed["check_hostname"] is True
     assert observed["verify_mode"] == ssl.CERT_REQUIRED
     assert b"host: example.com" in observed["request_bytes"].lower()
+
+@pytest.mark.asyncio
+async def test_network_backend_rejects_non_default_port_before_dns_or_connect(monkeypatch):
+    resolver_calls = []
+    attempted_connections = []
+
+    def fake_resolve(url):
+        resolver_calls.append(url)
+        return SimpleNamespace(public_addresses=("93.184.216.34",))
+
+    async def fake_connect(self, **kwargs):
+        attempted_connections.append(kwargs)
+        return "must-not-connect"
+
+    monkeypatch.setattr(pinned_transport, "validate_and_resolve_research_url", fake_resolve)
+    monkeypatch.setattr(AnyIOBackend, "connect_tcp", fake_connect)
+
+    backend = pinned_transport._PublicOnlyNetworkBackend()
+    with pytest.raises(pinned_transport.ResearchURLPolicyError, match="non_default_port_forbidden"):
+        await backend.connect_tcp("example.com", 8443)
+
+    assert resolver_calls == []
+    assert attempted_connections == []
+
