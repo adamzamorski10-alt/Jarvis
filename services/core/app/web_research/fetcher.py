@@ -129,6 +129,8 @@ class PublicPageFetcher:
             )
         except PageFetchError:
             raise
+        except ResearchURLPolicyError as exc:
+            raise PageFetchError(str(exc)) from exc
         except TimeoutError as exc:
             raise PageFetchError("total_timeout") from exc
         except httpx.TimeoutException as exc:
