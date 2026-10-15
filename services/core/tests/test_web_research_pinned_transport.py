@@ -114,10 +114,10 @@ async def test_http_transport_preserves_origin_hostname_and_host_header():
         async def handle_async_request(self, request):
             captured["host"] = request.url.host
             captured["headers"] = dict(request.headers)
-            return pinned_transport.httpcore.Response(
+            return SimpleNamespace(
                 status=200,
                 headers=[(b"content-type", b"text/plain")],
-                content=b"ok",
+                stream=FakeCoreStream(),
                 extensions={},
             )
 
@@ -126,7 +126,7 @@ async def test_http_transport_preserves_origin_hostname_and_host_header():
 
     transport = pinned_transport.PinnedPublicHTTPTransport()
     transport._pool = FakePool()
-    request = pinned_transport.httpx.Request("GET", "https://example.com/path?q=1")
+    request = pinned_transport.httpx.Request("GET", "https://example.com/path?q=1", headers={"host": "example.com"})
 
     response = await transport.handle_async_request(request)
     try:
