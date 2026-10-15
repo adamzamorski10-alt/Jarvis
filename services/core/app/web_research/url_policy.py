@@ -9,6 +9,7 @@ rebinding and is not an approved fetch path.
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 from dataclasses import dataclass
 from typing import Callable
@@ -90,7 +91,11 @@ def validate_and_resolve_research_url(
     except UnicodeError as exc:
         raise ResearchURLPolicyError("invalid_hostname") from exc
     if len(ascii_hostname) > 253 or any(
-        not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
+        not label
+        or len(label) > 63
+        or label.startswith("-")
+        or label.endswith("-")
+        or re.fullmatch(r"[a-z0-9-]+", label) is None
         for label in ascii_hostname.split(".")
     ):
         raise ResearchURLPolicyError("invalid_hostname")
