@@ -139,3 +139,35 @@ async def test_http_transport_preserves_origin_hostname_and_host_header():
     finally:
         await response.aclose()
         await transport.aclose()
+
+
+@pytest.mark.asyncio
+async def test_network_backend_fails_closed_if_dns_rebinds_before_new_connection(monkeypatch):
+    resolutions = 0
+    attempted_hosts = []
+
+    def rebind_between_connections(url):
+        nonlocal resolutions
+        resolutions += 1
+        if resolutions == 1:
+            return SimpleNamespace(public_addresses=("93.184.216.34",))
+        raise pinned_transport.ResearchURLPolicyError("non_public_destination")
+
+    async def fake_connect(self, **kwargs):
+        attempted_hosts.append(kwargs["host"])
+        return "connected-stream"
+
+    monkeypatch.setattr(
+        pinned_transport,
+        "validate_and_resolve_research_url",
+        rebind_between_connections,
+    )
+    monkeypatch.setattr(AnyIOBackend, "connect_tcp", fake_connect)
+
+    backend = pinned_transport._PublicOnlyNetworkBackend()
+    await backend.connect_tcp("example.com", 443)
+    with pytest.raises(pinned_transport.ResearchURLPolicyError, match="non_public_destination"):
+        await backend.connect_tcp("example.com", 443)
+
+    assert resolutions == 2
+    assert attempted_hosts == ["93.184.216.34"]
