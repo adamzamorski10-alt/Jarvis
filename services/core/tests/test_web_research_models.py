@@ -70,6 +70,11 @@ def test_research_source_removes_fragment_from_identity_url():
     assert item.url == "https://example.com/article"
 
 
+def test_research_source_rejects_hostname_that_does_not_match_url():
+    with pytest.raises(ValidationError, match="hostname must match"):
+        source(url="https://other.example/article", hostname="example.com")
+
+
 def test_citation_requires_valid_ordered_offsets():
     with pytest.raises(ValidationError):
         ResearchCitation(source_id="src_012345abcdef", start_offset=9, end_offset=9)
