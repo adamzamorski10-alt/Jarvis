@@ -174,7 +174,7 @@ async def test_network_backend_fails_closed_if_dns_rebinds_before_new_connection
 
 
 @pytest.mark.asyncio
-async def test_real_httpcore_connection_passes_origin_hostname_to_tls_and_host_header(monkeypatch):
+async def test_httpcore_connection_passes_origin_hostname_to_tls_and_host_header(monkeypatch):
     import ssl
 
     observed = {}
