@@ -109,17 +109,25 @@ class ResearchService:
                         "content_encoding_not_allowed",
                     }:
                         status = ResearchSourceStatus.UNSUPPORTED_CONTENT
-                    elif exc.code in {
-                        "ip_literal_forbidden",
-                        "non_public_destination",
-                        "dns_resolution_failed",
-                        "dns_no_addresses",
-                        "url_userinfo_forbidden",
-                        "unsupported_url",
-                        "non_default_port_forbidden",
-                        "invalid_hostname",
-                        "malformed_url",
-                    }:
+                    elif (
+                        exc.code in {
+                            "ip_literal_forbidden",
+                            "non_public_destination",
+                            "dns_resolution_failed",
+                            "dns_no_addresses",
+                            "dns_returned_invalid_address",
+                            "url_userinfo_forbidden",
+                            "unsupported_url",
+                            "non_default_port_forbidden",
+                            "invalid_hostname",
+                            "malformed_url",
+                            "invalid_url_length",
+                            "invalid_url_characters",
+                            "missing_hostname",
+                            "scoped_or_escaped_hostname_forbidden",
+                        }
+                        or exc.code.startswith("dns_")
+                    ):
                         status = ResearchSourceStatus.BLOCKED
                     else:
                         status = ResearchSourceStatus.FAILED
