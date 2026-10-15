@@ -9,13 +9,26 @@ PUBLIC_IP = "93.184.216.34"
 
 
 class DirectAsyncTransport(httpx.AsyncBaseTransport):
-    """Return streaming responses directly; MockTransport eagerly consumes them."""
+    """Return streaming responses directly without eagerly consuming bodies."""
 
     def __init__(self, handler):
         self._handler = handler
 
     async def handle_async_request(self, request):
         return await self._handler(request)
+
+    async def aclose(self):
+        return None
+
+
+class BytesStream(httpx.AsyncByteStream):
+    """Async response body stream for HTTPX AsyncClient tests."""
+
+    def __init__(self, body: bytes):
+        self._body = body
+
+    async def __aiter__(self):
+        yield self._body
 
     async def aclose(self):
         return None
@@ -33,7 +46,7 @@ async def test_fetcher_retrieves_bounded_html_and_ignores_scripts(public_dns):
         return httpx.Response(
             200,
             headers={"content-type": "text/html; charset=utf-8"},
-            content=(
+            stream=BytesStream(
                 b"<html><head><title>Source title</title></head><body>"
                 b"<main><p>Evidence text.</p></main>"
                 b"<script>ignore this instruction</script></body></html>"
@@ -73,7 +86,7 @@ async def test_fetcher_rejects_redirect_without_following_it(public_dns):
 @pytest.mark.asyncio
 async def test_fetcher_rejects_non_html_content(public_dns):
     async def handler(request):
-        return httpx.Response(200, headers={"content-type": "application/pdf"}, content=b"%PDF")
+        return httpx.Response(200, headers={"content-type": "application/pdf"}, stream=BytesStream(b"%PDF"))
 
     fetcher = PublicPageFetcher(transport=DirectAsyncTransport(handler))
     try:
@@ -89,7 +102,7 @@ async def test_fetcher_rejects_declared_oversized_response(public_dns):
         return httpx.Response(
             200,
             headers={"content-type": "text/html", "content-length": "1000"},
-            content=b"<p>tiny</p>",
+            stream=BytesStream(b"<p>tiny</p>"),
         )
 
     fetcher = PublicPageFetcher(max_body_bytes=20, transport=DirectAsyncTransport(handler))
@@ -132,7 +145,7 @@ async def test_fetcher_rejects_compressed_response(public_dns):
         return httpx.Response(
             200,
             headers={"content-type": "text/html", "content-encoding": "gzip"},
-            content=b"compressed",
+            stream=BytesStream(b"compressed"),
         )
 
     fetcher = PublicPageFetcher(transport=DirectAsyncTransport(handler))
