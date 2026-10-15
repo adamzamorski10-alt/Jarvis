@@ -205,9 +205,11 @@ async def test_real_httpcore_connection_passes_origin_hostname_to_tls_and_host_h
             observed["request_bytes"] = bytes(self._written)
 
         async def read(self, max_bytes, timeout=None):
-            # Keep the fixture deterministic: return the response bytes whenever
-            # HTTPCore asks for input; Content-Length bounds the response body.
-            return bytes(self._response[:max_bytes])
+            if not self._response:
+                return b""
+            chunk = bytes(self._response[:max_bytes])
+            del self._response[:max_bytes]
+            return chunk
 
         async def aclose(self):
             return None
