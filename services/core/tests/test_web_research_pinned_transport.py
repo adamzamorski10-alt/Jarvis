@@ -117,7 +117,7 @@ async def test_http_transport_preserves_origin_hostname_and_host_header():
             return pinned_transport.httpcore.Response(
                 status=200,
                 headers=[(b"content-type", b"text/plain")],
-                stream=FakeCoreStream(),
+                content=b"ok",
                 extensions={},
             )
 
@@ -130,8 +130,8 @@ async def test_http_transport_preserves_origin_hostname_and_host_header():
 
     response = await transport.handle_async_request(request)
     try:
-        # HTTPCore must receive the original DNS hostname, not the pinned socket IP.
-        # It uses the origin hostname for TLS server_hostname/certificate validation.
+        # The adapter must preserve the original origin hostname in the HTTPCore URL.
+        # This unit test does not itself exercise a TLS handshake or certificate check.
         assert captured["host"] == b"example.com"
         # HTTPX constructs Host from the original request URL before this adapter
         # passes the request headers through to HTTPCore.
