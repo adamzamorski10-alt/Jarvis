@@ -140,6 +140,52 @@ async def test_fetcher_enforces_streaming_body_limit_without_content_length(publ
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("content_length", ["invalid", "-1"])
+async def test_fetcher_rejects_malformed_content_length(public_dns, content_length):
+    async def handler(request):
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/html", "content-length": content_length},
+            stream=BytesStream(b"<p>tiny</p>"),
+        )
+
+    fetcher = PublicPageFetcher(transport=DirectAsyncTransport(handler))
+    try:
+        with pytest.raises(PageFetchError, match="invalid_content_length"):
+            await fetcher.fetch("https://example.com/")
+    finally:
+        await fetcher.aclose()
+
+
+class DelayedStream(httpx.AsyncByteStream):
+    async def __aiter__(self):
+        import asyncio
+
+        await asyncio.sleep(0.05)
+        yield b"<p>late</p>"
+
+    async def aclose(self):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_fetcher_enforces_total_timeout(public_dns):
+    async def handler(request):
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/html"},
+            stream=DelayedStream(),
+        )
+
+    fetcher = PublicPageFetcher(total_timeout_seconds=0.005, transport=DirectAsyncTransport(handler))
+    try:
+        with pytest.raises(PageFetchError, match="total_timeout"):
+            await fetcher.fetch("https://example.com/")
+    finally:
+        await fetcher.aclose()
+
+
+@pytest.mark.asyncio
 async def test_fetcher_rejects_compressed_response(public_dns):
     async def handler(request):
         return httpx.Response(
