@@ -94,3 +94,17 @@ The DNS preflight helper alone is not an SSRF boundary. Production fetching must
 - Full core CI passed on this exact SHA: [push run #38944568104](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944568104) and [PR run #38944705439](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944705439).
 - Earlier runs on intermediate evidence-budget commits failed because the error wording differed from the established test contract. The wording was corrected; those intermediate failures are not treated as passing verification.
 - **Stage 22.7 remains open.** Documentation-bearing HEAD still needs its own CI run, and the final hostile review must explicitly cover source-budget citation validation, bounded surplus retrieval, transport/DNS/TLS, permission/readiness checks, error sanitization, and resource cleanup. Keep PR #6 Draft and do not merge or begin Stage 23.
+
+
+## Final hostile review checkpoint — 2026-10-16
+
+Review covered the source-candidate retry loop, evidence-budget citation validation, explicit research routing, permission/readiness checks, public-page transport, and error/resource handling.
+
+- Retrieval candidates are deduplicated and capped at `min(20, max_sources * 3)`; batches are limited by remaining required successful sources and configured concurrency. Failed candidates are retained as failure status only if successful evidence is insufficient; output never exceeds `max_sources`.
+- Synthesis uses no tools. Citation source IDs and exact excerpts are checked against the evidence actually supplied to the model. The citation offsets refer back to the retrieved source text.
+- Research routing uses the existing `web.search` permission evaluation; readiness is rechecked before capability execution. Research exceptions are returned with generic details in the research path.
+- Fetching rejects redirects, non-HTML/compressed content, over-limit bodies, non-public/mixed DNS answers, userinfo, IP literals and non-default ports. The pinned transport re-resolves on new connections, connects to validated IPs, and retains the original hostname for Host/SNI/certificate validation. DNS work is bounded and worker slots remain occupied until uncancellable resolver threads exit.
+- Tests on the code commit and the current documentation-bearing HEAD passed: **2,987 passed, 18 skipped** on each of the three successful runs for HEAD `1f53d9f909b4c4f0ebd89a3f4206c08deab8044e`: [#38946004772](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946004772), [#38946003514](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946003514), [#38945987779](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38945987779).
+- Known warnings remain in the broader suite (including SQLAlchemy connection cleanup and a background-manager unawaited coroutine warning); they were not introduced by this research work and are not hidden by this report.
+- This is a scoped code-and-test hostile review, not an external penetration test or formal security certification. No additional blocking defect was identified in the reviewed Stage 22.7 paths.
+- Stage 22.7 can be marked implementation-complete only after this final documentation-bearing commit's CI gate is green. Keep PR #6 Draft and do not merge or start Stage 23 before the requested comprehensive AI Operator handoff summary.
