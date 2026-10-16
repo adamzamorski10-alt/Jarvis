@@ -1,7 +1,7 @@
 # Stage 22.7 — Research / Source Synthesis Discovery
 
-**Status:** Discovery complete; implementation not started.  
-**Base:** `9924ae18042d27b9859d59f4ed0e62b79d873e26`  
+**Status:** Discovery complete; 22.7A–22.7D have implementation code. Final integration/security/regression gates remain open; not approved for merge or production use.  
+**Implementation branch:** `stage-22/research-ci-fixes` (PR #6, draft)  
 **Branch:** `stage-22-7-research-source-synthesis`
 
 ## 1. Goal
@@ -39,7 +39,7 @@ Research request
   -> PublicPageFetcher (network/SSRF policy, redirects, byte/time limits)
   -> HtmlTextExtractor (bounded text extraction; no script/style execution)
   -> ResearchSource records (canonical URL + title + extracted text + retrieval status)
-  -> SynthesisProvider (existing configured AI provider, no tools/execution handles)
+  -> ResearchSynthesisAdapter (existing configured AI provider, no tools/execution handles)
   -> Evidence validator (source IDs, quote/span limits, claim-to-source mapping)
   -> ResearchResponse (answer + citations + caveats + source statuses)
 ```
@@ -117,10 +117,10 @@ Do not add new third-party dependencies until the standard-library extractor is 
 1. **22.7A — Contracts + fetch policy discovery-to-code:** define models, safe URL/IP validation helpers, fetcher interface, deterministic tests.
 2. **22.7B — Retrieval + extraction:** bounded fetch, redirect policy, HTML extraction, source normalization, hostile tests.
 3. **22.7C — Synthesis adapter:** provider-neutral prompt/input contract, strict output validation, source-ID/evidence checks, injection tests.
-4. **22.7D — Operator integration:** explicit research intent routes to `research.synthesize` only after permission/readiness gates; existing `web.search` remains usable.
+4. **22.7D — Operator integration:** explicit research phrasing uses the existing `web.search` service capability and its readiness/permission-checked execution path; ordinary `web.search` remains usable. This implementation is present, but its final CI and hostile review gates remain open.
 5. **22.7E — Final gate:** focused tests, full CI, hostile review, docs and PR status verification.
 
-No phase may silently expand into browser automation. Do not begin 22.7C until 22.7A/B retrieval gates pass.
+No phase may silently expand into browser automation. 22.7C is implemented. Do not close the stage until the final integration CI, hostile review, documentation, and regression gates pass.
 
 ## 9. Open implementation checks
 
@@ -128,3 +128,12 @@ No phase may silently expand into browser automation. Do not begin 22.7C until 2
 - Confirm the runtime's supported DNS/transport facilities so the fetcher can mitigate DNS rebinding rather than relying on a preflight lookup alone.
 - Confirm how the app's current logging/audit layers record request paths and whether the research API should use POST.
 - Ensure CI runs on the new branch and that the PR remains draft until the final gate is green.
+
+
+## 10. Implementation checkpoint (2026-10-16)
+
+- **22.7A–22.7B:** contracts, URL/DNS policy, pinned transport, bounded HTML fetch/extraction, and retrieval orchestration are implemented. TLS/SNI and final adversarial transport review remain explicit closure gates.
+- **22.7C:** synthesis adapter and evidence-backed citation validation are implemented; the adapter does not receive tools.
+- **22.7D:** explicit research intent is routed through the existing permission-checked `web.search` service path. Focused tests cover intent selection and permission-path invocation.
+- **CI evidence:** commit `fa5d26419e061b7c2f433ee1c0ede051df17c694` has a successful full core run (#38885006470: 2983 passed, 18 skipped). A duplicate full run on the same SHA failed at `test_recovery_vs_cancellation_race`, an existing concurrency test; its retry is pending at the time of this note.
+- **Still open:** confirm retry and latest-SHA CI, verify transport/TLS security gates, run hostile review and stable final regression, then approve Stage 22.7. PR #6 must remain draft and Stage 23 must not begin before the Stage 22 summary is delivered.

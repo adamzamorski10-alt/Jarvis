@@ -31,3 +31,29 @@
 6. Run the full hostile review and final regression gate before closing Stage 22.7.
 
 The DNS preflight helper alone is not an SSRF boundary. Production fetching must use the connection-pinning transport, and any failure of that transport must fail closed. Green unit/core CI is necessary but does not by itself close the TLS/SNI or final security gates.
+
+
+## Stage 22.7C — Synthesis adapter
+
+- Added a provider-neutral synthesis adapter using the configured AI provider's non-tool chat call.
+- Retrieved page content and metadata are explicitly treated as untrusted input; the synthesis call receives no tools.
+- Output is schema-validated. Every citation source ID must belong to the current retrieval bundle, and every cited excerpt must exactly occur in retrieved source text; offsets are computed by the application.
+- Empty evidence skips the provider call and returns an unsynthesized response with an explicit limitation.
+- Added focused tests for valid citations, fabricated excerpts, unknown source IDs, no-evidence behavior, unexpected tool calls, and provider timeouts.
+- Core CI passed on commit `724c3adeafb6acd053d75da3b8bf2e771d421d6e`: 2983 tests passed and 18 were skipped (run #436). This evidence predates the Operator integration.
+
+## Stage 22.7D — Operator integration (verification in progress)
+
+- Explicit research phrasing is routed through the existing `web.search` service capability; ordinary web-search requests keep the existing search path.
+- The integration calls the research runner only from the existing service execution path, after the application's readiness and permission checks. It does not create a new permission bypass or expose synthesis tools.
+- Retrieval resources are created on demand and closed after each research run. Research-provider setup failures are isolated from ordinary chat/search.
+- Added tests for English/Polish explicit research phrasing, ordinary-search non-matching, and invocation through the existing permission-checked execution path.
+- Commit `fa5d26419e061b7c2f433ee1c0ede051df17c694` has one successful full core run (#38885006470: 2983 passed, 18 skipped). A concurrent duplicate full run failed on the pre-existing recovery/cancellation race test; a rerun of the failed job is in progress. Do not treat the final integration gate as closed until the rerun and subsequent latest-SHA CI are verified.
+
+## Remaining mandatory gates
+
+1. Confirm the rerun and run CI for the final documentation/code SHA.
+2. Review permission, readiness, error handling, and lifecycle behavior in the full integration context.
+3. Complete the hostile security review of transport/TLS/SNI, DNS rebinding, redirects, byte/time budgets, prompt injection, and citation integrity.
+4. Run the focused research tests and a reliable full regression gate; investigate recurring flakes rather than dismissing them.
+5. Update this status only from verified final evidence and keep PR #6 draft until the stage is accepted.
