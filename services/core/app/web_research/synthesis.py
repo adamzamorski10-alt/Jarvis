@@ -152,14 +152,20 @@ class ResearchSynthesisAdapter:
             raise ResearchSynthesisError("Synthesis output failed schema validation") from exc
 
         evidence_by_id = {item.source_id: item for item in evidence}
+        # Validate citations against exactly the evidence sent to the provider,
+        # not unseen source suffixes or sources omitted by the aggregate budget.
+        supplied_text_by_id = {
+            item["source_id"]: item["text"] for item in bounded_evidence
+        }
         citations: list[ResearchCitation] = []
         seen: set[tuple[str, str]] = set()
         for citation in parsed.citations:
             source = evidence_by_id.get(citation.source_id)
-            if source is None:
-                raise ResearchSynthesisError("Synthesis cited an unknown or unretrieved source")
-            if citation.excerpt not in source.text:
-                raise ResearchSynthesisError("Synthesis citation excerpt is not present in source text")
+            supplied_text = supplied_text_by_id.get(citation.source_id)
+            if source is None or supplied_text is None:
+                raise ResearchSynthesisError("Synthesis cited an unknown or unprovided source")
+            if citation.excerpt not in supplied_text:
+                raise ResearchSynthesisError("Synthesis citation excerpt is not present in supplied evidence")
             identity = (citation.source_id, citation.excerpt)
             if identity in seen:
                 continue
