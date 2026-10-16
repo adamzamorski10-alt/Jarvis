@@ -72,43 +72,51 @@ class PublicPageFetcher:
         await self._client.aclose()
 
     async def fetch(self, url: str, *, title_hint: str = "") -> RetrievedPage:
+        # One total budget covers semaphore waiting, DNS preflight, and HTTP.
+        # asyncio.to_thread cannot stop a resolver already running in a worker
+        # thread, so retain the semaphore slot until that worker actually exits
+        # if the caller's total budget expires during DNS.
+        acquired = False
+        resolution_task: asyncio.Task | None = None
+        defer_semaphore_release = False
         try:
-            target = await asyncio.to_thread(validate_and_resolve_research_url, url)
-        except ResearchURLPolicyError as exc:
-            raise PageFetchError(str(exc)) from exc
+            async with asyncio.timeout(self._total_timeout_seconds):
+                await self._semaphore.acquire()
+                acquired = True
+                resolution_task = asyncio.create_task(
+                    asyncio.to_thread(validate_and_resolve_research_url, url)
+                )
+                target = await asyncio.shield(resolution_task)
 
-        try:
-            async with self._semaphore:
-                async with asyncio.timeout(self._total_timeout_seconds):
-                    async with self._client.stream("GET", target.original_url) as response:
-                        if 300 <= response.status_code < 400:
-                            raise PageFetchError("redirect_not_allowed")
-                        if not 200 <= response.status_code < 300:
-                            raise PageFetchError("upstream_http_error")
+                async with self._client.stream("GET", target.original_url) as response:
+                    if 300 <= response.status_code < 400:
+                        raise PageFetchError("redirect_not_allowed")
+                    if not 200 <= response.status_code < 300:
+                        raise PageFetchError("upstream_http_error")
 
-                        content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-                        if content_type not in {"text/html", "application/xhtml+xml"}:
-                            raise PageFetchError("unsupported_content_type")
-                        content_encoding = response.headers.get("content-encoding", "identity").strip().lower()
-                        if content_encoding not in {"", "identity"}:
-                            raise PageFetchError("content_encoding_not_allowed")
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    if content_type not in {"text/html", "application/xhtml+xml"}:
+                        raise PageFetchError("unsupported_content_type")
+                    content_encoding = response.headers.get("content-encoding", "identity").strip().lower()
+                    if content_encoding not in {"", "identity"}:
+                        raise PageFetchError("content_encoding_not_allowed")
 
-                        length_header = response.headers.get("content-length")
-                        if length_header is not None:
-                            try:
-                                declared_length = int(length_header)
-                            except ValueError as exc:
-                                raise PageFetchError("invalid_content_length") from exc
-                            if declared_length < 0:
-                                raise PageFetchError("invalid_content_length")
-                            if declared_length > self._max_body_bytes:
-                                raise PageFetchError("response_too_large")
+                    length_header = response.headers.get("content-length")
+                    if length_header is not None:
+                        try:
+                            declared_length = int(length_header)
+                        except ValueError as exc:
+                            raise PageFetchError("invalid_content_length") from exc
+                        if declared_length < 0:
+                            raise PageFetchError("invalid_content_length")
+                        if declared_length > self._max_body_bytes:
+                            raise PageFetchError("response_too_large")
 
-                        body = bytearray()
-                        async for chunk in response.aiter_raw():
-                            if len(body) + len(chunk) > self._max_body_bytes:
-                                raise PageFetchError("response_too_large")
-                            body.extend(chunk)
+                    body = bytearray()
+                    async for chunk in response.aiter_raw():
+                        if len(body) + len(chunk) > self._max_body_bytes:
+                            raise PageFetchError("response_too_large")
+                        body.extend(chunk)
 
             html = body.decode("utf-8", errors="replace")
             extracted = extract_html_text(
@@ -127,18 +135,35 @@ class PublicPageFetcher:
                 content_type=content_type,
                 byte_length=len(body),
             )
+        except TimeoutError as exc:
+            raise PageFetchError("total_timeout") from exc
         except PageFetchError:
             raise
         except ResearchURLPolicyError as exc:
             raise PageFetchError(str(exc)) from exc
-        except TimeoutError as exc:
-            raise PageFetchError("total_timeout") from exc
         except httpx.TimeoutException as exc:
             raise PageFetchError("upstream_timeout") from exc
         except httpx.HTTPError as exc:
             raise PageFetchError("upstream_request_failed") from exc
         except ValueError as exc:
             raise PageFetchError("html_extraction_failed") from exc
+        finally:
+            if acquired:
+                if resolution_task is not None and not resolution_task.done():
+                    # Cancellation or timeout cannot stop an active to_thread worker.
+                    # Keep this capacity slot occupied until the DNS worker exits.
+                    def release_after_dns(task: asyncio.Task) -> None:
+                        # Retrieve a late resolver exception to avoid an
+                        # unobserved-task warning after the request timed out.
+                        try:
+                            task.exception()
+                        except asyncio.CancelledError:
+                            pass
+                        self._semaphore.release()
 
+                    resolution_task.add_done_callback(release_after_dns)
+                    defer_semaphore_release = True
+                if not defer_semaphore_release:
+                    self._semaphore.release()
 
 __all__ = ["PageFetchError", "PublicPageFetcher", "RetrievedPage"]

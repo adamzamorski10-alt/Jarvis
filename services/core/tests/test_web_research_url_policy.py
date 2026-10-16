@@ -47,6 +47,10 @@ def test_url_policy_rejects_unsafe_url_shapes(url):
         "fc00::1",
         "224.0.0.1",
         "0.0.0.0",
+        "192.0.2.1",  # documentation range
+        "198.18.0.1",  # benchmarking range
+        "240.0.0.1",  # reserved IPv4 space
+        "::ffff:7f00:1",  # IPv4-mapped loopback
     ],
 )
 def test_url_policy_rejects_non_public_dns_destinations(address):
@@ -62,6 +66,14 @@ def test_url_policy_rejects_mixed_public_and_private_dns_answers():
         validate_and_resolve_research_url(
             "https://example.com/",
             resolver=resolve_to(PUBLIC_IP, "10.0.0.1"),
+        )
+
+
+def test_url_policy_rejects_mixed_public_ipv4_and_private_ipv6_answers():
+    with pytest.raises(ResearchURLPolicyError, match="non_public_destination"):
+        validate_and_resolve_research_url(
+            "https://example.com/",
+            resolver=resolve_to(PUBLIC_IP, "fd00::1"),
         )
 
 

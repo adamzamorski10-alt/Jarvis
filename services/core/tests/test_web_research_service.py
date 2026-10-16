@@ -120,3 +120,79 @@ async def test_research_service_reports_blocked_source_without_fabricating_evide
     assert bundle.response.sources[0].error_code == "ip_literal_forbidden"
     assert bundle.evidence == ()
     assert bundle.response.synthesized is False
+
+
+@pytest.mark.asyncio
+async def test_research_service_retries_surplus_candidates_after_fetch_failure():
+    candidates = [
+        result("https://failed.example/article", 1),
+        result("https://good2.example/article", 2),
+        result("https://good3.example/article", 3),
+        result("https://unused.example/article", 4),
+    ]
+    pages = {
+        item.url: RetrievedPage(
+            source_id=f"src_{n:012x}",
+            title=item.title,
+            url=item.url,
+            hostname=item.url.split("/")[2],
+            text=f"Evidence {n}",
+            content_type="text/html",
+            byte_length=30,
+        )
+        for n, item in enumerate(candidates[1:], start=2)
+    }
+    search = FakeSearchService(candidates)
+    fetcher = FakeFetcher(pages=pages, failures={candidates[0].url: "upstream_timeout"})
+    bundle = await ResearchService(search, fetcher).collect(
+        ResearchRequest(query="research", max_sources=2)
+    )
+
+    assert search.requests[0][0].count == 6
+    assert fetcher.calls == [
+        candidates[0].url,
+        candidates[1].url,
+        candidates[2].url,
+    ]
+    assert len(bundle.response.sources) == 2
+    assert all(source.status is ResearchSourceStatus.RETRIEVED for source in bundle.response.sources)
+    assert [item.text for item in bundle.evidence] == ["Evidence 2", "Evidence 3"]
+    assert all(source.url != candidates[0].url for source in bundle.response.sources)
+
+
+@pytest.mark.asyncio
+async def test_research_service_keeps_failure_status_when_no_replacement_is_available():
+    candidates = [
+        result("https://failed1.example/article", 1),
+        result("https://failed2.example/article", 2),
+        result("https://good.example/article", 3),
+    ]
+    pages = {
+        candidates[2].url: RetrievedPage(
+            source_id="src_abcdef012345",
+            title="Good",
+            url=candidates[2].url,
+            hostname="good.example",
+            text="Evidence",
+            content_type="text/html",
+            byte_length=20,
+        )
+    }
+    fetcher = FakeFetcher(
+        pages=pages,
+        failures={
+            candidates[0].url: "upstream_timeout",
+            candidates[1].url: "upstream_http_error",
+        },
+    )
+    bundle = await ResearchService(FakeSearchService(candidates), fetcher).collect(
+        ResearchRequest(query="research", max_sources=3)
+    )
+
+    assert len(bundle.response.sources) == 3
+    assert [source.status for source in bundle.response.sources] == [
+        ResearchSourceStatus.RETRIEVED,
+        ResearchSourceStatus.FAILED,
+        ResearchSourceStatus.FAILED,
+    ]
+    assert len(bundle.evidence) == 1

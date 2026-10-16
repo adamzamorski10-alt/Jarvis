@@ -1,7 +1,7 @@
 # Stage 22.7 — Research / Source Synthesis Discovery
 
-**Status:** Discovery complete; implementation not started.  
-**Base:** `9924ae18042d27b9859d59f4ed0e62b79d873e26`  
+**Status:** Discovery, implementation (22.7A–22.7D), and scoped hostile review are complete. The final documentation-reconciliation CI gate is pending. PR #6 remains Draft; this is not a formal external security certification or production approval.  
+**Implementation branch:** `stage-22/research-ci-fixes` (PR #6, draft)  
 **Branch:** `stage-22-7-research-source-synthesis`
 
 ## 1. Goal
@@ -39,7 +39,7 @@ Research request
   -> PublicPageFetcher (network/SSRF policy, redirects, byte/time limits)
   -> HtmlTextExtractor (bounded text extraction; no script/style execution)
   -> ResearchSource records (canonical URL + title + extracted text + retrieval status)
-  -> SynthesisProvider (existing configured AI provider, no tools/execution handles)
+  -> ResearchSynthesisAdapter (existing configured AI provider, no tools/execution handles)
   -> Evidence validator (source IDs, quote/span limits, claim-to-source mapping)
   -> ResearchResponse (answer + citations + caveats + source statuses)
 ```
@@ -117,10 +117,10 @@ Do not add new third-party dependencies until the standard-library extractor is 
 1. **22.7A — Contracts + fetch policy discovery-to-code:** define models, safe URL/IP validation helpers, fetcher interface, deterministic tests.
 2. **22.7B — Retrieval + extraction:** bounded fetch, redirect policy, HTML extraction, source normalization, hostile tests.
 3. **22.7C — Synthesis adapter:** provider-neutral prompt/input contract, strict output validation, source-ID/evidence checks, injection tests.
-4. **22.7D — Operator integration:** explicit research intent routes to `research.synthesize` only after permission/readiness gates; existing `web.search` remains usable.
+4. **22.7D — Operator integration:** explicit research phrasing uses the existing `web.search` service capability and its readiness/permission-checked execution path; ordinary `web.search` remains usable. Implementation and full-core CI are verified on the current branch HEAD; hostile review and acceptance remain open.
 5. **22.7E — Final gate:** focused tests, full CI, hostile review, docs and PR status verification.
 
-No phase may silently expand into browser automation. Do not begin 22.7C until 22.7A/B retrieval gates pass.
+No phase may silently expand into browser automation. 22.7C is implemented. Do not close the stage until the final integration CI, hostile review, documentation, and regression gates pass.
 
 ## 9. Open implementation checks
 
@@ -128,3 +128,51 @@ No phase may silently expand into browser automation. Do not begin 22.7C until 2
 - Confirm the runtime's supported DNS/transport facilities so the fetcher can mitigate DNS rebinding rather than relying on a preflight lookup alone.
 - Confirm how the app's current logging/audit layers record request paths and whether the research API should use POST.
 - Ensure CI runs on the new branch and that the PR remains draft until the final gate is green.
+
+
+## 10. Implementation checkpoint (2026-10-16)
+
+- **22.7A–22.7B:** contracts, URL/DNS policy, pinned transport, bounded HTML fetch/extraction, and retrieval orchestration are implemented. TLS/SNI and final adversarial transport review remain explicit closure gates.
+- **22.7C:** synthesis adapter and evidence-backed citation validation are implemented; the adapter does not receive tools.
+- **22.7D:** explicit research intent is routed through the existing permission-checked `web.search` service path. Focused tests cover intent selection and permission-path invocation.
+- **Latest CI evidence:** branch HEAD `8d7b62bd4d15af4515c796c03027a14e303a5586` passed [full core-tests run #38889607053](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38889607053): 2983 passed, 18 skipped, 96 warnings in 224.75 seconds. The paired run #38889602974 also succeeded on the same SHA.
+- **Security evidence confirmed in code/tests:** real TLS handshake test checks SNI and certificate verification; DNS pinning/revalidation, redirect rejection, bounded body/time behavior, no-tool synthesis, and exact-evidence citation checks have focused tests.
+- **Still open:** final hostile end-to-end review, error-detail/lifecycle review in the Operator integration, focused research regression on the accepted SHA, and explicit acceptance. PR #6 must remain draft and Stage 23 must not begin before the Stage 22 summary is delivered.
+
+
+## Latest implementation and CI checkpoint (2026-10-16)
+
+- Latest code checkpoint: `1f3e3ab147819a8d38eb547f1d24e905f91725eb`.
+- Both [core CI run #38938654202](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938654202) and [core CI run #38938734342](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938734342) passed on that exact code SHA.
+- Retrieval orchestration now tries bounded surplus candidates after failed retrievals instead of stopping at the initial selection. Candidate count is capped at 20; fetch batches respect the remaining requested source count and configured concurrency. Successful evidence is preferred; failure statuses remain visible when replacements are insufficient.
+- Focused tests cover replacement after a failed fetch and preservation of failure statuses when no replacement is available.
+- Research error-detail sanitization and the source prompt-injection/no-tools test are present on the branch.
+- The final hostile audit, updated documentation CI, and explicit Stage 22.7 acceptance remain outstanding. PR #6 must stay Draft; Stage 23 remains paused until the comprehensive Stage 22 handoff summary is delivered.
+
+
+## Hostile-review follow-up — citation evidence budget (2026-10-16)
+
+- Found and fixed a citation-validation gap: the model could cite a quote present in the full retrieved page but omitted from the bounded text actually supplied to synthesis.
+- Citation validation now checks the exact bounded source text provided to the model and rejects citations for omitted sources or unseen suffixes.
+- Added regression test `test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget`.
+- Latest code commit at this checkpoint: `4e607f7ad5789812da814ee77fda5bef450ec9ee`. CI was still running at the time of this documentation update; Stage 22.7 remains open until CI and final hostile gates pass.
+
+
+## Verification checkpoint — citation budget and compatibility correction (2026-10-16)
+
+- Code HEAD `73bbdd853951317f5685b8a324a341a10604dcc5` passed both [push core CI #38944568104](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944568104) and [PR core CI #38944705439](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944705439).
+- Citation excerpts are checked against the exact bounded evidence text supplied to synthesis, not the larger retrieved source. A regression test rejects citations to text omitted by the aggregate evidence budget.
+- The follow-up fix preserves the existing error-message contract for unknown/unretrieved source IDs; the guard remains enabled. Earlier intermediate commits failed the existing wording assertion and are not counted as green runs.
+- Bounded surplus candidate retries and research error-detail sanitization are also present on this branch.
+- **Not yet accepted:** documentation updates must receive CI on their resulting HEAD, and the final hostile end-to-end gate remains open. PR #6 remains Draft; do not merge or start Stage 23 before the Stage 22 summary.
+
+
+## Final hostile review checkpoint — 2026-10-16
+
+- The source retry loop is bounded: at most `min(20, max_sources * 3)` unique search candidates, retrieved in batches limited by remaining successful-source demand and configured concurrency. Failed candidates are reported when successful evidence is insufficient; returned source count stays within the requested cap.
+- Synthesis remains tool-free and validates citation source IDs and excerpts against the exact bounded evidence passed to the model. Regression coverage includes omitted evidence beyond the character budget and source prompt-injection framing.
+- Explicit research still passes through the existing `web.search` permission check and readiness gate. The fetch path rejects redirects, unsafe DNS answers and URL forms, unsupported content encodings/types, and oversized bodies; pinned connections preserve origin hostname identity for TLS/Host while dialing validated IP addresses.
+- Research exception details are sanitized in both the inner web-search and outer service execution handlers. Fetcher closure is managed by the on-demand runner's `finally` path.
+- Current docs-bearing HEAD `1f53d9f909b4c4f0ebd89a3f4206c08deab8044e` passed three core CI runs, each reporting **2,987 passed, 18 skipped**: [#38946004772](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946004772), [#38946003514](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946003514), [#38945987779](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38945987779).
+- The review is scoped and is not a substitute for an external penetration test. No additional blocking defect was found in the reviewed Stage 22.7 paths. Existing unrelated suite warnings remain documented.
+- Keep PR #6 Draft. Do not merge or start Stage 23 before the final documentation commit is CI-verified and the comprehensive AI Operator summary is delivered.

@@ -45,6 +45,7 @@ class OperatorCapabilityExecutor:
         execution_bridge: Any = None,
         execution_bridge_factory: Callable[[], Awaitable[Any]] | None = None,
         web_search_service: Any = None,
+        web_research_runner: Any = None,
         permission_engine: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
@@ -56,6 +57,7 @@ class OperatorCapabilityExecutor:
         self._execution_bridge = execution_bridge
         self._execution_bridge_factory = execution_bridge_factory
         self._web_search_service = web_search_service
+        self._web_research_runner = web_research_runner
         self._permission_engine = permission_engine
         self._autonomy_mode = autonomy_mode
         self.ensure_web_search_permission_definition()
@@ -268,6 +270,10 @@ class OperatorCapabilityExecutor:
                     error_detail=f"Service capability '{capability_id}' is not implemented",
                 )
         except Exception as exc:
+            is_research = (
+                capability_id == "web.search"
+                and self._is_explicit_research_request(request.user_request)
+            )
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -275,10 +281,10 @@ class OperatorCapabilityExecutor:
                 capability_id=capability_id,
                 success=False,
                 state="EXECUTION_FAILED",
-                user_message="Service execution failed.",
+                user_message="Research failed. Please try again." if is_research else "Service execution failed.",
                 result_metadata={},
-                error_category="EXECUTION_ERROR",
-                error_detail=str(exc),
+                error_category="RESEARCH_FAILED" if is_research else "EXECUTION_ERROR",
+                error_detail="Research execution failed." if is_research else str(exc),
             )
 
     async def _execute_web_search(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
@@ -353,6 +359,45 @@ class OperatorCapabilityExecutor:
                 error_detail=decision.reason,
             )
         try:
+            if self._is_explicit_research_request(request.user_request):
+                if self._web_research_runner is None:
+                    return CapabilityExecutionResult(
+                        request_id=request.request_id,
+                        operation_type=request.operation_type,
+                        capability_kind=CapabilityKind.SERVICE,
+                        capability_id="web.search",
+                        success=False,
+                        state="FAILED",
+                        user_message="Research is not configured. Ordinary web search remains available.",
+                        result_metadata={},
+                        error_category="RESEARCH_UNAVAILABLE",
+                        error_detail="Research retrieval/synthesis dependencies are not configured",
+                    )
+                research_response = await self._web_research_runner(
+                    query,
+                    request_id=request.request_id,
+                )
+                return CapabilityExecutionResult(
+                    request_id=request.request_id,
+                    operation_type=request.operation_type,
+                    capability_kind=CapabilityKind.SERVICE,
+                    capability_id="web.search",
+                    success=True,
+                    state="EXECUTION_COMPLETED",
+                    user_message=(
+                        research_response.answer
+                        if research_response.synthesized
+                        else "I could not synthesize an answer because no usable source evidence was retrieved."
+                    ),
+                    result_metadata={
+                        "research": True,
+                        "source_count": len(research_response.sources),
+                        "citation_count": len(research_response.citations),
+                        "synthesized": research_response.synthesized,
+                        "limitations": research_response.limitations,
+                    },
+                    service_result=research_response.model_dump(mode="json"),
+                )
             result = await self._web_search_service.search(
                 WebSearchRequest(query=query),
                 request_id=request.request_id,
@@ -373,6 +418,9 @@ class OperatorCapabilityExecutor:
                 service_result=result.model_dump(mode="json"),
             )
         except Exception as exc:
+            # Research setup/provider exceptions may contain internal configuration
+            # details. Keep those out of the structured result returned to callers.
+            is_research = self._is_explicit_research_request(request.user_request)
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -380,11 +428,22 @@ class OperatorCapabilityExecutor:
                 capability_id="web.search",
                 success=False,
                 state="EXECUTION_FAILED",
-                user_message="Web search failed. Please try again.",
+                user_message="Research failed. Please try again." if is_research else "Web search failed. Please try again.",
                 result_metadata={},
-                error_category=getattr(exc, "code", exc.__class__.__name__),
-                error_detail=str(exc),
+                error_category="RESEARCH_FAILED" if is_research else getattr(exc, "code", exc.__class__.__name__),
+                error_detail="Research execution failed." if is_research else str(exc),
             )
+
+    @staticmethod
+    def _is_explicit_research_request(message: str) -> bool:
+        """Use the deeper research workflow only for explicit research phrasing."""
+        import re
+        return bool(re.search(
+            r"\b(deep\s+research|research|researchuj|zrób\s+research|zrob\s+research|"
+            r"przeprowadź\s+analizę\s+źródeł|przeprowadz\s+analize\s+zrodel)\b",
+            message,
+            re.IGNORECASE,
+        ))
 
     @staticmethod
     def _format_web_search_message(result: Any) -> str:

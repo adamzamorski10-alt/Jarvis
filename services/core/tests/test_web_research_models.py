@@ -98,10 +98,15 @@ def test_response_rejects_duplicate_source_ids():
 
 
 def test_synthesized_response_requires_answer_and_citations():
+    known_source = source()
     with pytest.raises(ValidationError, match="answer"):
-        ResearchResponse(synthesized=True, citations=[ResearchCitation(source_id="src_012345abcdef")])
+        ResearchResponse(
+            sources=[known_source],
+            synthesized=True,
+            citations=[ResearchCitation(source_id=known_source.source_id)],
+        )
     with pytest.raises(ValidationError, match="citation"):
-        ResearchResponse(answer="Answer", sources=[source()], synthesized=True)
+        ResearchResponse(answer="Answer", sources=[known_source], synthesized=True)
 
 
 def test_non_synthesized_partial_result_can_report_source_status_without_answer():
