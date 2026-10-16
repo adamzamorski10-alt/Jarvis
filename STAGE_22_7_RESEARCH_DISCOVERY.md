@@ -1,6 +1,6 @@
 # Stage 22.7 — Research / Source Synthesis Discovery
 
-**Status:** Discovery complete; 22.7A–22.7D have implementation code. Final integration/security/regression gates remain open; not approved for merge or production use.  
+**Status:** Discovery, implementation (22.7A–22.7D), and scoped hostile review are complete. The final documentation-reconciliation CI gate is pending. PR #6 remains Draft; this is not a formal external security certification or production approval.  
 **Implementation branch:** `stage-22/research-ci-fixes` (PR #6, draft)  
 **Branch:** `stage-22-7-research-source-synthesis`
 
