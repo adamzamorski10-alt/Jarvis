@@ -360,8 +360,8 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
         try:
             await reader.read(1024)
             writer.write(
-                b"HTTP/1.1 200 OK\\r\\nContent-Length: 2\\r\\n"
-                b"Connection: close\\r\\n\\r\\nok"
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
+                b"Connection: close\r\n\r\nok"
             )
             await writer.drain()
         except (ConnectionError, ssl.SSLError):
