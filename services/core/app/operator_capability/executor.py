@@ -439,8 +439,8 @@ class OperatorCapabilityExecutor:
         """Use the deeper research workflow only for explicit research phrasing."""
         import re
         return bool(re.search(
-            r"\\b(deep\\s+research|research|researchuj|zrób\\s+research|zrob\\s+research|"
-            r"przeprowadź\\s+analizę\\s+źródeł|przeprowadz\\s+analize\\s+zrodel)\\b",
+            r"\b(deep\s+research|research|researchuj|zrób\s+research|zrob\s+research|"
+            r"przeprowadź\s+analizę\s+źródeł|przeprowadz\s+analize\s+zrodel)\b",
             message,
             re.IGNORECASE,
         ))
