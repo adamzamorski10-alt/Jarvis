@@ -78,7 +78,6 @@ class PublicPageFetcher:
         # if the caller's total budget expires during DNS.
         acquired = False
         resolution_task: asyncio.Task | None = None
-        timed_out = False
         defer_semaphore_release = False
         try:
             async with asyncio.timeout(self._total_timeout_seconds):
@@ -137,7 +136,6 @@ class PublicPageFetcher:
                 byte_length=len(body),
             )
         except TimeoutError as exc:
-            timed_out = True
             raise PageFetchError("total_timeout") from exc
         except PageFetchError:
             raise
@@ -167,7 +165,5 @@ class PublicPageFetcher:
                     defer_semaphore_release = True
                 if not defer_semaphore_release:
                     self._semaphore.release()
-
-
 
 __all__ = ["PageFetchError", "PublicPageFetcher", "RetrievedPage"]
