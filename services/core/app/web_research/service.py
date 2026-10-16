@@ -68,6 +68,7 @@ class ResearchService:
         self._search = search_service
         self._fetcher = page_fetcher
         self._semaphore = asyncio.Semaphore(max_concurrent_sources)
+        self._max_concurrent_sources = max_concurrent_sources
 
     async def collect(
         self,
@@ -75,23 +76,23 @@ class ResearchService:
         *,
         request_id: str | None = None,
     ) -> ResearchBundle:
-        # Ask for a small surplus because some results may be inaccessible or
-        # blocked by the public-page network policy.
+        # Search for a bounded surplus so failed or blocked pages can be
+        # replaced without widening the caller's requested evidence limit.
         search_request = WebSearchRequest(
             query=request.query,
             count=min(20, request.max_sources * 3),
         )
         search_response = await self._search.search(search_request, request_id=request_id)
 
-        selected = []
+        candidates = []
         seen: set[str] = set()
         for result in search_response.results:
             canonical = _canonical_url(result.url)
             if canonical in seen:
                 continue
             seen.add(canonical)
-            selected.append(result)
-            if len(selected) >= request.max_sources:
+            candidates.append(result)
+            if len(candidates) >= search_request.count:
                 break
 
         async def retrieve(result) -> tuple[ResearchSource, ResearchEvidence | None]:
@@ -159,12 +160,38 @@ class ResearchService:
             )
             return source, evidence
 
-        retrieved_pairs = await asyncio.gather(*(retrieve(result) for result in selected))
-        sources = [source for source, _ in retrieved_pairs]
-        evidence = tuple(item for _, item in retrieved_pairs if item is not None)
+        retrieved: list[tuple[ResearchSource, ResearchEvidence | None]] = []
+        cursor = 0
+        successful_count = 0
+        # Fetch in bounded batches. If a batch has failures, try the next
+        # candidates only for the number of successful sources still needed.
+        while cursor < len(candidates) and successful_count < request.max_sources:
+            batch_size = min(
+                request.max_sources - successful_count,
+                self._max_concurrent_sources,
+                len(candidates) - cursor,
+            )
+            batch = candidates[cursor : cursor + batch_size]
+            cursor += len(batch)
+            batch_results = await asyncio.gather(*(retrieve(result) for result in batch))
+            retrieved.extend(batch_results)
+            successful_count += sum(1 for _, evidence in batch_results if evidence is not None)
+
+        successful = [(source, evidence) for source, evidence in retrieved if evidence is not None]
+        failed = [(source, evidence) for source, evidence in retrieved if evidence is None]
+        # Prefer real evidence. Keep failure statuses only when there were not
+        # enough successful sources, and never exceed the requested source cap.
+        chosen = (successful + failed)[: request.max_sources]
+        sources = [source for source, _ in chosen]
+        evidence = tuple(item for _, item in chosen if item is not None)
+
         limitations: list[str] = []
-        if not selected:
+        if not candidates:
             limitations.append("The search provider returned no candidate sources.")
+        if len(evidence) < request.max_sources:
+            limitations.append(
+                "Fewer sources were retrieved than requested; unavailable candidates were not used as evidence."
+            )
         if not evidence:
             limitations.append("No candidate source could be retrieved as public HTML.")
         limitations.append("Synthesis has not been run; this response contains source status only.")
