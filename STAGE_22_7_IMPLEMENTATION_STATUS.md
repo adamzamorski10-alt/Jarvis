@@ -65,3 +65,14 @@ The DNS preflight helper alone is not an SSRF boundary. Production fetching must
 2. Review permission, readiness, error handling, and resource lifecycle behavior in the full integration context.
 3. Run focused research tests and a reliable final regression gate; investigate recurring flakes rather than dismissing them.
 4. Keep PR #6 draft until the stage is accepted; Stage 22.7 remains open.
+
+
+## Verification checkpoint — 2026-10-16 (latest retrieval fix)
+
+- Current implementation commit: `1f3e3ab147819a8d38eb547f1d24e905f91725eb` (`fix: retry surplus research sources after retrieval failures`).
+- Both core CI runs passed on this exact SHA: [#38938654202](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938654202) and [#38938734342](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938734342). Each reports the `core-tests` job completed successfully.
+- Retrieval now searches a bounded surplus (up to three candidate URLs per requested source, capped at 20), fetches in bounded batches, continues to surplus candidates after failures, prefers successfully retrieved evidence, and never returns more source records than requested. Failure statuses are retained when there are too few successful replacements.
+- Added focused tests for successful replacement after a failed fetch and retaining failure status when no replacement is available.
+- Additional targeted security fixes already on this branch sanitize research exception details in both the research runner and outer service handler; a synthesis test checks that source prompt-injection content is framed as untrusted evidence and that tools are not passed to the provider.
+- Static hostile review confirms the explicit research path still evaluates the existing `web.search` permission before invoking the research runner; the runner creates the fetcher on demand and closes it in `finally`. The pinned transport validates destinations at connection time and uses the original URL hostname for HTTP/TLS identity.
+- **Not yet accepted:** the hostile end-to-end review and final documentation/CI gate must be completed on the final documentation-bearing HEAD. PR #6 remains Draft; do not merge or start Stage 23.
