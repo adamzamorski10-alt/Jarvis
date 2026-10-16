@@ -138,3 +138,13 @@ No phase may silently expand into browser automation. 22.7C is implemented. Do n
 - **Latest CI evidence:** branch HEAD `8d7b62bd4d15af4515c796c03027a14e303a5586` passed [full core-tests run #38889607053](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38889607053): 2983 passed, 18 skipped, 96 warnings in 224.75 seconds. The paired run #38889602974 also succeeded on the same SHA.
 - **Security evidence confirmed in code/tests:** real TLS handshake test checks SNI and certificate verification; DNS pinning/revalidation, redirect rejection, bounded body/time behavior, no-tool synthesis, and exact-evidence citation checks have focused tests.
 - **Still open:** final hostile end-to-end review, error-detail/lifecycle review in the Operator integration, focused research regression on the accepted SHA, and explicit acceptance. PR #6 must remain draft and Stage 23 must not begin before the Stage 22 summary is delivered.
+
+
+## Latest implementation and CI checkpoint (2026-10-16)
+
+- Latest code checkpoint: `1f3e3ab147819a8d38eb547f1d24e905f91725eb`.
+- Both [core CI run #38938654202](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938654202) and [core CI run #38938734342](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38938734342) passed on that exact code SHA.
+- Retrieval orchestration now tries bounded surplus candidates after failed retrievals instead of stopping at the initial selection. Candidate count is capped at 20; fetch batches respect the remaining requested source count and configured concurrency. Successful evidence is preferred; failure statuses remain visible when replacements are insufficient.
+- Focused tests cover replacement after a failed fetch and preservation of failure statuses when no replacement is available.
+- Research error-detail sanitization and the source prompt-injection/no-tools test are present on the branch.
+- The final hostile audit, updated documentation CI, and explicit Stage 22.7 acceptance remain outstanding. PR #6 must stay Draft; Stage 23 remains paused until the comprehensive Stage 22 handoff summary is delivered.
