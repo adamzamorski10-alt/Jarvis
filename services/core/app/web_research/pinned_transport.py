@@ -113,7 +113,7 @@ class PinnedPublicHTTPTransport(httpx.AsyncBaseTransport):
             http1=True,
             http2=False,
             retries=0,
-            network_backend=_PublicOnlyNetworkBackend(),
+            network_backend=_PublicOnlyNetworkBackend(max_concurrent_dns=max_connections),
         )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
