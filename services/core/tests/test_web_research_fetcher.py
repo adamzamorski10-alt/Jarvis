@@ -186,6 +186,60 @@ async def test_fetcher_enforces_total_timeout(public_dns):
 
 
 @pytest.mark.asyncio
+async def test_dns_preflight_is_inside_total_timeout_and_concurrency_budget(monkeypatch):
+    import threading
+    import time
+
+    resolver_started = threading.Event()
+    resolver_finished = threading.Event()
+    resolver_calls = []
+    requests = []
+
+    def slow_resolver(hostname, port):
+        resolver_calls.append((hostname, port))
+        resolver_started.set()
+        try:
+            time.sleep(0.08)
+            return [PUBLIC_IP]
+        finally:
+            resolver_finished.set()
+
+    monkeypatch.setattr(url_policy, "_system_resolver", slow_resolver)
+
+    async def handler(request):
+        requests.append(str(request.url))
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/html"},
+            stream=BytesStream(b"<p>unexpected</p>"),
+        )
+
+    fetcher = PublicPageFetcher(
+        total_timeout_seconds=0.015,
+        max_concurrent_fetches=1,
+        transport=DirectAsyncTransport(handler),
+    )
+    try:
+        with pytest.raises(PageFetchError, match="total_timeout"):
+            await fetcher.fetch("https://example.com/")
+
+        assert resolver_started.is_set()
+        assert requests == []
+
+        # The timed-out resolver thread is still running. Its capacity slot
+        # must remain occupied, so a second call cannot spawn another DNS job.
+        with pytest.raises(PageFetchError, match="total_timeout"):
+            await fetcher.fetch("https://example.com/")
+
+        assert len(resolver_calls) == 1
+        assert requests == []
+        assert await __import__("asyncio").to_thread(resolver_finished.wait, 1.0)
+        await __import__("asyncio").sleep(0)
+    finally:
+        await fetcher.aclose()
+
+
+@pytest.mark.asyncio
 async def test_fetcher_rejects_compressed_response(public_dns):
     async def handler(request):
         return httpx.Response(
