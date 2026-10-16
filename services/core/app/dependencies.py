@@ -386,6 +386,36 @@ async def get_execution_bridge_factory(
     return factory
 
 
+async def get_web_research_components(
+    providers: ProviderManager = Depends(get_provider_manager),
+    web_search_service = Depends(get_web_search_service),
+):
+    """Provide request-scoped bounded research components; close the HTTP client afterward."""
+    if web_search_service is None:
+        yield (None, None)
+        return
+
+    config = await providers.get_config()
+    selected_model = config.get("selected_model")
+    if not selected_model:
+        yield (None, None)
+        return
+
+    from app.web_research.fetcher import PublicPageFetcher
+    from app.web_research.service import ResearchService
+    from app.web_research.synthesis import ResearchSynthesisAdapter
+
+    fetcher = PublicPageFetcher()
+    try:
+        provider = await providers.get_provider()
+        yield (
+            ResearchService(web_search_service, fetcher),
+            ResearchSynthesisAdapter(provider, model=str(selected_model)),
+        )
+    finally:
+        await fetcher.aclose()
+
+
 async def get_ai_service(
     task_repository = Depends(get_task_repository),
     providers: ProviderManager = Depends(get_provider_manager),
@@ -402,9 +432,11 @@ async def get_ai_service(
     plan_service = Depends(get_plan_service),
     execution_bridge_factory = Depends(get_execution_bridge_factory),
     web_search_service = Depends(get_web_search_service),
+    research_components = Depends(get_web_research_components),
     permission_engine: PermissionEngine = Depends(get_permission_engine),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
+    web_research_service, research_synthesis_adapter = research_components
     from app.tasks.state_machine import TaskStateMachine
     task_state_machine = TaskStateMachine(task_repository)
     capability_executor = OperatorCapabilityExecutor(
@@ -415,6 +447,8 @@ async def get_ai_service(
         plan_service=plan_service,
         execution_bridge_factory=execution_bridge_factory,
         web_search_service=web_search_service,
+        web_research_service=web_research_service,
+        research_synthesis_adapter=research_synthesis_adapter,
         permission_engine=permission_engine,
         autonomy_mode=None,
     )
