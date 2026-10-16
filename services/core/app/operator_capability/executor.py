@@ -414,6 +414,9 @@ class OperatorCapabilityExecutor:
                 service_result=result.model_dump(mode="json"),
             )
         except Exception as exc:
+            # Research setup/provider exceptions may contain internal configuration
+            # details. Keep those out of the structured result returned to callers.
+            is_research = self._is_explicit_research_request(request.user_request)
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -421,10 +424,10 @@ class OperatorCapabilityExecutor:
                 capability_id="web.search",
                 success=False,
                 state="EXECUTION_FAILED",
-                user_message="Web search failed. Please try again.",
+                user_message="Research failed. Please try again." if is_research else "Web search failed. Please try again.",
                 result_metadata={},
-                error_category=getattr(exc, "code", exc.__class__.__name__),
-                error_detail=str(exc),
+                error_category="RESEARCH_FAILED" if is_research else getattr(exc, "code", exc.__class__.__name__),
+                error_detail="Research execution failed." if is_research else str(exc),
             )
 
     @staticmethod
