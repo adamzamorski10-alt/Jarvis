@@ -333,17 +333,12 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
             public_addresses=("127.0.0.1",),
         )
 
-    monkeypatch.setattr(
-        pinned_transport, "validate_and_resolve_research_url", resolve_to_local_test_server
-    )
     # The test-only resolver deliberately maps example.com to a loopback TLS server.
     # Production URL policy still rejects loopback addresses.
     monkeypatch.setattr(
         pinned_transport, "validate_and_resolve_research_url",
         lambda url: SimpleNamespace(original_url=url, public_addresses=("127.0.0.1",)),
     )
-    monkeypatch.setattr(pinned_transport._PublicOnlyNetworkBackend, "connect_tcp",
-        pinned_transport._PublicOnlyNetworkBackend.connect_tcp)
 
     original_connect = pinned_transport.AnyIOBackend.connect_tcp
 
