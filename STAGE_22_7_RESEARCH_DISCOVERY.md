@@ -156,3 +156,12 @@ No phase may silently expand into browser automation. 22.7C is implemented. Do n
 - Citation validation now checks the exact bounded source text provided to the model and rejects citations for omitted sources or unseen suffixes.
 - Added regression test `test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget`.
 - Latest code commit at this checkpoint: `4e607f7ad5789812da814ee77fda5bef450ec9ee`. CI was still running at the time of this documentation update; Stage 22.7 remains open until CI and final hostile gates pass.
+
+
+## Verification checkpoint — citation budget and compatibility correction (2026-10-16)
+
+- Code HEAD `73bbdd853951317f5685b8a324a341a10604dcc5` passed both [push core CI #38944568104](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944568104) and [PR core CI #38944705439](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944705439).
+- Citation excerpts are checked against the exact bounded evidence text supplied to synthesis, not the larger retrieved source. A regression test rejects citations to text omitted by the aggregate evidence budget.
+- The follow-up fix preserves the existing error-message contract for unknown/unretrieved source IDs; the guard remains enabled. Earlier intermediate commits failed the existing wording assertion and are not counted as green runs.
+- Bounded surplus candidate retries and research error-detail sanitization are also present on this branch.
+- **Not yet accepted:** documentation updates must receive CI on their resulting HEAD, and the final hostile end-to-end gate remains open. PR #6 remains Draft; do not merge or start Stage 23 before the Stage 22 summary.
