@@ -1,0 +1,138 @@
+import json
+
+import pytest
+
+from app.ai.models import AIResponse
+from app.ai.providers.base import AIModel, AIProvider, ProviderHealth
+from app.web_research.models import ResearchRequest, ResearchResponse, ResearchSource, ResearchSourceStatus
+from app.web_research.service import ResearchBundle, ResearchEvidence
+from app.web_research.synthesis import ResearchSynthesisAdapter, ResearchSynthesisError
+
+
+SOURCE_ID = "src_012345abcdef"
+SOURCE_TEXT = "The mission lasted 12 days and returned safely."
+
+
+class FakeProvider(AIProvider):
+    name = "fake"
+
+    def __init__(self, content=None, *, tool_calls=None, error=None):
+        self.content = content
+        self.tool_calls = tool_calls
+        self.error = error
+        self.calls = []
+
+    async def health_check(self):
+        return ProviderHealth(status="healthy", configured=True)
+
+    async def list_models(self):
+        return [AIModel(name="fake-model")]
+
+    async def chat(self, model, messages, tools=None):
+        self.calls.append({"model": model, "messages": messages, "tools": tools})
+        if self.error:
+            raise self.error
+        return AIResponse(content=self.content, tool_calls=self.tool_calls)
+
+
+def make_bundle(text=SOURCE_TEXT):
+    source = ResearchSource(
+        source_id=SOURCE_ID,
+        title="Mission report",
+        url="https://example.com/report",
+        hostname="example.com",
+        status=ResearchSourceStatus.RETRIEVED,
+        extracted_text_length=len(text),
+    )
+    response = ResearchResponse(
+        sources=[source],
+        limitations=["Synthesis has not been run; this response contains source status only."],
+    )
+    evidence = (
+        ResearchEvidence(
+            source_id=SOURCE_ID,
+            title=source.title,
+            url=source.url,
+            hostname=source.hostname,
+            text=text,
+        ),
+    ) if text else ()
+    return ResearchBundle(response=response, evidence=evidence)
+
+
+def output(excerpt=SOURCE_TEXT, source_id=SOURCE_ID):
+    return json.dumps({
+        "answer": "The mission lasted 12 days and returned safely.",
+        "citations": [{"source_id": source_id, "excerpt": excerpt}],
+    })
+
+
+@pytest.mark.asyncio
+async def test_synthesis_validates_exact_evidence_citation_and_disables_tools():
+    provider = FakeProvider(output())
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    response = await adapter.synthesize(make_bundle(), question="How long was the mission?")
+
+    assert response.synthesized is True
+    assert response.answer.startswith("The mission lasted")
+    assert response.citations[0].source_id == SOURCE_ID
+    assert response.citations[0].start_offset == 0
+    assert response.citations[0].end_offset == len(SOURCE_TEXT)
+    assert not any("Synthesis has not been run" in item for item in response.limitations)
+    assert provider.calls[0]["tools"] is None
+    user_payload = json.loads(provider.calls[0]["messages"][1]["content"])
+    assert user_payload["question"] == "How long was the mission?"
+
+
+@pytest.mark.asyncio
+async def test_synthesis_fails_closed_on_fabricated_excerpt():
+    provider = FakeProvider(output(excerpt="The source proves a different claim."))
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    with pytest.raises(ResearchSynthesisError, match="excerpt is not present"):
+        await adapter.synthesize(make_bundle(), question="What happened?")
+
+
+@pytest.mark.asyncio
+async def test_synthesis_fails_closed_on_unknown_source_id():
+    provider = FakeProvider(output(source_id="src_ffffffffffff"))
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    with pytest.raises(ResearchSynthesisError, match="unknown or unretrieved source"):
+        await adapter.synthesize(make_bundle(), question="What happened?")
+
+
+@pytest.mark.asyncio
+async def test_synthesis_skips_when_no_retrieved_evidence_exists():
+    bundle = make_bundle(text="")
+    provider = FakeProvider(output())
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    response = await adapter.synthesize(bundle, question="What happened?")
+
+    assert response.synthesized is False
+    assert response.citations == []
+    assert "Synthesis skipped because no retrieved evidence was available." in response.limitations
+    assert provider.calls == []
+
+
+@pytest.mark.asyncio
+async def test_synthesis_rejects_unexpected_tool_calls():
+    from app.tools.models import ToolCall
+
+    call = ToolCall(id="call-1", name="anything", arguments={})
+    provider = FakeProvider(output(), tool_calls=[call])
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    with pytest.raises(ResearchSynthesisError, match="unexpected tool calls"):
+        await adapter.synthesize(make_bundle(), question="What happened?")
+
+
+@pytest.mark.asyncio
+async def test_synthesis_timeout_is_reported_as_safe_error():
+    provider = FakeProvider(error=TimeoutError())
+    adapter = ResearchSynthesisAdapter(provider, model="fake-model")
+
+    with pytest.raises(ResearchSynthesisError, match="provider failed"):
+        await adapter.synthesize(make_bundle(), question="What happened?")
