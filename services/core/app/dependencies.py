@@ -407,11 +407,17 @@ async def get_web_research_components(
 
     fetcher = PublicPageFetcher()
     try:
-        provider = await providers.get_provider()
-        yield (
-            ResearchService(web_search_service, fetcher),
-            ResearchSynthesisAdapter(provider, model=str(selected_model)),
-        )
+        try:
+            provider = await providers.get_provider()
+            components = (
+                ResearchService(web_search_service, fetcher),
+                ResearchSynthesisAdapter(provider, model=str(selected_model)),
+            )
+        except Exception:
+            # Research is optional: a synthesis-provider failure must not take
+            # down ordinary chat or the existing web-search capability.
+            components = (None, None)
+        yield components
     finally:
         await fetcher.aclose()
 
