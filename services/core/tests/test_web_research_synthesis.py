@@ -154,3 +154,20 @@ async def test_synthesis_frames_source_prompt_injection_as_untrusted_evidence():
     assert injected_text in user_payload["sources"][0]["text"]
     assert response.citations[0].excerpt == SOURCE_TEXT
 
+
+
+@pytest.mark.asyncio
+async def test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget():
+    full_text = "Visible prefix. Hidden tail quote."
+    provider = FakeProvider(output(excerpt="Hidden tail quote."))
+    adapter = ResearchSynthesisAdapter(
+        provider,
+        model="fake-model",
+        max_evidence_chars=len("Visible prefix."),
+    )
+
+    with pytest.raises(ResearchSynthesisError, match="not present in supplied evidence"):
+        await adapter.synthesize(make_bundle(text=full_text), question="What happened?")
+
+    user_payload = json.loads(provider.calls[0]["messages"][1]["content"])
+    assert user_payload["sources"][0]["text"] == "Visible prefix."
