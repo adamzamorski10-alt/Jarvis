@@ -139,3 +139,49 @@ async def test_research_runner_errors_do_not_expose_internal_exception_details()
     runner.assert_awaited_once()
     web_search.search.assert_not_awaited()
 
+@pytest.mark.asyncio
+async def test_research_permission_engine_errors_do_not_expose_internal_details():
+    web_search = MagicMock()
+    web_search.search = AsyncMock()
+    runner = AsyncMock()
+    permission_engine = MagicMock()
+    permission_engine.evaluate = AsyncMock(
+        side_effect=RuntimeError("secret-permission-backend and token=example")
+    )
+    executor = OperatorCapabilityExecutor(
+        web_search_service=web_search,
+        web_research_runner=runner,
+        permission_engine=permission_engine,
+    )
+    request = OperatorRequest(
+        request_id="req_research_permission_failure",
+        user_request="Research public sources about SSRF",
+        operation_type="WEB_SEARCH",
+        correlation_id="corr_research_permission_failure",
+        readiness_state=ReadinessState.SUFFICIENT,
+        request_context=RequestContext(
+            user_id="test_user",
+            actor_type=ActorType.USER,
+            actor_id="test_actor",
+            session_id="test_session",
+        ),
+    )
+    resolution = CapabilityResolution(
+        request_id="req_research_permission_failure",
+        operation_type="WEB_SEARCH",
+        capability_kind=CapabilityKind.SERVICE,
+        capability_id="web.search",
+        description="Public web research",
+        parameters={"query": "Research public sources about SSRF"},
+        requires_permission=True,
+    )
+
+    result = await executor._execute_service(request, resolution)
+
+    assert result.success is False
+    assert result.error_category == "RESEARCH_FAILED"
+    assert result.error_detail == "Research execution failed."
+    assert "secret-permission-backend" not in str(result.model_dump())
+    runner.assert_not_awaited()
+    web_search.search.assert_not_awaited()
+

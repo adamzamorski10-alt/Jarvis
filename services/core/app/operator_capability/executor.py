@@ -270,6 +270,10 @@ class OperatorCapabilityExecutor:
                     error_detail=f"Service capability '{capability_id}' is not implemented",
                 )
         except Exception as exc:
+            is_research = (
+                capability_id == "web.search"
+                and self._is_explicit_research_request(request.user_request)
+            )
             return CapabilityExecutionResult(
                 request_id=request.request_id,
                 operation_type=request.operation_type,
@@ -277,10 +281,10 @@ class OperatorCapabilityExecutor:
                 capability_id=capability_id,
                 success=False,
                 state="EXECUTION_FAILED",
-                user_message="Service execution failed.",
+                user_message="Research failed. Please try again." if is_research else "Service execution failed.",
                 result_metadata={},
-                error_category="EXECUTION_ERROR",
-                error_detail=str(exc),
+                error_category="RESEARCH_FAILED" if is_research else "EXECUTION_ERROR",
+                error_detail="Research execution failed." if is_research else str(exc),
             )
 
     async def _execute_web_search(self, request: OperatorRequest, resolution: CapabilityResolution) -> CapabilityExecutionResult:
