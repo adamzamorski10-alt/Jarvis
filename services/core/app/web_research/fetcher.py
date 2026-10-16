@@ -72,14 +72,25 @@ class PublicPageFetcher:
         await self._client.aclose()
 
     async def fetch(self, url: str, *, title_hint: str = "") -> RetrievedPage:
+        # The semaphore and total timeout cover DNS preflight as well as HTTP.
+        # asyncio.to_thread cannot stop a resolver already running in a worker
+        # thread, so retain the semaphore slot until that worker actually exits
+        # if the caller's total budget expires during DNS.
+        await self._semaphore.acquire()
+        resolution_task: asyncio.Task | None = None
+        defer_semaphore_release = False
+        timed_out = False
         try:
-            target = await asyncio.to_thread(validate_and_resolve_research_url, url)
-        except ResearchURLPolicyError as exc:
-            raise PageFetchError(str(exc)) from exc
-
-        try:
-            async with self._semaphore:
+            try:
                 async with asyncio.timeout(self._total_timeout_seconds):
+                    resolution_task = asyncio.create_task(
+                        asyncio.to_thread(validate_and_resolve_research_url, url)
+                    )
+                    try:
+                        target = await asyncio.shield(resolution_task)
+                    except ResearchURLPolicyError as exc:
+                        raise PageFetchError(str(exc)) from exc
+
                     async with self._client.stream("GET", target.original_url) as response:
                         if 300 <= response.status_code < 400:
                             raise PageFetchError("redirect_not_allowed")
@@ -110,35 +121,45 @@ class PublicPageFetcher:
                                 raise PageFetchError("response_too_large")
                             body.extend(chunk)
 
-            html = body.decode("utf-8", errors="replace")
-            extracted = extract_html_text(
-                html,
-                max_html_chars=self._max_body_bytes,
-                max_text_chars=self._max_text_chars,
-            )
-            title = extracted.title or title_hint.strip()[:512] or target.hostname
-            source_id = "src_" + hashlib.sha256(target.original_url.encode("utf-8")).hexdigest()[:12]
-            return RetrievedPage(
-                source_id=source_id,
-                title=title,
-                url=target.original_url,
-                hostname=target.hostname,
-                text=extracted.text,
-                content_type=content_type,
-                byte_length=len(body),
-            )
-        except PageFetchError:
-            raise
-        except ResearchURLPolicyError as exc:
-            raise PageFetchError(str(exc)) from exc
-        except TimeoutError as exc:
-            raise PageFetchError("total_timeout") from exc
-        except httpx.TimeoutException as exc:
-            raise PageFetchError("upstream_timeout") from exc
-        except httpx.HTTPError as exc:
-            raise PageFetchError("upstream_request_failed") from exc
-        except ValueError as exc:
-            raise PageFetchError("html_extraction_failed") from exc
+                html = body.decode("utf-8", errors="replace")
+                extracted = extract_html_text(
+                    html,
+                    max_html_chars=self._max_body_bytes,
+                    max_text_chars=self._max_text_chars,
+                )
+                title = extracted.title or title_hint.strip()[:512] or target.hostname
+                source_id = "src_" + hashlib.sha256(target.original_url.encode("utf-8")).hexdigest()[:12]
+                return RetrievedPage(
+                    source_id=source_id,
+                    title=title,
+                    url=target.original_url,
+                    hostname=target.hostname,
+                    text=extracted.text,
+                    content_type=content_type,
+                    byte_length=len(body),
+                )
+            except TimeoutError as exc:
+                timed_out = True
+                raise PageFetchError("total_timeout") from exc
+            except PageFetchError:
+                raise
+            except ResearchURLPolicyError as exc:
+                raise PageFetchError(str(exc)) from exc
+            except httpx.TimeoutException as exc:
+                raise PageFetchError("upstream_timeout") from exc
+            except httpx.HTTPError as exc:
+                raise PageFetchError("upstream_request_failed") from exc
+            except ValueError as exc:
+                raise PageFetchError("html_extraction_failed") from exc
+        finally:
+            if timed_out and resolution_task is not None and not resolution_task.done():
+                # A timed-out asyncio.to_thread await does not stop its worker.
+                # Keep this capacity slot occupied until the DNS worker exits.
+                resolution_task.add_done_callback(lambda _task: self._semaphore.release())
+                defer_semaphore_release = True
+            if not defer_semaphore_release:
+                self._semaphore.release()
+
 
 
 __all__ = ["PageFetchError", "PublicPageFetcher", "RetrievedPage"]
