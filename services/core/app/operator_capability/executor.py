@@ -45,8 +45,7 @@ class OperatorCapabilityExecutor:
         execution_bridge: Any = None,
         execution_bridge_factory: Callable[[], Awaitable[Any]] | None = None,
         web_search_service: Any = None,
-        web_research_service: Any = None,
-        research_synthesis_adapter: Any = None,
+        web_research_runner: Any = None,
         permission_engine: Any = None,
         autonomy_mode: Any = None,
     ) -> None:
@@ -58,8 +57,7 @@ class OperatorCapabilityExecutor:
         self._execution_bridge = execution_bridge
         self._execution_bridge_factory = execution_bridge_factory
         self._web_search_service = web_search_service
-        self._web_research_service = web_research_service
-        self._research_synthesis_adapter = research_synthesis_adapter
+        self._web_research_runner = web_research_runner
         self._permission_engine = permission_engine
         self._autonomy_mode = autonomy_mode
         self.ensure_web_search_permission_definition()
@@ -358,7 +356,7 @@ class OperatorCapabilityExecutor:
             )
         try:
             if self._is_explicit_research_request(request.user_request):
-                if self._web_research_service is None or self._research_synthesis_adapter is None:
+                if self._web_research_runner is None:
                     return CapabilityExecutionResult(
                         request_id=request.request_id,
                         operation_type=request.operation_type,
@@ -371,14 +369,9 @@ class OperatorCapabilityExecutor:
                         error_category="RESEARCH_UNAVAILABLE",
                         error_detail="Research retrieval/synthesis dependencies are not configured",
                     )
-                from app.web_research.models import ResearchRequest
-                bundle = await self._web_research_service.collect(
-                    ResearchRequest(query=query, max_sources=3),
+                research_response = await self._web_research_runner(
+                    query,
                     request_id=request.request_id,
-                )
-                research_response = await self._research_synthesis_adapter.synthesize(
-                    bundle,
-                    question=query,
                 )
                 return CapabilityExecutionResult(
                     request_id=request.request_id,
