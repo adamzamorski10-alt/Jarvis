@@ -165,3 +165,14 @@ No phase may silently expand into browser automation. 22.7C is implemented. Do n
 - The follow-up fix preserves the existing error-message contract for unknown/unretrieved source IDs; the guard remains enabled. Earlier intermediate commits failed the existing wording assertion and are not counted as green runs.
 - Bounded surplus candidate retries and research error-detail sanitization are also present on this branch.
 - **Not yet accepted:** documentation updates must receive CI on their resulting HEAD, and the final hostile end-to-end gate remains open. PR #6 remains Draft; do not merge or start Stage 23 before the Stage 22 summary.
+
+
+## Final hostile review checkpoint — 2026-10-16
+
+- The source retry loop is bounded: at most `min(20, max_sources * 3)` unique search candidates, retrieved in batches limited by remaining successful-source demand and configured concurrency. Failed candidates are reported when successful evidence is insufficient; returned source count stays within the requested cap.
+- Synthesis remains tool-free and validates citation source IDs and excerpts against the exact bounded evidence passed to the model. Regression coverage includes omitted evidence beyond the character budget and source prompt-injection framing.
+- Explicit research still passes through the existing `web.search` permission check and readiness gate. The fetch path rejects redirects, unsafe DNS answers and URL forms, unsupported content encodings/types, and oversized bodies; pinned connections preserve origin hostname identity for TLS/Host while dialing validated IP addresses.
+- Research exception details are sanitized in both the inner web-search and outer service execution handlers. Fetcher closure is managed by the on-demand runner's `finally` path.
+- Current docs-bearing HEAD `1f53d9f909b4c4f0ebd89a3f4206c08deab8044e` passed three core CI runs, each reporting **2,987 passed, 18 skipped**: [#38946004772](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946004772), [#38946003514](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38946003514), [#38945987779](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38945987779).
+- The review is scoped and is not a substitute for an external penetration test. No additional blocking defect was found in the reviewed Stage 22.7 paths. Existing unrelated suite warnings remain documented.
+- Keep PR #6 Draft. Do not merge or start Stage 23 before the final documentation commit is CI-verified and the comprehensive AI Operator summary is delivered.
