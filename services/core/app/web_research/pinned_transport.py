@@ -55,7 +55,24 @@ class _PublicOnlyNetworkBackend(AnyIOBackend):
             )
         )
         try:
-            target = await asyncio.shield(resolution_task)
+            if timeout is None:
+                target = await asyncio.shield(resolution_task)
+            else:
+                async with asyncio.timeout(timeout):
+                    target = await asyncio.shield(resolution_task)
+        except TimeoutError as exc:
+            if resolution_task.done():
+                self._dns_semaphore.release()
+            else:
+                def release_after_resolution(task: asyncio.Task) -> None:
+                    try:
+                        task.exception()
+                    except asyncio.CancelledError:
+                        pass
+                    self._dns_semaphore.release()
+
+                resolution_task.add_done_callback(release_after_resolution)
+            raise httpcore.ConnectTimeout("DNS resolution timed out") from exc
         except BaseException:
             if resolution_task.done():
                 self._dns_semaphore.release()
