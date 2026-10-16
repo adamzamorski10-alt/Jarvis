@@ -54,6 +54,47 @@ async def test_network_backend_revalidates_each_new_connection(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cancelled_dns_resolution_keeps_worker_slot_until_thread_exits(monkeypatch):
+    import asyncio
+    import threading
+    import time
+
+    resolver_started = threading.Event()
+    resolver_finished = threading.Event()
+    calls = []
+
+    def slow_resolve(url):
+        calls.append(url)
+        resolver_started.set()
+        try:
+            time.sleep(0.2)
+            return SimpleNamespace(public_addresses=("93.184.216.34",))
+        finally:
+            resolver_finished.set()
+
+    async def fake_connect(self, **kwargs):
+        return "connected-stream"
+
+    monkeypatch.setattr(pinned_transport, "validate_and_resolve_research_url", slow_resolve)
+    monkeypatch.setattr(AnyIOBackend, "connect_tcp", fake_connect)
+    backend = pinned_transport._PublicOnlyNetworkBackend(max_concurrent_dns=1)
+
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.05):
+            await backend.connect_tcp("example.com", 443)
+    assert resolver_started.is_set()
+
+    # The first to_thread worker is still running; another call must wait for
+    # its slot rather than spawning an unbounded additional DNS worker.
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.05):
+            await backend.connect_tcp("example.com", 443)
+    assert calls == ["https://example.com/"]
+    assert await asyncio.to_thread(resolver_finished.wait, 1.0)
+    await asyncio.sleep(0)
+
+
+@pytest.mark.asyncio
 async def test_network_backend_fails_closed_when_url_validation_rejects_destination(monkeypatch):
     attempted_connections = []
 
