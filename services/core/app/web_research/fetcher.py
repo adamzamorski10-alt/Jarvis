@@ -154,7 +154,16 @@ class PublicPageFetcher:
                 if timed_out and resolution_task is not None and not resolution_task.done():
                     # A timed-out asyncio.to_thread await does not stop its worker.
                     # Keep this capacity slot occupied until the DNS worker exits.
-                    resolution_task.add_done_callback(lambda _task: self._semaphore.release())
+                    def release_after_dns(task: asyncio.Task) -> None:
+                        # Retrieve a late resolver exception to avoid an
+                        # unobserved-task warning after the request timed out.
+                        try:
+                            task.exception()
+                        except asyncio.CancelledError:
+                            pass
+                        self._semaphore.release()
+
+                    resolution_task.add_done_callback(release_after_dns)
                     defer_semaphore_release = True
                 if not defer_semaphore_release:
                     self._semaphore.release()
