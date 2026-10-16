@@ -117,7 +117,7 @@ Do not add new third-party dependencies until the standard-library extractor is 
 1. **22.7A — Contracts + fetch policy discovery-to-code:** define models, safe URL/IP validation helpers, fetcher interface, deterministic tests.
 2. **22.7B — Retrieval + extraction:** bounded fetch, redirect policy, HTML extraction, source normalization, hostile tests.
 3. **22.7C — Synthesis adapter:** provider-neutral prompt/input contract, strict output validation, source-ID/evidence checks, injection tests.
-4. **22.7D — Operator integration:** explicit research phrasing uses the existing `web.search` service capability and its readiness/permission-checked execution path; ordinary `web.search` remains usable. This implementation is present, but its final CI and hostile review gates remain open.
+4. **22.7D — Operator integration:** explicit research phrasing uses the existing `web.search` service capability and its readiness/permission-checked execution path; ordinary `web.search` remains usable. Implementation and full-core CI are verified on the current branch HEAD; hostile review and acceptance remain open.
 5. **22.7E — Final gate:** focused tests, full CI, hostile review, docs and PR status verification.
 
 No phase may silently expand into browser automation. 22.7C is implemented. Do not close the stage until the final integration CI, hostile review, documentation, and regression gates pass.
@@ -135,5 +135,6 @@ No phase may silently expand into browser automation. 22.7C is implemented. Do n
 - **22.7A–22.7B:** contracts, URL/DNS policy, pinned transport, bounded HTML fetch/extraction, and retrieval orchestration are implemented. TLS/SNI and final adversarial transport review remain explicit closure gates.
 - **22.7C:** synthesis adapter and evidence-backed citation validation are implemented; the adapter does not receive tools.
 - **22.7D:** explicit research intent is routed through the existing permission-checked `web.search` service path. Focused tests cover intent selection and permission-path invocation.
-- **CI evidence:** commit `04c396f567a2acc6cf292225f391448444e5b595` passed the full core-tests workflow (#38885953778). The earlier duplicate run on commit `fa5d26419e061b7c2f433ee1c0ede051df17c694` passed on retry attempt 2 (#38885011813), after attempt 1 hit the existing `test_recovery_vs_cancellation_race` failure.
-- **Still open:** transport/TLS/SNI hostile review, DNS rebinding and budget checks, prompt-injection/citation-integrity review, and final stable regression/acceptance. PR #6 must remain draft and Stage 23 must not begin before the Stage 22 summary is delivered.
+- **Latest CI evidence:** branch HEAD `8d7b62bd4d15af4515c796c03027a14e303a5586` passed [full core-tests run #38889607053](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38889607053): 2983 passed, 18 skipped, 96 warnings in 224.75 seconds. The paired run #38889602974 also succeeded on the same SHA.
+- **Security evidence confirmed in code/tests:** real TLS handshake test checks SNI and certificate verification; DNS pinning/revalidation, redirect rejection, bounded body/time behavior, no-tool synthesis, and exact-evidence citation checks have focused tests.
+- **Still open:** final hostile end-to-end review, error-detail/lifecycle review in the Operator integration, focused research regression on the accepted SHA, and explicit acceptance. PR #6 must remain draft and Stage 23 must not begin before the Stage 22 summary is delivered.
