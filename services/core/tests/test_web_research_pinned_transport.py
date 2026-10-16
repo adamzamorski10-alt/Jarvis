@@ -359,6 +359,13 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
     async def handle_client(reader, writer):
         try:
             await reader.read(1024)
+            writer.write(
+                b"HTTP/1.1 200 OK\\r\\nContent-Length: 2\\r\\n"
+                b"Connection: close\\r\\n\\r\\nok"
+            )
+            await writer.drain()
+        except (ConnectionError, ssl.SSLError):
+            pass
         finally:
             writer.close()
             await writer.wait_closed()
@@ -384,12 +391,37 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
         )
 
     monkeypatch.setattr(pinned_transport.AnyIOBackend, "connect_tcp", connect_local)
+    original_create_default_context = ssl.create_default_context
     transport = pinned_transport.PinnedPublicHTTPTransport()
     client = httpx.AsyncClient(transport=transport, trust_env=False, timeout=2.0)
     try:
         with pytest.raises(httpx.ConnectError):
             await asyncio.wait_for(client.get("https://example.com/"), timeout=3.0)
         assert observed_sni == ["example.com"]
+        await client.aclose()
+
+        # Trust this test certificate so the next checks isolate hostname
+        # verification rather than failing merely because the issuer is untrusted.
+        def trusted_test_context(*args, **kwargs):
+            context = original_create_default_context(*args, **kwargs)
+            context.load_verify_locations(cafile=str(cert_path))
+            return context
+
+        monkeypatch.setattr(
+            pinned_transport.ssl, "create_default_context", trusted_test_context
+        )
+        transport = pinned_transport.PinnedPublicHTTPTransport()
+        client = httpx.AsyncClient(transport=transport, trust_env=False, timeout=2.0)
+
+        valid_response = await asyncio.wait_for(
+            client.get("https://example.com/"), timeout=3.0
+        )
+        assert valid_response.status_code == 200
+        assert valid_response.text == "ok"
+
+        with pytest.raises(httpx.ConnectError):
+            await asyncio.wait_for(client.get("https://wrong.example/"), timeout=3.0)
+        assert observed_sni == ["example.com", "example.com", "wrong.example"]
     finally:
         await client.aclose()
         server.close()
