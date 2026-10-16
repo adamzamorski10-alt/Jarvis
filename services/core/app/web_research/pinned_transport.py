@@ -23,6 +23,12 @@ from app.web_research.url_policy import (
 
 
 class _PublicOnlyNetworkBackend(AnyIOBackend):
+    def __init__(self, *, max_concurrent_dns: int = 3) -> None:
+        super().__init__()
+        if max_concurrent_dns < 1:
+            raise ValueError("max_concurrent_dns must be positive")
+        self._dns_semaphore = asyncio.Semaphore(max_concurrent_dns)
+
     async def connect_tcp(
         self,
         host: str,
@@ -38,12 +44,34 @@ class _PublicOnlyNetworkBackend(AnyIOBackend):
         else:
             raise ResearchURLPolicyError("non_default_port_forbidden")
 
-        # Resolve off the event loop. This same lookup supplies the IP passed to
-        # the socket backend below; TLS still receives the original URL hostname.
-        target = await asyncio.to_thread(
-            validate_and_resolve_research_url,
-            f"{scheme}://{host}/",
+        # Bound resolver workers separately from sockets. Cancelling an await
+        # of asyncio.to_thread does not stop its worker thread, so its slot is
+        # released only when the worker actually finishes.
+        await self._dns_semaphore.acquire()
+        resolution_task = asyncio.create_task(
+            asyncio.to_thread(
+                validate_and_resolve_research_url,
+                f"{scheme}://{host}/",
+            )
         )
+        try:
+            target = await asyncio.shield(resolution_task)
+        except BaseException:
+            if resolution_task.done():
+                self._dns_semaphore.release()
+            else:
+                def release_after_resolution(task: asyncio.Task) -> None:
+                    try:
+                        task.exception()
+                    except asyncio.CancelledError:
+                        pass
+                    self._dns_semaphore.release()
+
+                resolution_task.add_done_callback(release_after_resolution)
+            raise
+        else:
+            self._dns_semaphore.release()
+
         last_error: Exception | None = None
         for address in target.public_addresses:
             try:
