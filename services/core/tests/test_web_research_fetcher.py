@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import pytest
 
@@ -233,8 +234,8 @@ async def test_dns_preflight_is_inside_total_timeout_and_concurrency_budget(monk
 
         assert len(resolver_calls) == 1
         assert requests == []
-        assert await __import__("asyncio").to_thread(resolver_finished.wait, 1.0)
-        await __import__("asyncio").sleep(0)
+        assert await asyncio.to_thread(resolver_finished.wait, 1.0)
+        await asyncio.sleep(0)
     finally:
         await fetcher.aclose()
 
