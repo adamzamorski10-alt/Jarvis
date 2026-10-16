@@ -151,8 +151,8 @@ class PublicPageFetcher:
             raise PageFetchError("html_extraction_failed") from exc
         finally:
             if acquired:
-                if timed_out and resolution_task is not None and not resolution_task.done():
-                    # A timed-out asyncio.to_thread await does not stop its worker.
+                if resolution_task is not None and not resolution_task.done():
+                    # Cancellation or timeout cannot stop an active to_thread worker.
                     # Keep this capacity slot occupied until the DNS worker exits.
                     def release_after_dns(task: asyncio.Task) -> None:
                         # Retrieve a late resolver exception to avoid an
