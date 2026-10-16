@@ -386,41 +386,39 @@ async def get_execution_bridge_factory(
     return factory
 
 
-async def get_web_research_components(
+async def get_web_research_runner(
     providers: ProviderManager = Depends(get_provider_manager),
     web_search_service = Depends(get_web_search_service),
 ):
-    """Provide request-scoped bounded research components; close the HTTP client afterward."""
+    """Create bounded research resources only when an explicit research request runs."""
     if web_search_service is None:
-        yield (None, None)
-        return
+        return None
 
-    config = await providers.get_config()
-    selected_model = config.get("selected_model")
-    if not selected_model:
-        yield (None, None)
-        return
+    async def run_research(query: str, *, request_id: str):
+        config = await providers.get_config()
+        selected_model = config.get("selected_model")
+        if not selected_model:
+            raise RuntimeError("Research synthesis model is not configured")
 
-    from app.web_research.fetcher import PublicPageFetcher
-    from app.web_research.service import ResearchService
-    from app.web_research.synthesis import ResearchSynthesisAdapter
+        from app.web_research.fetcher import PublicPageFetcher
+        from app.web_research.models import ResearchRequest
+        from app.web_research.service import ResearchService
+        from app.web_research.synthesis import ResearchSynthesisAdapter
 
-    fetcher = PublicPageFetcher()
-    try:
+        fetcher = PublicPageFetcher()
         try:
             provider = await providers.get_provider()
-            components = (
-                ResearchService(web_search_service, fetcher),
-                ResearchSynthesisAdapter(provider, model=str(selected_model)),
+            service = ResearchService(web_search_service, fetcher)
+            synthesis = ResearchSynthesisAdapter(provider, model=str(selected_model))
+            bundle = await service.collect(
+                ResearchRequest(query=query, max_sources=3),
+                request_id=request_id,
             )
-        except Exception:
-            # Research is optional: a synthesis-provider failure must not take
-            # down ordinary chat or the existing web-search capability.
-            components = (None, None)
-        yield components
-    finally:
-        await fetcher.aclose()
+            return await synthesis.synthesize(bundle, question=query)
+        finally:
+            await fetcher.aclose()
 
+    return run_research
 
 async def get_ai_service(
     task_repository = Depends(get_task_repository),
@@ -438,11 +436,10 @@ async def get_ai_service(
     plan_service = Depends(get_plan_service),
     execution_bridge_factory = Depends(get_execution_bridge_factory),
     web_search_service = Depends(get_web_search_service),
-    research_components = Depends(get_web_research_components),
+    web_research_runner = Depends(get_web_research_runner),
     permission_engine: PermissionEngine = Depends(get_permission_engine),
 ) -> AsyncGenerator[AIService, None]:
     capability_resolver = CapabilityResolver()
-    web_research_service, research_synthesis_adapter = research_components
     from app.tasks.state_machine import TaskStateMachine
     task_state_machine = TaskStateMachine(task_repository)
     capability_executor = OperatorCapabilityExecutor(
@@ -453,8 +450,7 @@ async def get_ai_service(
         plan_service=plan_service,
         execution_bridge_factory=execution_bridge_factory,
         web_search_service=web_search_service,
-        web_research_service=web_research_service,
-        research_synthesis_adapter=research_synthesis_adapter,
+        web_research_runner=web_research_runner,
         permission_engine=permission_engine,
         autonomy_mode=None,
     )
