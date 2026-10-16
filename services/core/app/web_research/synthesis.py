@@ -73,7 +73,9 @@ class ResearchSynthesisAdapter:
         self._timeout_seconds = timeout_seconds
         self._max_evidence_chars = max_evidence_chars
 
-    async def synthesize(self, bundle: ResearchBundle) -> ResearchResponse:
+    async def synthesize(self, bundle: ResearchBundle, *, question: str) -> ResearchResponse:
+        if not question.strip():
+            raise ValueError("question must not be blank")
         evidence = list(bundle.evidence)
         if not evidence:
             return bundle.response.model_copy(
@@ -124,7 +126,7 @@ class ResearchSynthesisAdapter:
             {
                 "role": "user",
                 "content": json.dumps(
-                    {"question": bundle.response.answer or "Answer the research question.", "sources": bounded_evidence},
+                    {"question": question.strip(), "sources": bounded_evidence},
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ),
