@@ -266,3 +266,102 @@ async def test_network_backend_rejects_non_default_port_before_dns_or_connect(mo
     assert resolver_calls == []
     assert attempted_connections == []
 
+@pytest.mark.asyncio
+async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certificate(tmp_path, monkeypatch):
+    import asyncio
+    import datetime
+    import ssl
+
+    import httpx
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name(
+        [x509.NameAttribute(NameOID.COMMON_NAME, "example.com")]
+    )
+    now = datetime.datetime.now(datetime.timezone.utc)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("example.com")]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    cert_path = tmp_path / "server.pem"
+    key_path = tmp_path / "server-key.pem"
+    cert_path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+
+    observed_sni = []
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(str(cert_path), str(key_path))
+    server_context.set_servername_callback(
+        lambda ssl_socket, server_name, initial_context: observed_sni.append(server_name)
+    )
+
+    async def handle_client(reader, writer):
+        try:
+            await reader.read(1024)
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    server = await asyncio.start_server(
+        handle_client, host="127.0.0.1", port=0, ssl=server_context
+    )
+    port = server.sockets[0].getsockname()[1]
+
+    def resolve_to_local_test_server(url):
+        return SimpleNamespace(
+            original_url=url,
+            public_addresses=("127.0.0.1",),
+        )
+
+    monkeypatch.setattr(
+        pinned_transport, "validate_and_resolve_research_url", resolve_to_local_test_server
+    )
+    # The test-only resolver deliberately maps example.com to a loopback TLS server.
+    # Production URL policy still rejects loopback addresses.
+    monkeypatch.setattr(
+        pinned_transport, "validate_and_resolve_research_url",
+        lambda url: SimpleNamespace(original_url=url, public_addresses=("127.0.0.1",)),
+    )
+    monkeypatch.setattr(pinned_transport._PublicOnlyNetworkBackend, "connect_tcp",
+        pinned_transport._PublicOnlyNetworkBackend.connect_tcp)
+
+    original_connect = pinned_transport.AnyIOBackend.connect_tcp
+
+    async def connect_local(self, host, port, timeout=None, local_address=None, socket_options=None):
+        return await original_connect(
+            self, host="127.0.0.1", port=port, timeout=timeout,
+            local_address=local_address, socket_options=socket_options
+        )
+
+    monkeypatch.setattr(pinned_transport.AnyIOBackend, "connect_tcp", connect_local)
+    transport = pinned_transport.PinnedPublicHTTPTransport()
+    client = httpx.AsyncClient(transport=transport, trust_env=False, timeout=2.0)
+    try:
+        with pytest.raises(httpx.ConnectError):
+            await asyncio.wait_for(client.get("https://example.com/"), timeout=3.0)
+        assert observed_sni == ["example.com"]
+    finally:
+        await client.aclose()
+        server.close()
+        await server.wait_closed()
+
