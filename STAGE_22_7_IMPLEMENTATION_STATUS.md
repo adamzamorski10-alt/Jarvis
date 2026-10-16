@@ -76,3 +76,12 @@ The DNS preflight helper alone is not an SSRF boundary. Production fetching must
 - Additional targeted security fixes already on this branch sanitize research exception details in both the research runner and outer service handler; a synthesis test checks that source prompt-injection content is framed as untrusted evidence and that tools are not passed to the provider.
 - Static hostile review confirms the explicit research path still evaluates the existing `web.search` permission before invoking the research runner; the runner creates the fetcher on demand and closes it in `finally`. The pinned transport validates destinations at connection time and uses the original URL hostname for HTTP/TLS identity.
 - **Not yet accepted:** the hostile end-to-end review and final documentation/CI gate must be completed on the final documentation-bearing HEAD. PR #6 remains Draft; do not merge or start Stage 23.
+
+
+## Evidence-budget citation integrity fix — 2026-10-16
+
+- During hostile review, found that citation validation checked excerpts against the full retrieved page text even when the synthesis prompt received only a prefix because of the aggregate evidence-character budget.
+- Fixed the adapter to validate source IDs and excerpts against exactly the source text supplied to the model. Citations to sources omitted by the aggregate budget or excerpts outside a supplied prefix are rejected.
+- Added regression test `test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget`.
+- Code commit: `c1a12fd423bf7beabbbbcd4873e4d72eabbdc77f`; test commit: `4e607f7ad5789812da814ee77fda5bef450ec9ee`.
+- CI for these commits is running; do not treat the fix as verified until the latest code-bearing HEAD completes both required core CI runs successfully.

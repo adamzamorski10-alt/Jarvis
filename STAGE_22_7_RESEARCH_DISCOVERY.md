@@ -148,3 +148,11 @@ No phase may silently expand into browser automation. 22.7C is implemented. Do n
 - Focused tests cover replacement after a failed fetch and preservation of failure statuses when no replacement is available.
 - Research error-detail sanitization and the source prompt-injection/no-tools test are present on the branch.
 - The final hostile audit, updated documentation CI, and explicit Stage 22.7 acceptance remain outstanding. PR #6 must stay Draft; Stage 23 remains paused until the comprehensive Stage 22 handoff summary is delivered.
+
+
+## Hostile-review follow-up — citation evidence budget (2026-10-16)
+
+- Found and fixed a citation-validation gap: the model could cite a quote present in the full retrieved page but omitted from the bounded text actually supplied to synthesis.
+- Citation validation now checks the exact bounded source text provided to the model and rejects citations for omitted sources or unseen suffixes.
+- Added regression test `test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget`.
+- Latest code commit at this checkpoint: `4e607f7ad5789812da814ee77fda5bef450ec9ee`. CI was still running at the time of this documentation update; Stage 22.7 remains open until CI and final hostile gates pass.
