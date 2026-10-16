@@ -163,7 +163,7 @@ class ResearchSynthesisAdapter:
             source = evidence_by_id.get(citation.source_id)
             supplied_text = supplied_text_by_id.get(citation.source_id)
             if source is None or supplied_text is None:
-                raise ResearchSynthesisError("Synthesis cited an unknown or unprovided source")
+                raise ResearchSynthesisError("Synthesis cited an unknown or unretrieved source, or a source not provided to synthesis")
             if citation.excerpt not in supplied_text:
                 raise ResearchSynthesisError("Synthesis citation excerpt is not present in supplied evidence")
             identity = (citation.source_id, citation.excerpt)
