@@ -1,4 +1,5 @@
 import asyncio
+
 import httpx
 import pytest
 
@@ -200,7 +201,7 @@ async def test_dns_preflight_is_inside_total_timeout_and_concurrency_budget(monk
         resolver_calls.append((hostname, port))
         resolver_started.set()
         try:
-            time.sleep(0.08)
+            time.sleep(0.2)
             return [PUBLIC_IP]
         finally:
             resolver_finished.set()
@@ -216,7 +217,7 @@ async def test_dns_preflight_is_inside_total_timeout_and_concurrency_budget(monk
         )
 
     fetcher = PublicPageFetcher(
-        total_timeout_seconds=0.015,
+        total_timeout_seconds=0.05,
         max_concurrent_fetches=1,
         transport=DirectAsyncTransport(handler),
     )
