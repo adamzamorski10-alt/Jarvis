@@ -85,3 +85,12 @@ The DNS preflight helper alone is not an SSRF boundary. Production fetching must
 - Added regression test `test_synthesis_rejects_quote_from_source_text_omitted_by_evidence_budget`.
 - Code commit: `c1a12fd423bf7beabbbbcd4873e4d72eabbdc77f`; test commit: `4e607f7ad5789812da814ee77fda5bef450ec9ee`.
 - CI for these commits is running; do not treat the fix as verified until the latest code-bearing HEAD completes both required core CI runs successfully.
+
+
+## Verification checkpoint — synthesis evidence-budget fix and CI recovery (2026-10-16)
+
+- Current code HEAD: `73bbdd853951317f5685b8a324a341a10604dcc5` (`fix: preserve unknown-source synthesis error contract`).
+- The evidence-budget citation check remains in place: citations are validated only against evidence actually supplied to the model. The follow-up compatibility fix restored the established “unknown or unretrieved source” error wording so the existing contract test remains stable; it does not weaken the evidence-budget guard.
+- Full core CI passed on this exact SHA: [push run #38944568104](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944568104) and [PR run #38944705439](https://github.com/adamzamorski10-alt/Jarvis/actions/runs/38944705439).
+- Earlier runs on intermediate evidence-budget commits failed because the error wording differed from the established test contract. The wording was corrected; those intermediate failures are not treated as passing verification.
+- **Stage 22.7 remains open.** Documentation-bearing HEAD still needs its own CI run, and the final hostile review must explicitly cover source-budget citation validation, bounded surplus retrieval, transport/DNS/TLS, permission/readiness checks, error sanitization, and resource cleanup. Keep PR #6 Draft and do not merge or begin Stage 23.
