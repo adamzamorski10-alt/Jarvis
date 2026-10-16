@@ -4,7 +4,7 @@ import pytest
 
 from app.ai.models import AIResponse
 from app.ai.providers.base import AIModel, AIProvider, ProviderHealth
-from app.web_research.models import ResearchRequest, ResearchResponse, ResearchSource, ResearchSourceStatus
+from app.web_research.models import ResearchResponse, ResearchSource, ResearchSourceStatus
 from app.web_research.service import ResearchBundle, ResearchEvidence
 from app.web_research.synthesis import ResearchSynthesisAdapter, ResearchSynthesisError
 
@@ -121,7 +121,7 @@ async def test_synthesis_skips_when_no_retrieved_evidence_exists():
 async def test_synthesis_rejects_unexpected_tool_calls():
     from app.tools.models import ToolCall
 
-    call = ToolCall(id="call-1", name="anything", arguments={})
+    call = ToolCall(tool_id="web.search", arguments={}, tool_call_id="call-1")
     provider = FakeProvider(output(), tool_calls=[call])
     adapter = ResearchSynthesisAdapter(provider, model="fake-model")
 
@@ -134,5 +134,5 @@ async def test_synthesis_timeout_is_reported_as_safe_error():
     provider = FakeProvider(error=TimeoutError())
     adapter = ResearchSynthesisAdapter(provider, model="fake-model")
 
-    with pytest.raises(ResearchSynthesisError, match="provider failed"):
+    with pytest.raises(ResearchSynthesisError, match="timed out"):
         await adapter.synthesize(make_bundle(), question="What happened?")
