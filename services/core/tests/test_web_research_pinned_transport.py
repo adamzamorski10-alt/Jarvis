@@ -325,13 +325,7 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
     server = await asyncio.start_server(
         handle_client, host="127.0.0.1", port=0, ssl=server_context
     )
-    port = server.sockets[0].getsockname()[1]
-
-    def resolve_to_local_test_server(url):
-        return SimpleNamespace(
-            original_url=url,
-            public_addresses=("127.0.0.1",),
-        )
+    local_port = server.sockets[0].getsockname()[1]
 
     # The test-only resolver deliberately maps example.com to a loopback TLS server.
     # Production URL policy still rejects loopback addresses.
@@ -344,7 +338,7 @@ async def test_real_tls_handshake_sends_origin_sni_and_rejects_untrusted_certifi
 
     async def connect_local(self, host, port, timeout=None, local_address=None, socket_options=None):
         return await original_connect(
-            self, host="127.0.0.1", port=port, timeout=timeout,
+            self, host="127.0.0.1", port=local_port, timeout=timeout,
             local_address=local_address, socket_options=socket_options
         )
 
